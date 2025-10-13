@@ -3,12 +3,13 @@ from pydantic import BaseModel
 import subprocess
 import json
 
-app = FastAPI(title="Clinical Summary API", version="1.0.0")
+app = FastAPI(title="Clinical Summary API", version="1.2.0")
 
 
 # Define input schema
 class PatientData(BaseModel):
-    Age: int
+    Age: float                      # Can be whole or decimal number
+    Age_Unit: str = "years"         # Accepts "years" or "months"
     Gender: str
     Diagnosis: str
     Symptoms: list[str] = []
@@ -21,9 +22,26 @@ class PatientData(BaseModel):
 
 
 def generate_summary(patient_data: dict) -> str:
-    # Build dynamic patient text
-    parts = [f"A {patient_data.get('Age','N/A')}-year-old {patient_data.get('Gender','N/A')} with {patient_data.get('Diagnosis','N/A')}"]
+    # --- Handle age formatting ---
+    age = patient_data.get("Age", "N/A")
+    unit = patient_data.get("Age_Unit", "years")
 
+    # Convert based on unit
+    if unit.lower().startswith("month"):
+        # Handle month-based ages
+        age_text = f"{int(age)}-month-old"
+    elif isinstance(age, (int, float)) and age < 1:
+        # Convert fractional years (e.g., 0.5 years = 6 months)
+        months = max(1, int(round(age * 12)))
+        age_text = f"{months}-month-old"
+    else:
+        # Handle normal years
+        age_text = f"{int(age)}-year-old"
+
+    # --- Build base description ---
+    parts = [f"A {age_text} {patient_data.get('Gender','N/A')} with {patient_data.get('Diagnosis','N/A')}"]
+
+    # --- Append additional data ---
     if patient_data.get("Symptoms"):
         parts.append("Symptoms: " + ", ".join(patient_data["Symptoms"]))
     if patient_data.get("Medications"):
@@ -43,6 +61,7 @@ def generate_summary(patient_data: dict) -> str:
 
     patient_text = ". ".join(parts)
 
+    # --- Model prompt ---
     prompt = f"""
 Rephrase the following patient data into ONE concise, coherent clinical summary paragraph.
 ONLY include the information provided below. 
@@ -55,7 +74,7 @@ Patient data:
 Clinical Summary:
 """
 
-    # Run Ollama model (llama2:13b)
+    # --- Run Ollama model (llama2:13b) ---
     result = subprocess.run(
         ["ollama", "run", "llama2:13b", prompt],
         capture_output=True,
@@ -66,7 +85,7 @@ Clinical Summary:
 
     clinical_summary = result.stdout.strip()
 
-    # Clean output
+    # --- Clean output ---
     lines = clinical_summary.split('\n')
     cleaned_lines = []
     skip_phrases = [
