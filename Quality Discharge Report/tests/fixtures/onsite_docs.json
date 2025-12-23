@@ -1,0 +1,27 @@
+[
+  {
+    "doc_id": "DOC-001",
+    "doc_type": "history_and_physical",
+    "timestamp": "2024-01-15T10:00:00Z",
+    "department": "Emergency",
+    "content": "Patient presents with chest pain. EKG shows ST elevation. Cardiac enzymes elevated.",
+    "is_deidentified": true
+  },
+  {
+    "doc_id": "DOC-002",
+    "doc_type": "progress_note",
+    "timestamp": "2024-01-16T08:00:00Z",
+    "department": "Cardiology",
+    "content": "Post-PCI day 1. Patient stable. No complications. Vitals stable.",
+    "is_deidentified": true
+  },
+  {
+    "doc_id": "DOC-003",
+    "doc_type": "discharge_summary",
+    "timestamp": "2024-01-18T14:00:00Z",
+    "department": "Cardiology",
+    "content": "Patient ready for discharge. All discharge medications prescribed. Follow-up scheduled.",
+    "is_deidentified": true
+  }
+]
+

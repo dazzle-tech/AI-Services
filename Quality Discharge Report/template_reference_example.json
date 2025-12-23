@@ -1,0 +1,204 @@
+{
+  "description": "This is a reference example of a complete discharge report structured according to the template. Use this to compare against actual discharge reports.",
+  "template_structure": {
+    "sections": [
+      {
+        "name": "patient_info",
+        "required": true,
+        "fields": ["age", "sex", "admission_date", "discharge_date"]
+      },
+      {
+        "name": "encounter_summary",
+        "required": true,
+        "fields": ["chief_complaint", "history_of_present_illness", "hospital_course"]
+      },
+      {
+        "name": "diagnoses",
+        "required": true,
+        "fields": ["primary_diagnosis", "secondary_diagnoses"]
+      },
+      {
+        "name": "procedures_and_tests",
+        "required": false,
+        "fields": ["procedures", "imaging", "labs"]
+      },
+      {
+        "name": "medications",
+        "required": true,
+        "fields": ["discharge_medications", "home_medications", "medication_changes"]
+      },
+      {
+        "name": "allergies",
+        "required": true,
+        "fields": ["allergies", "allergy_notes"]
+      },
+      {
+        "name": "vitals_and_key_results",
+        "required": false,
+        "fields": ["vitals_last", "key_results"]
+      },
+      {
+        "name": "follow_up_and_instructions",
+        "required": true,
+        "fields": ["follow_up_appointments", "return_precautions", "patient_instructions"]
+      },
+      {
+        "name": "disposition",
+        "required": true,
+        "fields": ["discharge_disposition", "condition_on_discharge"]
+      },
+      {
+        "name": "providers_and_signoff",
+        "required": false,
+        "fields": ["service_department", "author_role", "signoff_date"]
+      }
+    ]
+  },
+  "complete_example": {
+    "patient_info": {
+      "age": 65,
+      "sex": "Male",
+      "admission_date": "2024-01-15",
+      "discharge_date": "2024-01-18"
+    },
+    "encounter_summary": {
+      "chief_complaint": "Chest pain and shortness of breath",
+      "history_of_present_illness": "Patient presented with acute onset chest pain and dyspnea. EKG showed ST elevation. Cardiac enzymes elevated.",
+      "hospital_course": "Patient was admitted to cardiac care unit. Underwent cardiac catheterization which showed 90% LAD stenosis. PCI performed with stent placement. Post-procedure course was uncomplicated."
+    },
+    "diagnoses": {
+      "primary_diagnosis": "Acute ST-elevation myocardial infarction",
+      "secondary_diagnoses": [
+        "Hypertension",
+        "Type 2 diabetes mellitus"
+      ]
+    },
+    "procedures_and_tests": {
+      "procedures": [
+        "Cardiac catheterization",
+        "Percutaneous coronary intervention with stent placement"
+      ],
+      "imaging": [
+        "EKG - ST elevation",
+        "Cardiac catheterization - 90% LAD stenosis"
+      ],
+      "labs": [
+        "Cardiac enzymes - elevated",
+        "Troponin - elevated"
+      ]
+    },
+    "medications": {
+      "home_medications": [
+        {
+          "name": "Metformin",
+          "dose": "500mg",
+          "frequency": "BID",
+          "route": "PO",
+          "status": "continued"
+        }
+      ],
+      "discharge_medications": [
+        {
+          "name": "Aspirin",
+          "dose": "81mg",
+          "frequency": "daily",
+          "route": "PO",
+          "duration": "indefinite",
+          "instructions": "Take with food to reduce stomach irritation"
+        },
+        {
+          "name": "Clopidogrel",
+          "dose": "75mg",
+          "frequency": "daily",
+          "route": "PO",
+          "duration": "12 months",
+          "instructions": "Take at same time each day"
+        },
+        {
+          "name": "Atorvastatin",
+          "dose": "80mg",
+          "frequency": "daily",
+          "route": "PO",
+          "duration": "indefinite",
+          "instructions": "Take in evening"
+        },
+        {
+          "name": "Metoprolol",
+          "dose": "25mg",
+          "frequency": "BID",
+          "route": "PO",
+          "duration": "indefinite",
+          "instructions": "Monitor heart rate and blood pressure"
+        },
+        {
+          "name": "Lisinopril",
+          "dose": "10mg",
+          "frequency": "daily",
+          "route": "PO",
+          "duration": "indefinite",
+          "instructions": "Monitor for cough"
+        }
+      ],
+      "medication_changes": [
+        {
+          "name": "Aspirin",
+          "change_type": "add",
+          "rationale": "Dual antiplatelet therapy post-PCI"
+        },
+        {
+          "name": "Clopidogrel",
+          "change_type": "add",
+          "rationale": "Dual antiplatelet therapy post-PCI"
+        },
+        {
+          "name": "Metformin",
+          "change_type": "dose_change",
+          "rationale": "Continued at same dose"
+        }
+      ]
+    },
+    "allergies": {
+      "allergies": [],
+      "allergy_notes": "No known drug allergies (NKDA)"
+    },
+    "vitals_and_key_results": {
+      "vitals_last": {
+        "bp": "120/80",
+        "hr": "72",
+        "rr": "16",
+        "temp": "98.6",
+        "o2_sat": "98"
+      },
+      "key_results": [
+        "EKG: Normal sinus rhythm, no acute changes",
+        "Echocardiogram: EF 55%, no wall motion abnormalities",
+        "Labs: All within normal limits"
+      ]
+    },
+    "follow_up_and_instructions": {
+      "follow_up_appointments": [
+        "Cardiology follow-up in 2 weeks",
+        "Primary care follow-up in 1 month"
+      ],
+      "return_precautions": [
+        "Return to ED immediately if:",
+        "- Chest pain or pressure",
+        "- Shortness of breath",
+        "- Dizziness or fainting",
+        "- Signs of bleeding (unusual bruising, blood in stool)"
+      ],
+      "patient_instructions": "Continue dual antiplatelet therapy as prescribed. Avoid heavy lifting for 1 week. Monitor incision site for signs of infection. Follow up with cardiology as scheduled."
+    },
+    "disposition": {
+      "discharge_disposition": "Home with home health services",
+      "condition_on_discharge": "Stable"
+    },
+    "providers_and_signoff": {
+      "service_department": "Cardiology",
+      "author_role": "Attending Physician",
+      "signoff_date": "2024-01-18"
+    }
+  },
+  "text_format_example": "DISCHARGE SUMMARY\n\n=== PATIENT INFORMATION ===\nAge: 65\nSex: Male\nAdmission Date: 2024-01-15\nDischarge Date: 2024-01-18\n\n=== ENCOUNTER SUMMARY ===\nChief Complaint:\nChest pain and shortness of breath\n\nHistory of Present Illness:\nPatient presented with acute onset chest pain and dyspnea. EKG showed ST elevation. Cardiac enzymes elevated.\n\nHospital Course:\nPatient was admitted to cardiac care unit. Underwent cardiac catheterization which showed 90% LAD stenosis. PCI performed with stent placement. Post-procedure course was uncomplicated.\n\n=== DIAGNOSES ===\nPrimary Diagnosis:\nAcute ST-elevation myocardial infarction\n\nSecondary Diagnoses:\n- Hypertension\n- Type 2 diabetes mellitus\n\n=== PROCEDURES AND TESTS ===\nProcedures:\n- Cardiac catheterization\n- Percutaneous coronary intervention with stent placement\n\nImaging:\n- EKG - ST elevation\n- Cardiac catheterization - 90% LAD stenosis\n\nLabs:\n- Cardiac enzymes - elevated\n- Troponin - elevated\n\n=== MEDICATIONS ===\nDischarge Medications:\n1. Aspirin 81mg PO daily - Take with food to reduce stomach irritation\n2. Clopidogrel 75mg PO daily - Take at same time each day\n3. Atorvastatin 80mg PO daily - Take in evening\n4. Metoprolol 25mg PO BID - Monitor heart rate and blood pressure\n5. Lisinopril 10mg PO daily - Monitor for cough\n\nMedication Changes:\n- Added: Aspirin, Clopidogrel (dual antiplatelet therapy post-PCI)\n- Continued: Metformin at same dose\n\n=== ALLERGIES ===\nNo known drug allergies (NKDA)\n\n=== VITALS AND KEY RESULTS ===\nLast Vitals:\nBP: 120/80, HR: 72, RR: 16, Temp: 98.6 F, O2 Sat: 98%\n\nKey Results:\n- EKG: Normal sinus rhythm, no acute changes\n- Echocardiogram: EF 55%, no wall motion abnormalities\n- Labs: All within normal limits\n\n=== FOLLOW-UP AND INSTRUCTIONS ===\nFollow-up Appointments:\n- Cardiology follow-up in 2 weeks\n- Primary care follow-up in 1 month\n\nReturn Precautions:\nReturn to ED immediately if:\n- Chest pain or pressure\n- Shortness of breath\n- Dizziness or fainting\n- Signs of bleeding (unusual bruising, blood in stool)\n\nPatient Instructions:\nContinue dual antiplatelet therapy as prescribed. Avoid heavy lifting for 1 week. Monitor incision site for signs of infection. Follow up with cardiology as scheduled.\n\n=== DISPOSITION ===\nDischarge Disposition:\nHome with home health services\n\nCondition on Discharge:\nStable\n\n=== PROVIDERS AND SIGNOFF ===\nService Department: Cardiology\nAuthor Role: Attending Physician\nSignoff Date: 2024-01-18"
+}
+

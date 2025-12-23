@@ -1,0 +1,35 @@
+{
+  "required_sections": [
+    "patient_info",
+    "encounter_summary",
+    "diagnoses",
+    "medications",
+    "disposition"
+  ],
+  "required_fields": {
+    "patient_info": ["age", "sex"],
+    "encounter_summary": ["chief_complaint", "hospital_course"],
+    "diagnoses": ["primary_diagnosis"],
+    "medications": ["discharge_medications"],
+    "disposition": ["discharge_disposition"]
+  },
+  "critical_elements": [
+    {
+      "section": "medications",
+      "field": "discharge_medications",
+      "why_critical": "Required for patient safety and continuity of care"
+    },
+    {
+      "section": "follow_up_and_instructions",
+      "field": "return_precautions",
+      "why_critical": "Required for high-risk cases",
+      "conditional": "high_risk"
+    }
+  ],
+  "optional_sections": [
+    "allergies",
+    "vitals_and_key_results",
+    "procedures_and_tests"
+  ]
+}
+

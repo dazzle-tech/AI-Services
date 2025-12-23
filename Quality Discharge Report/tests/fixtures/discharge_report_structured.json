@@ -1,0 +1,60 @@
+{
+  "patient_info": {
+    "age": 65,
+    "sex": "Male",
+    "admission_date": "2024-01-15",
+    "discharge_date": "2024-01-18"
+  },
+  "encounter_summary": {
+    "chief_complaint": "Chest pain and shortness of breath",
+    "history_of_present_illness": "Patient presented with acute onset chest pain and dyspnea.",
+    "hospital_course": "Admitted to CCU. Underwent cardiac catheterization and PCI."
+  },
+  "diagnoses": {
+    "primary_diagnosis": "Acute ST-elevation myocardial infarction",
+    "secondary_diagnoses": ["Hypertension", "Type 2 diabetes mellitus"]
+  },
+  "procedures_and_tests": {
+    "procedures": ["Cardiac catheterization", "Percutaneous coronary intervention"],
+    "imaging": ["EKG", "Cardiac catheterization"],
+    "labs": ["Cardiac enzymes"]
+  },
+  "medications": {
+    "discharge_medications": [
+      {
+        "name": "Aspirin",
+        "dose": "81mg",
+        "frequency": "daily",
+        "route": "PO"
+      },
+      {
+        "name": "Clopidogrel",
+        "dose": "75mg",
+        "frequency": "daily",
+        "route": "PO"
+      }
+    ]
+  },
+  "allergies": {
+    "allergies": [],
+    "allergy_notes": "No known drug allergies"
+  },
+  "vitals_and_key_results": {
+    "vitals_last": {
+      "bp": "120/80",
+      "hr": "72",
+      "rr": "16",
+      "temp": "98.6",
+      "o2_sat": "98"
+    }
+  },
+  "follow_up_and_instructions": {
+    "follow_up_appointments": ["Cardiology follow-up in 2 weeks"],
+    "return_precautions": ["Return to ED if chest pain, shortness of breath"]
+  },
+  "disposition": {
+    "discharge_disposition": "Home with home health services",
+    "condition_on_discharge": "Stable"
+  }
+}
+

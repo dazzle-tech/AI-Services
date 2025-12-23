@@ -1,0 +1,36 @@
+{
+  "medication_checks": {
+    "require_dose": true,
+    "require_frequency": true,
+    "require_route": false,
+    "check_allergy_conflicts": true,
+    "flag_ambiguous_instructions": true,
+    "flag_dangerous_language": true
+  },
+  "allergy_checks": {
+    "require_allergy_section": true,
+    "check_medication_allergy_conflicts": true,
+    "flag_missing_nkda": false
+  },
+  "warning_signs": {
+    "require_return_precautions": {
+      "high_risk_conditions": [
+        "chest pain",
+        "shortness of breath",
+        "fever",
+        "altered mental status"
+      ],
+      "severity": "high"
+    },
+    "require_follow_up": {
+      "conditions": ["surgery", "procedure", "new_diagnosis"],
+      "severity": "medium"
+    }
+  },
+  "dangerous_language_patterns": [
+    "stop all meds",
+    "discontinue all medications",
+    "no restrictions"
+  ]
+}
+

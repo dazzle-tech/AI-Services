@@ -1,0 +1,23 @@
+{
+  "check_diagnoses": true,
+  "check_medications": true,
+  "check_allergies": true,
+  "check_procedures": true,
+  "check_dates": true,
+  "check_vitals": false,
+  "conflict_resolution": {
+    "prefer_newer_docs": true,
+    "severity_mapping": {
+      "medication_conflicts": "critical",
+      "allergy_conflicts": "critical",
+      "diagnosis_conflicts": "high",
+      "procedure_conflicts": "medium",
+      "date_conflicts": "low"
+    }
+  },
+  "tolerance": {
+    "date_difference_days": 1,
+    "allow_synonyms": true
+  }
+}
+

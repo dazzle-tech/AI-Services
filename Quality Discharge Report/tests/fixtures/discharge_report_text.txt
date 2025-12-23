@@ -1,0 +1,52 @@
+DISCHARGE SUMMARY
+
+Patient Information:
+Age: 65
+Sex: Male
+Admission Date: 2024-01-15
+Discharge Date: 2024-01-18
+
+Chief Complaint:
+Chest pain and shortness of breath
+
+History of Present Illness:
+Patient presented with acute onset chest pain and dyspnea. EKG showed ST elevation. Cardiac enzymes elevated.
+
+Hospital Course:
+Patient was admitted to cardiac care unit. Underwent cardiac catheterization which showed 90% LAD stenosis. PCI performed with stent placement. Post-procedure course was uncomplicated.
+
+Diagnoses:
+Primary: Acute ST-elevation myocardial infarction
+Secondary: Hypertension, Type 2 diabetes mellitus
+
+Procedures:
+- Cardiac catheterization
+- Percutaneous coronary intervention with stent placement
+
+Medications on Discharge:
+- Aspirin 81mg PO daily
+- Clopidogrel 75mg PO daily
+- Atorvastatin 80mg PO daily
+- Metoprolol 25mg PO BID
+- Lisinopril 10mg PO daily
+
+Allergies:
+No known drug allergies
+
+Vitals at Discharge:
+BP: 120/80, HR: 72, RR: 16, Temp: 98.6 F, O2 Sat: 98%
+
+Follow-up:
+Cardiology follow-up in 2 weeks
+Return to ED if chest pain, shortness of breath, or other concerning symptoms
+
+Discharge Disposition:
+Home with home health services
+
+Condition on Discharge:
+Stable
+
+Service: Cardiology
+Author: Dr. Smith
+Date: 2024-01-18
+

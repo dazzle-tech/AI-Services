@@ -1,0 +1,34 @@
+{
+  "age": 65,
+  "sex": "Male",
+  "admission_date": "2024-01-15",
+  "discharge_date": "2024-01-18",
+  "diagnoses": [
+    "Acute ST-elevation myocardial infarction",
+    "Hypertension",
+    "Type 2 diabetes mellitus"
+  ],
+  "medications": [
+    {
+      "name": "Aspirin",
+      "dose": "81mg",
+      "frequency": "daily"
+    },
+    {
+      "name": "Clopidogrel",
+      "dose": "75mg",
+      "frequency": "daily"
+    },
+    {
+      "name": "Atorvastatin",
+      "dose": "80mg",
+      "frequency": "daily"
+    }
+  ],
+  "allergies": [],
+  "procedures": [
+    "Cardiac catheterization",
+    "Percutaneous coronary intervention"
+  ]
+}
+

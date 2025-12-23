@@ -1,0 +1,25 @@
+{
+  "section_order": [
+    "patient_info",
+    "encounter_summary",
+    "diagnoses",
+    "procedures_and_tests",
+    "medications",
+    "allergies",
+    "vitals_and_key_results",
+    "follow_up_and_instructions",
+    "disposition",
+    "providers_and_signoff"
+  ],
+  "formatting_requirements": {
+    "require_clear_headings": true,
+    "require_minimal_redundancy": true,
+    "allow_markdown": false
+  },
+  "template_compliance": {
+    "strict_mode": false,
+    "allow_additional_sections": true,
+    "require_exact_order": false
+  }
+}
+

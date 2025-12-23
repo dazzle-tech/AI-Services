@@ -1,0 +1,158 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "qa_method",
+    "overall_score",
+    "summary",
+    "parsed_report",
+    "errors",
+    "missing_items",
+    "inconsistencies",
+    "recommended_corrections"
+  ],
+  "properties": {
+    "qa_method": {
+      "type": "string",
+      "enum": ["direct_qa"]
+    },
+    "overall_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "summary": {
+      "type": "string"
+    },
+    "parsed_report": {
+      "type": "object",
+      "required": ["format", "structure_used", "content", "unmapped_content"],
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["json", "text"]
+        },
+        "structure_used": {
+          "type": "string",
+          "enum": ["template", "standard", "inferred"]
+        },
+        "content": {
+          "type": "object"
+        },
+        "unmapped_content": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "category", "severity", "issue"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["completeness", "consistency", "safety", "structure"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "location": {
+            "type": "object",
+            "properties": {
+              "section": {"type": "string"},
+              "field": {"type": "string"},
+              "evidence_snippet": {"type": "string"}
+            }
+          },
+          "issue": {"type": "string"},
+          "expected": {"type": "string"},
+          "observed": {"type": "string"},
+          "recommendation": {"type": "string"},
+          "references": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "enum": ["patient_record", "onsite_doc", "template", "quality_rule"]
+                },
+                "ref_id": {"type": "string"},
+                "note": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "missing_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "required_by", "section"],
+        "properties": {
+          "id": {"type": "string"},
+          "required_by": {
+            "type": "string",
+            "enum": ["template", "quality_rule"]
+          },
+          "section": {"type": "string"},
+          "field": {"type": "string"},
+          "why_required": {"type": "string"},
+          "recommendation": {"type": "string"}
+        }
+      }
+    },
+    "inconsistencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "section", "report_value", "source_value", "source"],
+        "properties": {
+          "id": {"type": "string"},
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          },
+          "section": {"type": "string"},
+          "field": {"type": "string"},
+          "report_value": {},
+          "source_value": {},
+          "source": {
+            "type": "string",
+            "enum": ["patient_record", "onsite_doc"]
+          },
+          "ref_id": {"type": "string"},
+          "recommendation": {"type": "string"}
+        }
+      }
+    },
+    "recommended_corrections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "action", "section"],
+        "properties": {
+          "id": {"type": "string"},
+          "action": {
+            "type": "string",
+            "enum": ["add", "remove", "replace", "rephrase"]
+          },
+          "section": {"type": "string"},
+          "field": {"type": "string"},
+          "suggested_text": {"type": "string"},
+          "rationale": {"type": "string"}
+        }
+      }
+    }
+  }
+}
+

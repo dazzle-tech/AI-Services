@@ -1,0 +1,37 @@
+{
+  "sections": [
+    {
+      "name": "patient_info",
+      "required": true,
+      "fields": ["age", "sex", "admission_date", "discharge_date"]
+    },
+    {
+      "name": "encounter_summary",
+      "required": true,
+      "fields": ["chief_complaint", "hospital_course"]
+    },
+    {
+      "name": "diagnoses",
+      "required": true,
+      "fields": ["primary_diagnosis"]
+    },
+    {
+      "name": "medications",
+      "required": true,
+      "fields": ["discharge_medications"]
+    },
+    {
+      "name": "disposition",
+      "required": true,
+      "fields": ["discharge_disposition"]
+    }
+  ],
+  "section_order": [
+    "patient_info",
+    "encounter_summary",
+    "diagnoses",
+    "medications",
+    "disposition"
+  ]
+}
+
