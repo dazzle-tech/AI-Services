@@ -1,0 +1,107 @@
+
+CLINICAL GUIDELINE: HYPERTENSION MANAGEMENT
+
+Based on: AHA/ACC Hypertension Guidelines
+
+CLASSIFICATION:
+- Normal: <120/80 mmHg
+- Elevated: 120-129/<80 mmHg
+- Stage 1: 130-139/80-89 mmHg
+- Stage 2: ≥140/90 mmHg
+- Hypertensive Crisis: ≥180/120 mmHg
+
+BLOOD PRESSURE TARGETS:
+- General population: <130/80 mmHg
+- Elderly (≥65 years): <130/80 mmHg
+- Diabetes: <130/80 mmHg
+- CKD: <130/80 mmHg
+
+LIFESTYLE MODIFICATIONS (All Patients):
+1. Weight loss (if overweight)
+   - Goal: BMI <25
+   - Each 1 kg loss → 1 mmHg reduction
+
+2. DASH Diet
+   - Rich in fruits, vegetables, whole grains
+   - Low in saturated fat
+   - Sodium <2300mg/day (ideally <1500mg/day)
+
+3. Physical Activity
+   - 150 minutes/week moderate aerobic exercise
+   - Or 75 minutes/week vigorous exercise
+
+4. Limit Alcohol
+   - Men: ≤2 drinks/day
+   - Women: ≤1 drink/day
+
+5. Smoking Cessation
+
+PHARMACOLOGIC TREATMENT:
+
+Stage 1 Hypertension (130-139/80-89):
+- If ASCVD risk ≥10%: Start medication + lifestyle
+- If ASCVD risk <10%: Lifestyle modification, reassess in 3-6 months
+
+Stage 2 Hypertension (≥140/90):
+- Start medication immediately + lifestyle modifications
+- Consider 2-drug combination if BP ≥20/10 above goal
+
+FIRST-LINE MEDICATIONS:
+
+1. Thiazide Diuretics
+   - Chlorthalidone 12.5-25mg daily
+   - Hydrochlorothiazide 12.5-50mg daily
+
+2. ACE Inhibitors
+   - Lisinopril 10-40mg daily
+   - Enalapril 5-40mg daily
+   - Ramipril 2.5-20mg daily
+
+3. ARBs (if ACE-intolerant)
+   - Losartan 25-100mg daily
+   - Valsartan 80-320mg daily
+
+4. Calcium Channel Blockers
+   - Amlodipine 2.5-10mg daily
+   - Diltiazem ER 120-540mg daily
+
+COMBINATION THERAPY:
+Preferred combinations:
+- ACE inhibitor/ARB + CCB
+- ACE inhibitor/ARB + Thiazide
+- CCB + Thiazide
+
+Avoid: ACE inhibitor + ARB (increased risk)
+
+SPECIAL POPULATIONS:
+
+African American Patients:
+- CCB or thiazide diuretic preferred first-line
+- May require higher doses or more medications
+
+Pregnancy:
+- Labetalol, methyldopa, or nifedipine
+- AVOID: ACE inhibitors, ARBs
+
+CKD:
+- ACE inhibitor or ARB preferred (proteinuria benefit)
+- Monitor potassium and creatinine
+
+Elderly (≥65 years):
+- "Start low, go slow"
+- Same targets but gradual titration
+- Monitor for orthostatic hypotension
+
+RESISTANT HYPERTENSION:
+Definition: Uncontrolled BP despite ≥3 medications (including diuretic)
+
+Evaluation:
+- Confirm true resistance (home BP monitoring)
+- Rule out secondary causes
+- Check medication adherence
+- Review for interfering substances
+
+Management:
+- Optimize diuretic therapy (chlorthalidone preferred)
+- Add spironolactone 25-50mg daily
+- Consider referral to hypertension specialist

@@ -1,0 +1,95 @@
+
+CLINICAL GUIDELINE: COPD EXACERBATION MANAGEMENT
+
+Based on: GOLD (Global Initiative for Chronic Obstructive Lung Disease)
+
+DIAGNOSIS OF EXACERBATION:
+Acute worsening of respiratory symptoms beyond normal day-to-day variation:
+- Increased dyspnea
+- Increased cough frequency
+- Increased sputum volume or purulence
+
+SEVERITY CLASSIFICATION:
+
+Mild Exacerbation:
+- Treated with bronchodilators alone
+
+Moderate Exacerbation:
+- Requires antibiotics and/or oral corticosteroids
+
+Severe Exacerbation:
+- Requires hospitalization or ED visit
+
+INITIAL ASSESSMENT:
+- Vital signs (including oxygen saturation)
+- Arterial blood gas (if severe)
+- Chest X-ray (rule out pneumonia, pneumothorax)
+- ECG (rule out cardiac cause)
+
+PHARMACOLOGIC TREATMENT:
+
+1. Bronchodilators (ALL patients)
+   Short-Acting Beta-Agonist (SABA):
+   - Albuterol 2.5-5mg nebulized every 4-6 hours
+   - Or MDI 2-4 puffs every 4-6 hours
+
+   Short-Acting Anticholinergic:
+   - Ipratropium 0.5mg nebulized every 6 hours
+   - Or combined albuterol/ipratropium (DuoNeb)
+
+2. Systemic Corticosteroids (Moderate-Severe)
+   - Prednisone 40mg PO daily for 5 days
+   - Alternative: Methylprednisolone 125mg IV q6h
+
+3. Antibiotics (if purulent sputum or severe)
+   First-line options:
+   - Amoxicillin-clavulanate 875mg PO BID for 5-7 days
+   - Doxycycline 100mg PO BID for 5-7 days
+   - Azithromycin 500mg day 1, then 250mg daily for 4 days
+
+   Severe/Risk factors:
+   - Levofloxacin 750mg daily for 5 days
+   - Moxifloxacin 400mg daily for 5 days
+
+OXYGEN THERAPY:
+- Target SpO2 88-92%
+- Titrate oxygen to target (avoid over-oxygenation)
+- Monitor for CO2 retention
+
+NON-INVASIVE VENTILATION (NIV):
+Indications:
+- pH 7.25-7.35 with PaCO2 >45 mmHg
+- Severe dyspnea with accessory muscle use
+- Respiratory rate >25/min
+
+Settings:
+- IPAP 12-20 cmH2O
+- EPAP 4-8 cmH2O
+- Titrate based on patient comfort and ABG
+
+INTUBATION CRITERIA:
+- pH <7.25
+- Worsening mental status
+- Cardiovascular instability
+- NIV failure or intolerance
+
+DISCHARGE CRITERIA:
+- Improvement in symptoms
+- Stable on oral/inhaled medications
+- Oxygen saturation ≥90% on room air or baseline
+- Patient can ambulate
+- Home environment adequate
+
+POST-DISCHARGE CARE:
+- Follow-up within 4 weeks
+- Ensure proper inhaler technique
+- Smoking cessation counseling
+- Pulmonary rehabilitation referral
+- Vaccination status (pneumococcal, influenza)
+
+PREVENTION:
+- Smoking cessation (most important)
+- Long-acting bronchodilators (LABA/LAMA)
+- Inhaled corticosteroids (if frequent exacerbations)
+- Vaccinations
+- Pulmonary rehabilitation

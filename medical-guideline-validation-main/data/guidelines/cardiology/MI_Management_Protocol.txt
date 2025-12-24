@@ -1,0 +1,84 @@
+
+CLINICAL GUIDELINE: ACUTE MYOCARDIAL INFARCTION (MI) MANAGEMENT
+
+Based on: AHA/ACC STEMI and NSTEMI Guidelines
+
+IMMEDIATE MANAGEMENT (First 10 minutes):
+
+1. Aspirin
+   - 325mg chewed immediately (non-enteric coated)
+   - Continue 81mg daily indefinitely
+
+2. Oxygen
+   - Only if SpO2 <90%
+   - Target saturation 90-94%
+
+3. Nitroglycerin
+   - 0.4mg sublingual every 5 minutes x3
+   - Contraindications: hypotension, RV infarct, sildenafil use
+
+4. Morphine
+   - 2-4mg IV for chest pain
+   - Repeat every 5-15 minutes as needed
+
+5. ECG
+   - 12-lead within 10 minutes of arrival
+   - Identify STEMI vs NSTEMI
+
+STEMI MANAGEMENT:
+
+Primary PCI (Preferred):
+- Door-to-balloon time: <90 minutes
+- Immediate cath lab activation
+
+Fibrinolytic Therapy (if PCI not available):
+- Door-to-needle time: <30 minutes
+- Tenecteplase dose based on weight
+- Contraindications: recent surgery, bleeding history, uncontrolled HTN
+
+ANTIPLATELET THERAPY:
+
+Dual Antiplatelet Therapy (DAPT):
+1. Aspirin 81mg daily (indefinitely)
+2. P2Y12 Inhibitor:
+   - Clopidogrel 600mg load, then 75mg daily, OR
+   - Ticagrelor 180mg load, then 90mg twice daily, OR
+   - Prasugrel 60mg load, then 10mg daily
+   - Duration: Minimum 12 months
+
+ANTICOAGULATION:
+- Heparin IV or Enoxaparin subcutaneous
+- During PCI procedure
+
+SECONDARY PREVENTION:
+
+1. High-Intensity Statin
+   - Atorvastatin 80mg daily OR
+   - Rosuvastatin 20-40mg daily
+   - Goal LDL <70 mg/dL
+
+2. Beta Blocker
+   - Start within 24 hours if stable
+   - Continue indefinitely
+   - Metoprolol, carvedilol, or bisoprolol
+
+3. ACE Inhibitor or ARB
+   - Start within 24 hours if LVEF <40%
+   - Consider for all MI patients
+
+RISK STRATIFICATION:
+- GRACE score for NSTEMI
+- TIMI risk score
+- Echocardiography for LVEF assessment
+
+DISCHARGE CRITERIA:
+- Hemodynamically stable
+- No recurrent ischemia
+- Post-PCI observation complete
+- Medications optimized
+- Patient education completed
+
+FOLLOW-UP:
+- Cardiology within 2 weeks
+- Cardiac rehabilitation referral
+- Repeat echo in 6-8 weeks

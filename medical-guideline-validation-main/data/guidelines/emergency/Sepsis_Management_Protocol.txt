@@ -1,0 +1,94 @@
+
+CLINICAL PROTOCOL: SEPSIS AND SEPTIC SHOCK MANAGEMENT
+
+Based on: Surviving Sepsis Campaign Guidelines
+
+SEPSIS DEFINITION:
+Life-threatening organ dysfunction due to dysregulated host response to infection
+
+RECOGNITION:
+qSOFA Score (≥2 suggests sepsis):
+- Respiratory rate ≥22/min
+- Altered mentation (GCS <15)
+- Systolic BP ≤100 mmHg
+
+HOUR-1 BUNDLE (Complete within 1 hour):
+
+1. Measure Lactate Level
+   - Obtain baseline lactate
+   - Remeasure if initial >2 mmol/L
+
+2. Obtain Blood Cultures
+   - Before antibiotics if possible
+   - Two sets from different sites
+   - Include anaerobic bottles
+
+3. Administer Broad-Spectrum Antibiotics
+   - Within 1 hour of recognition
+   - Common regimens:
+     * Piperacillin-tazobactam 4.5g IV q6h PLUS
+     * Vancomycin 15-20mg/kg IV q8-12h
+   - Adjust based on:
+     * Source of infection
+     * Local resistance patterns
+     * Patient allergies
+
+4. Rapid Fluid Resuscitation
+   - 30 mL/kg crystalloid for hypotension or lactate ≥4
+   - Use balanced crystalloids (LR or Plasma-Lyte)
+   - Administer within first 3 hours
+
+5. Vasopressors (if hypotensive during/after fluids)
+   - Target MAP ≥65 mmHg
+   - Norepinephrine first-line (0.05-2 mcg/kg/min)
+   - Central line preferred but peripheral acceptable initially
+
+SEPTIC SHOCK MANAGEMENT:
+
+Fluid Refractory Hypotension:
+1. Continue IV fluids (assess volume status)
+2. Norepinephrine infusion (first-line)
+3. Consider vasopressin 0.03-0.04 units/min as second agent
+4. Epinephrine if additional support needed
+
+SOURCE CONTROL:
+- Identify and control source within 12 hours
+- Remove infected devices
+- Drain abscesses
+- Surgical intervention if needed
+
+MONITORING:
+- Continuous vital signs
+- Urine output (goal >0.5 mL/kg/hr)
+- Lactate clearance
+- Organ function (renal, hepatic, respiratory)
+- Mental status
+
+ANTIBIOTIC DURATION:
+- Typical course: 7-10 days
+- Adjust based on:
+  * Clinical response
+  * Source control achieved
+  * Microbiologic data
+- De-escalate based on cultures
+
+RED FLAGS:
+- Lactate >4 mmol/L
+- SBP <90 mmHg despite fluids
+- Altered mental status
+- Acute kidney injury
+- Respiratory failure
+
+SPECIAL POPULATIONS:
+
+Immunocompromised:
+- Broader coverage including fungal
+- Consider atypical organisms
+
+Post-surgical:
+- Anaerobic coverage essential
+- Source control critical
+
+Neutropenic Fever:
+- Immediate antibiotics
+- Anti-pseudomonal coverage

@@ -1,0 +1,64 @@
+
+CLINICAL GUIDELINE: CONGESTIVE HEART FAILURE (CHF) MANAGEMENT
+
+Based on: American Heart Association/American College of Cardiology Guidelines
+
+DIAGNOSIS:
+- Clinical presentation: dyspnea, fatigue, fluid retention
+- Physical exam: elevated JVP, pulmonary rales, peripheral edema
+- Diagnostic tests: BNP/NT-proBNP, echocardiography, chest X-ray
+
+CLASSIFICATION:
+Stage A: High risk, no structural disease
+Stage B: Structural disease, no symptoms
+Stage C: Structural disease with symptoms
+Stage D: Refractory heart failure
+
+TREATMENT - STAGE C (Symptomatic HF):
+
+First-Line Medications:
+1. ACE Inhibitors or ARBs
+   - Lisinopril 5-40mg daily
+   - Enalapril 2.5-20mg twice daily
+   - Losartan 25-100mg daily (if ACE intolerant)
+
+2. Beta Blockers
+   - Carvedilol 3.125-25mg twice daily
+   - Metoprolol succinate 12.5-200mg daily
+   - Bisoprolol 1.25-10mg daily
+
+3. Diuretics (for volume overload)
+   - Furosemide 20-240mg daily
+   - Bumetanide 0.5-10mg daily
+   - Titrate to euvolemia
+
+4. Aldosterone Antagonists (if EF ≤35%)
+   - Spironolactone 12.5-25mg daily
+   - Monitor potassium and renal function
+
+MONITORING:
+- Daily weights
+- Fluid restriction (≤2L/day if hyponatremic)
+- Sodium restriction (<3g/day)
+- Regular follow-up every 1-2 weeks initially
+- Adjust medications based on symptoms and labs
+
+RED FLAGS - IMMEDIATE EVALUATION:
+- Worsening dyspnea at rest
+- Significant weight gain (>2-3 lbs in 24 hours)
+- Hypotension with symptoms
+- New or worsening renal function
+- Electrolyte abnormalities
+
+PATIENT EDUCATION:
+- Daily weight monitoring
+- Signs of worsening HF
+- Medication adherence
+- Dietary sodium restriction
+- Fluid management
+
+SPECIALIST REFERRAL:
+- Stage D heart failure
+- Device consideration (ICD, CRT)
+- Transplant evaluation
+- Refractory symptoms despite optimal therapy
