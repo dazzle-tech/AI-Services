@@ -5,9 +5,12 @@ Generates discharge summaries from clinical documentation.
 
 import os
 import json
+import logging
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime
 from openai import OpenAI  # Import the OpenAI client class
+
+logger = logging.getLogger(__name__)
 
 from models.schemas import (
     DischargeReportSection,
@@ -28,7 +31,7 @@ class DischargeReportGenerator:
         self.client = None  # OpenAI client instance
         
         if not self.openai_api_key:
-            print("⚠️  Warning: OPENAI_API_KEY not configured for discharge reports")
+            logger.warning("OPENAI_API_KEY not configured for discharge reports")
         
         self.model = config.OPENAI_MODEL
         self.temperature = 0.2  # Slightly higher for more natural medical writing
@@ -40,7 +43,7 @@ class DischargeReportGenerator:
                 # Initialize OpenAI client (NEW API - v1.0+)
                 self.client = OpenAI(api_key=self.openai_api_key)
             self.initialized = True
-            print("✅ Discharge Report Generator initialized")
+            logger.info("Discharge Report Generator initialized")
     
     # =========================================================================
     # Main Generation Method
@@ -86,7 +89,7 @@ class DischargeReportGenerator:
         try:
             report_sections = await self._call_openai_for_report(prompt, generation_mode)
         except Exception as e:
-            print(f"❌ OpenAI API Error: {e}")
+            logger.error(f"OpenAI API Error: {e}", exc_info=True)
             report_sections = self._create_fallback_report(str(e))
         
         # Assemble full report text
@@ -373,18 +376,18 @@ Generate the comprehensive discharge summary now:"""
                     )
                     sections.append(section)
                 except Exception as e:
-                    print(f"⚠️  Error parsing section: {e}")
+                    logger.warning(f"Error parsing section: {e}")
                     continue
             
             return sections
             
         except json.JSONDecodeError as e:
-            print(f"❌ JSON Parse Error: {e}")
-            print(f"   Raw response: {content[:500]}")
+            logger.error(f"JSON Parse Error: {e}")
+            logger.debug(f"Raw response: {content[:500]}")
             raise Exception("OpenAI returned invalid JSON")
         
         except Exception as e:
-            print(f"❌ OpenAI API Error: {e}")
+            logger.error(f"OpenAI API Error: {e}", exc_info=True)
             raise
     
     # =========================================================================

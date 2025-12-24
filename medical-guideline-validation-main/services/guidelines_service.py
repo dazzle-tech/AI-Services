@@ -4,8 +4,11 @@ Retrieves relevant medical guidelines, protocols, and treatment standards
 """
 
 import os
+import logging
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 # =========================
@@ -25,7 +28,8 @@ try:
 
     RAG_AVAILABLE = True
 except Exception as e:
-    print("⚠️  LangChain dependencies missing:", e)
+    logger = logging.getLogger(__name__)
+    logger.warning(f"LangChain dependencies missing: {e}")
     RAG_AVAILABLE = False
 
 
@@ -51,17 +55,17 @@ class GuidelinesService:
             self.initialized = True
             return
 
-        print("🏥 Initializing Clinical Guidelines Assistant...")
+        logger.info("Initializing Clinical Guidelines Assistant...")
 
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2",
             model_kwargs={"device": "cpu"}
         )
 
-        print("✅ Embeddings model loaded")
+        logger.info("Embeddings model loaded")
         self._load_guidelines()
         self.initialized = True
-        print("✅ Clinical Guidelines system initialized")
+        logger.info("Clinical Guidelines system initialized")
 
     # =========================
     # Loading
@@ -70,12 +74,12 @@ class GuidelinesService:
         os.makedirs(self.guidelines_dir, exist_ok=True)
 
         if os.path.exists(self.vector_store_path):
-            print("📚 Loading existing vector store...")
+            logger.info("Loading existing vector store...")
             self.vectorstore = Chroma(
                 embedding_function=self.embeddings,
                 persist_directory=self.vector_store_path
             )
-            print("✅ Loaded existing guidelines database")
+            logger.info("Loaded existing guidelines database")
             return
 
         documents: List[Document] = []
@@ -93,7 +97,7 @@ class GuidelinesService:
                 doc.metadata["source_file"] = file.name
                 doc.metadata["specialty"] = self._get_specialty_from_path(str(file))
             documents.extend(docs)
-            print(f"   ✅ Loaded: {file.name}")
+            logger.info(f"Loaded: {file.name}")
 
         if not documents:
             self.vectorstore = Chroma(
@@ -108,7 +112,7 @@ class GuidelinesService:
         )
 
         chunks = splitter.split_documents(documents)
-        print(f"✂️  Created {len(chunks)} text chunks")
+        logger.info(f"Created {len(chunks)} text chunks")
 
         self.vectorstore = Chroma.from_documents(
             chunks,
@@ -116,7 +120,7 @@ class GuidelinesService:
             persist_directory=self.vector_store_path
         )
 
-        print(f"✅ Guidelines loaded: {len(documents)} docs → {len(chunks)} chunks")
+        logger.info(f"Guidelines loaded: {len(documents)} docs → {len(chunks)} chunks")
 
     # =========================
     # Specialty detection
@@ -170,7 +174,7 @@ class GuidelinesService:
                 for d in results
             ]
         except Exception as e:
-            print("Search error:", e)
+            logger.error(f"Search error: {e}", exc_info=True)
             return []
 
     # =========================

@@ -24,9 +24,10 @@ app = FastAPI(
 )
 
 # CORS middleware
+# Note: In production, set CORS_ORIGINS in .env to specific domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=config.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -148,16 +149,19 @@ async def get_patient_details(patient_id: str):
 @app.on_event("startup")
 async def startup():
     """Initialize services on startup."""
-    print("\n" + "="*80)
-    print("🏥 MEDICAL GUIDELINE VALIDATION API - STARTING")
-    print("="*80)
-    print(f"🤖 AI Model: {config.OPENAI_MODEL}")
-    print(f"📍 Server: http://{config.API_HOST}:{config.API_PORT}")
-    print(f"📚 API Docs: http://localhost:{config.API_PORT}/docs")
-    print("="*80 + "\n")
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info("="*80)
+    logger.info("MEDICAL GUIDELINE VALIDATION API - STARTING")
+    logger.info("="*80)
+    logger.info(f"AI Model: {config.OPENAI_MODEL}")
+    logger.info(f"Server: http://{config.API_HOST}:{config.API_PORT}")
+    logger.info(f"API Docs: http://localhost:{config.API_PORT}/docs")
+    logger.info("="*80)
     
     openai_guideline_validator.initialize()
-    print("✅ All services initialized and ready!")
+    logger.info("All services initialized and ready!")
 
 
 if __name__ == "__main__":

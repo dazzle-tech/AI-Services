@@ -5,9 +5,12 @@ Uses GPT-4 to intelligently analyze orders against clinical guidelines.
 
 import os
 import json
+import logging
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime
 from openai import OpenAI  # Import the OpenAI client class
+
+logger = logging.getLogger(__name__)
 
 from models.schemas import (
     MedicalNote, 
@@ -28,20 +31,27 @@ class OpenAIGuidelineValidator:
         self.openai_api_key = None
         self.client = None  # OpenAI client instance
         
-        # Model configuration
-        self.model = "gpt-4o"  # or "gpt-4-turbo" or "gpt-4"
-        self.temperature = 0.1  # Low temperature for consistent medical reasoning
+        # Model configuration - will be set from config during initialization
+        self.model = None
+        self.temperature = None
         
     def initialize(self):
         """Initialize the validator."""
         if not self.initialized:
-            # Load API key from environment
-            self.openai_api_key = os.environ.get("OPENAI_API_KEY")
+            # Import config here to avoid circular imports
+            import config
+            
+            # Load API key from config
+            self.openai_api_key = config.OPENAI_API_KEY
             
             if not self.openai_api_key:
-                print("⚠️  ERROR: OPENAI_API_KEY not found in environment variables")
-                print("   Make sure your .env file contains: OPENAI_API_KEY=sk-...")
+                logger.error("OPENAI_API_KEY not found in environment variables")
+                logger.error("Make sure your .env file contains: OPENAI_API_KEY=sk-...")
                 return
+            
+            # Set model configuration from config
+            self.model = config.OPENAI_MODEL
+            self.temperature = config.OPENAI_TEMPERATURE
             
             # Initialize OpenAI client (NEW API - v1.0+)
             self.client = OpenAI(api_key=self.openai_api_key)
@@ -50,9 +60,7 @@ class OpenAIGuidelineValidator:
             guidelines_service.initialize()
             
             self.initialized = True
-            print("✅ OpenAI Guideline Validator initialized")
-            print(f"   Using model: {self.model}")
-            print(f"   API Key: {self.openai_api_key[:15]}...{self.openai_api_key[-4:]}")
+            logger.info(f"OpenAI Guideline Validator initialized with model: {self.model}")
     
     # =========================================================================
     # Main Validation Method (OpenAI-Powered)
@@ -104,7 +112,7 @@ class OpenAIGuidelineValidator:
         try:
             medical_notes = await self._call_openai_for_validation(prompt)
         except Exception as e:
-            print(f"❌ OpenAI API Error: {e}")
+            logger.error(f"OpenAI API Error: {e}", exc_info=True)
             # Fallback to basic validation
             medical_notes = self._create_fallback_note(str(e))
         
@@ -374,19 +382,19 @@ Respond with JSON only, no other text:"""
                     )
                     medical_notes.append(note)
                 except Exception as e:
-                    print(f"⚠️  Error parsing note: {e}")
-                    print(f"   Issue data: {issue}")
+                    logger.warning(f"Error parsing note: {e}")
+                    logger.debug(f"Issue data: {issue}")
                     continue
             
             return medical_notes
             
         except json.JSONDecodeError as e:
-            print(f"❌ JSON Parse Error: {e}")
-            print(f"   Raw response: {content[:500]}")
+            logger.error(f"JSON Parse Error: {e}")
+            logger.debug(f"Raw response: {content[:500]}")
             raise Exception("OpenAI returned invalid JSON")
         
         except Exception as e:
-            print(f"❌ OpenAI API Error: {e}")
+            logger.error(f"OpenAI API Error: {e}", exc_info=True)
             raise
     
     # =========================================================================
