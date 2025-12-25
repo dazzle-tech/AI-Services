@@ -1,0 +1,161 @@
+{
+  "info": {
+    "name": "Quick Test - Both APIs",
+    "description": "Simple Postman collection for testing both APIs"
+  },
+  "item": [
+    {
+      "name": "API 1 - Cardiology (Minimal)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"specialty\": \"cardiology\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8004/api/v1/consultation/specialty",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8004",
+          "path": ["api", "v1", "consultation", "specialty"]
+        },
+        "description": "API 1: Test with just specialty field"
+      }
+    },
+    {
+      "name": "API 1 - Endocrinology",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"specialty\": \"endocrinology\",\n  \"complaint\": \"Diabetes management consultation\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8004/api/v1/consultation/specialty",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8004",
+          "path": ["api", "v1", "consultation", "specialty"]
+        },
+        "description": "API 1: Test with specialty and complaint"
+      }
+    },
+    {
+      "name": "API 2 - Cardiologist Role",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_role\": \"cardiology\",\n  \"patient_context\": {\n    \"age\": \"65 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Type 2 Diabetes\",\n    \"symptoms\": [\"Chest pain\", \"Fatigue\"],\n    \"medications\": [\"Metformin\", \"Lisinopril\"],\n    \"allergies\": [\"Penicillin\"],\n    \"comorbidities\": [\"Hypertension\"],\n    \"vitals\": {\n      \"BP\": \"140/90 mmHg\",\n      \"HR\": \"78 bpm\"\n    },\n    \"lab_results\": {\n      \"HbA1c\": \"7.5%\"\n    },\n    \"clinical_notes\": \"Patient reports chest pain on exertion\"\n  },\n  \"complaint\": \"Chest pain on exertion\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8004/api/v1/recommendations/user-role",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8004",
+          "path": ["api", "v1", "recommendations", "user-role"]
+        },
+        "description": "API 2: Test as cardiologist with complete patient data"
+      }
+    },
+    {
+      "name": "API 2 - Endocrinologist Role",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_role\": \"endocrinology\",\n  \"patient_context\": {\n    \"age\": \"55 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Type 2 Diabetes\",\n    \"symptoms\": [\"Increased thirst\", \"Fatigue\"],\n    \"medications\": [\"Metformin 1000mg\"],\n    \"allergies\": [],\n    \"comorbidities\": [\"Hypertension\"],\n    \"vitals\": {\n      \"BP\": \"138/88 mmHg\"\n    },\n    \"lab_results\": {\n      \"HbA1c\": \"8.5%\",\n      \"Fasting Glucose\": \"185 mg/dL\"\n    }\n  },\n  \"complaint\": \"Poor glycemic control\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8004/api/v1/recommendations/user-role",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8004",
+          "path": ["api", "v1", "recommendations", "user-role"]
+        },
+        "description": "API 2: Test as endocrinologist"
+      }
+    },
+    {
+      "name": "API 2 - Minimal Patient Data",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_role\": \"cardiology\",\n  \"patient_context\": {\n    \"age\": \"45 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Hypertension\",\n    \"symptoms\": [\"Headache\"],\n    \"medications\": [\"Lisinopril\"],\n    \"allergies\": []\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8004/api/v1/recommendations/user-role",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8004",
+          "path": ["api", "v1", "recommendations", "user-role"]
+        },
+        "description": "API 2: Test with minimal required patient data"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8004",
+      "type": "string"
+    }
+  ]
+}
+
