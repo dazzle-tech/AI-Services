@@ -292,38 +292,42 @@ class RecommendationsService:
         Returns recommendations from the perspective of the user's specialty.
         
         Args:
-            request: User role recommendation request
+            request: User role recommendation request with new input structure
             
         Returns:
             Recommendations response from user's specialty perspective
         """
         try:
             request_id = request.request_id or f"role_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            logger.info(f"Processing user role recommendations {request_id} for {request.user_role.value}")
             
-            # Convert patient context to dict
-            patient_context_dict = request.patient_context.dict()
+            # Extract user role from practitioner field
+            # Format: "Role: NURSE | Specialty: RESIDENT_DOCTOR"
+            user_role = self._extract_specialty_from_practitioner(request.practitioner)
+            logger.info(f"Processing user role recommendations {request_id} for {user_role}")
+            
+            # Map new input structure to patient context format expected by AI client
+            patient_context_dict = self._map_to_patient_context(request)
             
             # Always use "medical" as recommendation type
             rec_types = [RecommendationType.MEDICAL.value]
             
-            logger.info(f"User role: {request.user_role.value}")
+            logger.info(f"User role: {user_role}")
             logger.info(f"Patient context: {patient_context_dict}")
             logger.info(f"Recommendation type: medical (fixed)")
             
             # Generate role-based recommendations
-            logger.info(f"Generating recommendations from {request.user_role.value} perspective...")
+            logger.info(f"Generating recommendations from {user_role} perspective...")
             ai_response = self.ai_client.generate_role_based_recommendations(
-                user_role=request.user_role.value,
+                user_role=user_role,
                 patient_context=patient_context_dict,
                 recommendation_types=rec_types,
-                complaint=request.complaint,
-                focus_areas=request.focus_areas
+                complaint=request.complain,
+                focus_areas=None
             )
             
             # Parse recommendations
             recommendations = self.ai_client.parse_recommendations(ai_response)
-            logger.info(f"Generated {len(recommendations)} recommendations from {request.user_role.value} perspective")
+            logger.info(f"Generated {len(recommendations)} recommendations from {user_role} perspective")
             
             # Build response
             priority_breakdown = self._calculate_priority_breakdown(recommendations)
@@ -338,7 +342,7 @@ class RecommendationsService:
                 processing_metadata={
                     "model": settings.openai_model,
                     "timestamp": datetime.now().isoformat(),
-                    "user_role": request.user_role.value,
+                    "user_role": user_role,
                     "recommendation_type": "medical",
                     "provider": "openai",
                     "api_version": "v1"
@@ -348,4 +352,100 @@ class RecommendationsService:
         except Exception as e:
             logger.error(f"Error processing user role recommendations {request.request_id}: {e}")
             raise ValueError(f"User role recommendations failed: {str(e)}")
+    
+    def _extract_specialty_from_practitioner(self, practitioner: str) -> str:
+        """
+        Extract specialty from practitioner string.
+        Format: "Role: NURSE | Specialty: RESIDENT_DOCTOR"
+        Returns specialty in lowercase format suitable for MedicalSpecialty enum.
+        """
+        try:
+            # Extract specialty part
+            if "Specialty:" in practitioner:
+                specialty_part = practitioner.split("Specialty:")[1].strip()
+                # Convert to lowercase and handle common formats
+                specialty_lower = specialty_part.lower().replace("_", " ").replace("-", " ")
+                
+                # Map common specialty formats to enum values
+                specialty_mapping = {
+                    "resident doctor": "general",
+                    "nurse": "general",
+                    "general": "general",
+                    "cardiology": "cardiology",
+                    "endocrinology": "endocrinology",
+                    "neurology": "neurology",
+                    "oncology": "oncology",
+                    "pediatrics": "pediatrics",
+                    "psychiatry": "psychiatry",
+                    "pulmonology": "pulmonology",
+                    "gastroenterology": "gastroenterology",
+                    "nephrology": "nephrology",
+                    "rheumatology": "rheumatology",
+                    "dermatology": "dermatology",
+                    "orthopedics": "orthopedics"
+                }
+                
+                # Try to find matching specialty
+                for key, value in specialty_mapping.items():
+                    if key in specialty_lower:
+                        return value
+                
+                # Default to general if no match found
+                return "general"
+            else:
+                # If no specialty found, default to general
+                return "general"
+        except Exception as e:
+            logger.warning(f"Error extracting specialty from practitioner '{practitioner}': {e}")
+            return "general"
+    
+    def _map_to_patient_context(self, request: UserRoleRecommendationRequest) -> Dict[str, Any]:
+        """
+        Map new input structure to patient context format expected by AI client.
+        
+        Args:
+            request: UserRoleRecommendationRequest with new structure
+            
+        Returns:
+            Dictionary in patient context format
+        """
+        # Extract allergies from miniSummary
+        allergies = request.miniSummary.allergies if request.miniSummary.allergies else []
+        
+        # Build patient context dictionary
+        patient_context = {
+            "age": request.visit.patientAge,  # Use patientAge from visit
+            "gender": request.patient.gender,
+            "diagnosis": request.diagnosis.value,  # Use diagnosis value
+            "symptoms": [request.visit.chiefComplaint] if request.visit.chiefComplaint else [],
+            "medications": [],  # Not provided in new structure
+            "allergies": allergies,
+            "comorbidities": [],  # Not provided in new structure
+            "vitals": {},  # Not provided in new structure
+            "lab_results": {},  # Not provided in new structure
+            "clinical_notes": self._build_clinical_notes(request)
+        }
+        
+        return patient_context
+    
+    def _build_clinical_notes(self, request: UserRoleRecommendationRequest) -> str:
+        """Build clinical notes from available information."""
+        notes_parts = []
+        
+        notes_parts.append(f"Patient MRN: {request.patient.mrn}")
+        notes_parts.append(f"Patient Name: {request.patient.fullName}")
+        notes_parts.append(f"Date of Birth: {request.patient.dob}")
+        notes_parts.append(f"Visit ID: {request.visit.visitId}")
+        notes_parts.append(f"Visit Type: {request.visit.visitType}")
+        notes_parts.append(f"Planned Start Date: {request.visit.plannedStartDate}")
+        notes_parts.append(f"Chief Complaint: {request.visit.chiefComplaint}")
+        notes_parts.append(f"Complaint: {request.complain}")
+        notes_parts.append(f"Diagnosis Type: {request.diagnosis.type}")
+        notes_parts.append(f"Diagnosis: {request.diagnosis.value}")
+        notes_parts.append(f"Practitioner: {request.practitioner}")
+        
+        if request.miniSummary.medicalWarnings:
+            notes_parts.append(f"Medical Warnings: {request.miniSummary.medicalWarnings}")
+        
+        return "\n".join(notes_parts)
 

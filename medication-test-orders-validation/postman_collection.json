@@ -1,0 +1,203 @@
+{
+	"info": {
+		"name": "Medication Test Orders Validation API",
+		"description": "API collection for testing medication and test validation endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/health",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Root Endpoint",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Medication Validation - Sample 1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"mrn\": \"1000\",\n    \"fullName\": \"John Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2022-02-02\"\n  },\n  \"encounter\": {\n    \"visitId\": \"160\",\n    \"visitType\": \"Urgent Visit\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Chest pain\",\n    \"patientAge\": \"3y 10m 22d\",\n    \"diagnosis\": \"I20.0,Unstable angina\"\n  },\n  \"complain\": \"Chest pain\",\n  \"diagnosis\": {\n    \"type\": \"Encounter Diagnosis\",\n    \"value\": \"I20.0,Unstable angina\"\n  },\n  \"medications\": [\n    \"Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 100 mg\",\n    \"Medication Name: Warfarin | Active Ingredients: Warfarin sodium - 5 mg\"\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/v1/validate/medication",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"validate",
+						"medication"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Medication Validation - Age Inappropriate",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"mrn\": \"1002\",\n    \"fullName\": \"Baby Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2024-01-01\"\n  },\n  \"encounter\": {\n    \"visitId\": \"162\",\n    \"visitType\": \"Urgent\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Fever\",\n    \"patientAge\": \"1y 11m\",\n    \"diagnosis\": \"R50.9,Fever\"\n  },\n  \"complain\": \"Fever\",\n  \"diagnosis\": {\n    \"type\": \"Encounter Diagnosis\",\n    \"value\": \"R50.9,Fever\"\n  },\n  \"medications\": [\n    \"Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 325 mg\"\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/v1/validate/medication",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"validate",
+						"medication"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Medication Validation - Safe Medication",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"mrn\": \"1001\",\n    \"fullName\": \"Jane Smith\",\n    \"gender\": \"Female\",\n    \"dob\": \"1980-01-01\"\n  },\n  \"encounter\": {\n    \"visitId\": \"161\",\n    \"visitType\": \"Routine\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Headache\",\n    \"patientAge\": \"45y\",\n    \"diagnosis\": \"G44.1,Tension headache\"\n  },\n  \"complain\": \"Headache\",\n  \"diagnosis\": {\n    \"type\": \"Encounter Diagnosis\",\n    \"value\": \"G44.1,Tension headache\"\n  },\n  \"medications\": [\n    \"Medication Name: Ibuprofen | Active Ingredients: Ibuprofen - 400 mg\"\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/v1/validate/medication",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"validate",
+						"medication"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Test Validation - Sample 1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"mrn\": \"1000\",\n    \"fullName\": \"John Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2022-02-02\"\n  },\n  \"encounter\": {\n    \"visitId\": \"160\",\n    \"visitType\": \"Urgent Visit\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Chest pain\",\n    \"patientAge\": \"3y 10m 22d\",\n    \"diagnosis\": \"I20.0,Unstable angina\"\n  },\n  \"complain\": \"Chest pain\",\n  \"diagnosis\": {\n    \"type\": \"Encounter Diagnosis\",\n    \"value\": \"I20.0,Unstable angina\"\n  },\n  \"tests\": [\n    \"Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New\",\n    \"Order Type: Laboratory | Test Name: Complete Blood Count | Internal Code: CBC00 | Status: New\"\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/v1/validate/tests",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"validate",
+						"tests"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Test Validation - Multiple Tests",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"mrn\": \"1003\",\n    \"fullName\": \"Test Patient\",\n    \"gender\": \"Female\",\n    \"dob\": \"1975-05-15\"\n  },\n  \"encounter\": {\n    \"visitId\": \"163\",\n    \"visitType\": \"Emergency\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Chest pain\",\n    \"patientAge\": \"50y 7m\",\n    \"diagnosis\": \"I21.9,Acute MI\"\n  },\n  \"complain\": \"Chest pain\",\n  \"diagnosis\": {\n    \"type\": \"Encounter Diagnosis\",\n    \"value\": \"I21.9,Acute MI\"\n  },\n  \"tests\": [\n    \"Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New\",\n    \"Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New\",\n    \"Order Type: Imaging | Test Name: Chest X-Ray | Internal Code: CXR00 | Status: New\"\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/api/v1/validate/tests",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"v1",
+						"validate",
+						"tests"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
+

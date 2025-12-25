@@ -135,15 +135,43 @@ class SpecialtyConsultationResponse(BaseModel):
     )
 
 
-# API 2: User Role-based Recommendations
+# API 2: User Role-based Recommendations - New Input Structure
+class PatientInfo(BaseModel):
+    """Patient information."""
+    mrn: str = Field(..., description="Medical Record Number")
+    fullName: str = Field(..., description="Patient full name")
+    gender: str = Field(..., description="Patient gender")
+    dob: str = Field(..., description="Date of birth")
+
+
+class VisitInfo(BaseModel):
+    """Visit information."""
+    visitId: str = Field(..., description="Visit ID")
+    visitType: str = Field(..., description="Type of visit")
+    plannedStartDate: str = Field(..., description="Planned start date")
+    chiefComplaint: str = Field(..., description="Chief complaint")
+    patientAge: str = Field(..., description="Patient age")
+
+
+class DiagnosisInfo(BaseModel):
+    """Diagnosis information."""
+    type: str = Field(..., description="Diagnosis type")
+    value: str = Field(..., description="Diagnosis value")
+
+
+class MiniSummary(BaseModel):
+    """Mini summary with allergies and warnings."""
+    allergies: List[str] = Field(default_factory=list, description="List of allergies")
+    medicalWarnings: str = Field(..., description="Medical warnings")
+
+
 class UserRoleRecommendationRequest(BaseModel):
-    """Request schema for user role-based recommendations."""
+    """Request schema for user role-based recommendations with new input structure."""
     request_id: Optional[str] = Field(None, description="Optional unique identifier")
-    user_role: MedicalSpecialty = Field(..., description="User's medical specialty/role")
-    patient_context: PatientContextInput = Field(..., description="Complete patient context data")
-    complaint: Optional[str] = Field(None, description="Patient's chief complaint")
-    focus_areas: Optional[List[str]] = Field(
-        None,
-        description="Specific areas to focus on"
-    )
+    patient: PatientInfo = Field(..., description="Patient information")
+    visit: VisitInfo = Field(..., description="Visit information")
+    complain: str = Field(..., description="Patient complaint")
+    diagnosis: DiagnosisInfo = Field(..., description="Diagnosis information")
+    practitioner: str = Field(..., description="Practitioner role and specialty (e.g., 'Role: NURSE | Specialty: RESIDENT_DOCTOR')")
+    miniSummary: MiniSummary = Field(..., description="Mini summary with allergies and warnings")
 
