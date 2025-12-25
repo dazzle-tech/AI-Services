@@ -1,260 +1,213 @@
 {
-	"info": {
-		"_postman_id": "clinical-summary-service",
-		"name": "Clinical Summary Service API",
-		"description": "Postman collection for Clinical Summary Service REST API",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"item": [
-		{
-			"name": "Root Endpoint",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						""
-					]
-				},
-				"description": "Get service information and status"
-			},
-			"response": []
-		},
-		{
-			"name": "Health Check",
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{base_url}}/api/v1/health",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"v1",
-						"health"
-					]
-				},
-				"description": "Check service health and OpenAI API status"
-			},
-			"response": []
-		},
-		{
-			"name": "Generate Summary - Minimal",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"request_id\": \"postman-test-001\",\n  \"patient_data\": {\n    \"Age\": \"45 years\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Type 2 Diabetes\"\n  }\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{base_url}}/api/v1/summarize",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"v1",
-						"summarize"
-					]
-				},
-				"description": "Generate clinical summary with minimal patient data (only required fields)"
-			},
-			"response": []
-		},
-		{
-			"name": "Generate Summary - Complete",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"request_id\": \"postman-test-002\",\n  \"patient_data\": {\n    \"Age\": \"58 years\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Acute ST-Elevation Myocardial Infarction (STEMI)\",\n    \"Symptoms\": [\n      \"Chest pain\",\n      \"Shortness of breath\",\n      \"Diaphoresis\"\n    ],\n    \"Medications\": [\n      \"Aspirin 325mg daily\",\n      \"Metoprolol 50mg BID\",\n      \"Atorvastatin 40mg daily\"\n    ],\n    \"Surgeries\": [\n      \"Appendectomy 2010\"\n    ],\n    \"Allergies\": [\n      \"Penicillin\"\n    ],\n    \"Medical_Warnings\": [\n      \"Renal impairment\"\n    ],\n    \"Problems\": [\n      \"Hypertension\",\n      \"Hyperlipidemia\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"140/90\",\n      \"HR\": \"72 bpm\",\n      \"RR\": \"18\",\n      \"Temp\": \"98.6 F\",\n      \"SpO2\": \"98%\"\n    }\n  }\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{base_url}}/api/v1/summarize",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"v1",
-						"summarize"
-					]
-				},
-				"description": "Generate clinical summary with complete patient data (all fields)"
-			},
-			"response": []
-		},
-		{
-			"name": "Generate Summary - Pediatric",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"patient_data\": {\n    \"Age\": \"5 years\",\n    \"Gender\": \"Female\",\n    \"Diagnosis\": \"Community-Acquired Pneumonia\",\n    \"Symptoms\": [\n      \"Cough\",\n      \"Fever\",\n      \"Difficulty breathing\"\n    ],\n    \"Medications\": [\n      \"Amoxicillin 500mg TID\",\n      \"Albuterol inhaler PRN\"\n    ],\n    \"Allergies\": [\n      \"None known\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"100/60\",\n      \"HR\": \"110 bpm\",\n      \"RR\": \"24\",\n      \"Temp\": \"101.2 F\",\n      \"SpO2\": \"95%\"\n    }\n  }\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{base_url}}/api/v1/summarize",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"v1",
-						"summarize"
-					]
-				},
-				"description": "Generate clinical summary for pediatric patient"
-			},
-			"response": []
-		},
-		{
-			"name": "Generate Summary - Elderly",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"patient_data\": {\n    \"Age\": \"82 years\",\n    \"Gender\": \"Female\",\n    \"Diagnosis\": \"Urinary Tract Infection\",\n    \"Symptoms\": [\n      \"Dysuria\",\n      \"Frequency\",\n      \"Fever\"\n    ],\n    \"Medications\": [\n      \"Ciprofloxacin 500mg BID\",\n      \"Acetaminophen 650mg PRN\"\n    ],\n    \"Allergies\": [\n      \"Sulfa drugs\"\n    ],\n    \"Problems\": [\n      \"Diabetes\",\n      \"Hypertension\",\n      \"Osteoarthritis\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"150/85\",\n      \"HR\": \"88 bpm\",\n      \"Temp\": \"99.8 F\"\n    }\n  }\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{base_url}}/api/v1/summarize",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"v1",
-						"summarize"
-					]
-				},
-				"description": "Generate clinical summary for elderly patient"
-			},
-			"response": []
-		},
-		{
-			"name": "Generate Summary - Error Test (Missing Age)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"patient_data\": {\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Diabetes\"\n  }\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{base_url}}/api/v1/summarize",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"v1",
-						"summarize"
-					]
-				},
-				"description": "Test error handling - missing required Age field (should return 422)"
-			},
-			"response": []
-		},
-		{
-			"name": "Generate Summary - Error Test (Empty Age)",
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"patient_data\": {\n    \"Age\": \"\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Diabetes\"\n  }\n}",
-					"options": {
-						"raw": {
-							"language": "json"
-						}
-					}
-				},
-				"url": {
-					"raw": "{{base_url}}/api/v1/summarize",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"api",
-						"v1",
-						"summarize"
-					]
-				},
-				"description": "Test error handling - empty Age field (should return 422)"
-			},
-			"response": []
-		}
-	],
-	"variable": [
-		{
-			"key": "base_url",
-			"value": "http://localhost:8003",
-			"type": "string"
-		}
-	]
+  "info": {
+    "_postman_id": "clinical-summary-service",
+    "name": "Clinical Summary Service API",
+    "description": "Postman collection for Clinical Summary Service REST API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Root Endpoint",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": ["{{base_url}}"],
+          "path": [""]
+        },
+        "description": "Get service information and status"
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "health"]
+        },
+        "description": "Check service health and OpenAI API status"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Minimal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-test-001\",\n  \"patient_data\": {\n    \"Age\": \"45 years\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Type 2 Diabetes\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "summarize"]
+        },
+        "description": "Generate clinical summary with minimal patient data (only required fields)"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Complete",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-test-002\",\n  \"patient_data\": {\n    \"Age\": \"58 years\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Acute ST-Elevation Myocardial Infarction (STEMI)\",\n    \"Symptoms\": [\n      \"Chest pain\",\n      \"Shortness of breath\",\n      \"Diaphoresis\"\n    ],\n    \"Medications\": [\n      \"Aspirin 325mg daily\",\n      \"Metoprolol 50mg BID\",\n      \"Atorvastatin 40mg daily\"\n    ],\n    \"Surgeries\": [\n      \"Appendectomy 2010\"\n    ],\n    \"Allergies\": [\n      \"Penicillin\"\n    ],\n    \"Medical_Warnings\": [\n      \"Renal impairment\"\n    ],\n    \"Problems\": [\n      \"Hypertension\",\n      \"Hyperlipidemia\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"140/90\",\n      \"HR\": \"72 bpm\",\n      \"RR\": \"18\",\n      \"Temp\": \"98.6 F\",\n      \"SpO2\": \"98%\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "summarize"]
+        },
+        "description": "Generate clinical summary with complete patient data (all fields)"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Pediatric",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Age\": \"5 years\",\n    \"Gender\": \"Female\",\n    \"Diagnosis\": \"Community-Acquired Pneumonia\",\n    \"Symptoms\": [\n      \"Cough\",\n      \"Fever\",\n      \"Difficulty breathing\"\n    ],\n    \"Medications\": [\n      \"Amoxicillin 500mg TID\",\n      \"Albuterol inhaler PRN\"\n    ],\n    \"Allergies\": [\n      \"None known\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"100/60\",\n      \"HR\": \"110 bpm\",\n      \"RR\": \"24\",\n      \"Temp\": \"101.2 F\",\n      \"SpO2\": \"95%\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "summarize"]
+        },
+        "description": "Generate clinical summary for pediatric patient"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Elderly",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Age\": \"82 years\",\n    \"Gender\": \"Female\",\n    \"Diagnosis\": \"Urinary Tract Infection\",\n    \"Symptoms\": [\n      \"Dysuria\",\n      \"Frequency\",\n      \"Fever\"\n    ],\n    \"Medications\": [\n      \"Ciprofloxacin 500mg BID\",\n      \"Acetaminophen 650mg PRN\"\n    ],\n    \"Allergies\": [\n      \"Sulfa drugs\"\n    ],\n    \"Problems\": [\n      \"Diabetes\",\n      \"Hypertension\",\n      \"Osteoarthritis\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"150/85\",\n      \"HR\": \"88 bpm\",\n      \"Temp\": \"99.8 F\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "summarize"]
+        },
+        "description": "Generate clinical summary for elderly patient"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Error Test (Missing Age)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Diabetes\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "summarize"]
+        },
+        "description": "Test error handling - missing required Age field (should return 422)"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Error Test (Empty Age)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Age\": \"\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Diabetes\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/summarize",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "summarize"]
+        },
+        "description": "Test error handling - empty Age field (should return 422)"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8003",
+      "type": "string"
+    }
+  ]
 }
-
