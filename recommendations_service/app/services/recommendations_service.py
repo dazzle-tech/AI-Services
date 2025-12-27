@@ -364,28 +364,108 @@ class RecommendationsService:
             if "Specialty:" in practitioner:
                 specialty_part = practitioner.split("Specialty:")[1].strip()
                 # Convert to lowercase and handle common formats
-                specialty_lower = specialty_part.lower().replace("_", " ").replace("-", " ")
+                specialty_lower = specialty_part.lower().replace("_", " ").replace("-", " ").strip()
                 
                 # Map common specialty formats to enum values
                 specialty_mapping = {
-                    "resident doctor": "general",
-                    "nurse": "general",
+                    # ===== Roles =====
+                    "resident doctor": "resident doctor",
+                    "nurse": "nurse",
+
+                    # ===== Primary Care =====
                     "general": "general",
+                    "family medicine": "family medicine",
+                    "internal medicine": "internal medicine",
+                    "geriatrics": "geriatrics",
+
+                    # ===== Surgery =====
+                    "general surgery": "general surgery",
+                    "cardiothoracic surgery": "cardiothoracic surgery",
+                    "neurosurgery": "neurosurgery",
+                    "orthopedic surgery": "orthopedic surgery",
+                    "plastic and reconstructive surgery": "plastic and reconstructive surgery",
+                    "vascular surgery": "vascular surgery",
+                    "urology": "urology",
+                    "oral and maxillofacial surgery": "oral and maxillofacial surgery",
+                    "trauma surgery": "trauma surgery",
+                    "bariatric surgery": "bariatric surgery",
+                    "colorectal surgery": "colorectal surgery",
+                    "transplant surgery": "transplant surgery",
+
+                    # ===== Medical Specialties =====
                     "cardiology": "cardiology",
                     "endocrinology": "endocrinology",
+                    "gastroenterology": "gastroenterology",
+                    "hematology": "hematology",
+                    "infectious disease": "infectious disease",
+                    "nephrology": "nephrology",
                     "neurology": "neurology",
                     "oncology": "oncology",
-                    "pediatrics": "pediatrics",
-                    "psychiatry": "psychiatry",
                     "pulmonology": "pulmonology",
-                    "gastroenterology": "gastroenterology",
-                    "nephrology": "nephrology",
                     "rheumatology": "rheumatology",
                     "dermatology": "dermatology",
-                    "orthopedics": "orthopedics"
+                    "allergy and immunology": "allergy and immunology",
+
+                    # ===== ENT / Eyes =====
+                    "otolaryngology (ent)": "otolaryngology (ent)",
+                    "ophthalmology": "ophthalmology",
+
+                    # ===== Diagnostics =====
+                    "pathology": "pathology",
+                    "radiology": "radiology",
+                    "nuclear medicine": "nuclear medicine",
+                    "clinical laboratory medicine": "clinical laboratory medicine",
+
+                    # ===== Rehab & Pain =====
+                    "physical medicine and rehabilitation (pm&r)": "physical medicine and rehabilitation (pm&r)",
+                    "pain medicine": "pain medicine",
+                    "sports medicine": "sports medicine",
+                    "sleep medicine": "sleep medicine",
+
+                    # ===== OB / GYN =====
+                    "obstetrics and gynecology (ob/gyn)": "obstetrics and gynecology (ob/gyn)",
+                    "maternal-fetal medicine": "maternal-fetal medicine",
+                    "reproductive endocrinology and infertility": "reproductive endocrinology and infertility",
+                    "gynecologic oncology": "gynecologic oncology",
+
+                    # ===== Pediatrics Subspecialties =====
+                    "pediatrics": "pediatrics",
+                    "pediatric cardiology": "pediatric cardiology",
+                    "pediatric endocrinology": "pediatric endocrinology",
+                    "pediatric gastroenterology": "pediatric gastroenterology",
+                    "pediatric hematology/oncology": "pediatric hematology/oncology",
+                    "pediatric nephrology": "pediatric nephrology",
+                    "pediatric neurology": "pediatric neurology",
+                    "pediatric pulmonology": "pediatric pulmonology",
+                    "pediatric infectious disease": "pediatric infectious disease",
+
+                    # ===== Psychiatry =====
+                    "psychiatry": "psychiatry",
+                    "child and adolescent psychiatry": "child and adolescent psychiatry",
+                    "forensic psychiatry": "forensic psychiatry",
+                    "geriatric psychiatry": "geriatric psychiatry",
+
+                    # ===== Emergency & Critical =====
+                    "emergency medicine": "emergency medicine",
+                    "critical care medicine": "critical care medicine",
+
+                    # ===== Public / Other =====
+                    "public health medicine": "public health medicine",
+                    "occupational medicine": "occupational medicine",
+                    "aerospace medicine": "aerospace medicine",
+                    "medical genetics": "medical genetics",
+                    "hospice and palliative medicine": "hospice and palliative medicine",
+                    "lifestyle medicine": "lifestyle medicine",
+
+                    # ===== Anesthesia =====
+                    "anesthesiology": "anesthesiology"
                 }
                 
-                # Try to find matching specialty
+                # Try exact match first
+                if specialty_lower in specialty_mapping:
+                    return specialty_mapping[specialty_lower]
+
+                # Then try "contains" match (keeps your previous behavior)
                 for key, value in specialty_mapping.items():
                     if key in specialty_lower:
                         return value
@@ -448,4 +528,3 @@ class RecommendationsService:
             notes_parts.append(f"Medical Warnings: {request.miniSummary.medicalWarnings}")
         
         return "\n".join(notes_parts)
-
