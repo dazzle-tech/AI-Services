@@ -27,19 +27,98 @@ class RecommendationPriority(str, Enum):
 
 class MedicalSpecialty(str, Enum):
     """Medical specialties."""
+    # ===== Roles =====
+    RESIDENT_DOCTOR = "resident doctor"
+    NURSE = "nurse"
+
+    # ===== Primary Care =====
+    GENERAL = "general"
+    FAMILY_MEDICINE = "family medicine"
+    INTERNAL_MEDICINE = "internal medicine"
+    PEDIATRICS = "pediatrics"
+    GERIATRICS = "geriatrics"
+
+    # ===== Surgery =====
+    GENERAL_SURGERY = "general surgery"
+    CARDIOTHORACIC_SURGERY = "cardiothoracic surgery"
+    NEUROSURGERY = "neurosurgery"
+    ORTHOPEDIC_SURGERY = "orthopedic surgery"
+    PLASTIC_RECONSTRUCTIVE_SURGERY = "plastic and reconstructive surgery"
+    VASCULAR_SURGERY = "vascular surgery"
+    UROLOGY = "urology"
+    OTOLARYNGOLOGY_ENT = "otolaryngology (ent)"
+    ORAL_MAXILLOFACIAL_SURGERY = "oral and maxillofacial surgery"
+    TRAUMA_SURGERY = "trauma surgery"
+    BARIATRIC_SURGERY = "bariatric surgery"
+    COLORECTAL_SURGERY = "colorectal surgery"
+    TRANSPLANT_SURGERY = "transplant surgery"
+
+    # ===== Medical Specialties =====
     CARDIOLOGY = "cardiology"
     ENDOCRINOLOGY = "endocrinology"
+    GASTROENTEROLOGY = "gastroenterology"
+    HEMATOLOGY = "hematology"
+    INFECTIOUS_DISEASE = "infectious disease"
+    NEPHROLOGY = "nephrology"
     NEUROLOGY = "neurology"
     ONCOLOGY = "oncology"
-    PEDIATRICS = "pediatrics"
-    PSYCHIATRY = "psychiatry"
     PULMONOLOGY = "pulmonology"
-    GASTROENTEROLOGY = "gastroenterology"
-    NEPHROLOGY = "nephrology"
     RHEUMATOLOGY = "rheumatology"
     DERMATOLOGY = "dermatology"
-    ORTHOPEDICS = "orthopedics"
-    GENERAL = "general"
+    ALLERGY_IMMUNOLOGY = "allergy and immunology"
+
+    # ===== ENT / Eyes =====
+    OPHTHALMOLOGY = "ophthalmology"
+
+    # ===== Diagnostics =====
+    PATHOLOGY = "pathology"
+    RADIOLOGY = "radiology"
+    NUCLEAR_MEDICINE = "nuclear medicine"
+    CLINICAL_LABORATORY_MEDICINE = "clinical laboratory medicine"
+
+    # ===== Rehab & Pain =====
+    PMR = "physical medicine and rehabilitation (pm&r)"
+    PAIN_MEDICINE = "pain medicine"
+    SPORTS_MEDICINE = "sports medicine"
+    SLEEP_MEDICINE = "sleep medicine"
+
+    # ===== OB / GYN =====
+    OBGYN = "obstetrics and gynecology (ob/gyn)"
+    MATERNAL_FETAL_MEDICINE = "maternal-fetal medicine"
+    REPRODUCTIVE_ENDOCRINOLOGY_INFERTILITY = "reproductive endocrinology and infertility"
+    GYNECOLOGIC_ONCOLOGY = "gynecologic oncology"
+
+    # ===== Pediatrics Subspecialties =====
+    PEDIATRIC_CARDIOLOGY = "pediatric cardiology"
+    PEDIATRIC_ENDOCRINOLOGY = "pediatric endocrinology"
+    PEDIATRIC_GASTROENTEROLOGY = "pediatric gastroenterology"
+    PEDIATRIC_HEMATOLOGY_ONCOLOGY = "pediatric hematology/oncology"
+    PEDIATRIC_NEPHROLOGY = "pediatric nephrology"
+    PEDIATRIC_NEUROLOGY = "pediatric neurology"
+    PEDIATRIC_PULMONOLOGY = "pediatric pulmonology"
+    PEDIATRIC_INFECTIOUS_DISEASE = "pediatric infectious disease"
+
+    # ===== Psychiatry =====
+    PSYCHIATRY = "psychiatry"
+    CHILD_ADOLESCENT_PSYCHIATRY = "child and adolescent psychiatry"
+    FORENSIC_PSYCHIATRY = "forensic psychiatry"
+    GERIATRIC_PSYCHIATRY = "geriatric psychiatry"
+
+    # ===== Emergency & Critical =====
+    EMERGENCY_MEDICINE = "emergency medicine"
+    CRITICAL_CARE_MEDICINE = "critical care medicine"
+
+    # ===== Public / Other =====
+    PUBLIC_HEALTH_MEDICINE = "public health medicine"
+    OCCUPATIONAL_MEDICINE = "occupational medicine"
+    AEROSPACE_MEDICINE = "aerospace medicine"
+    MEDICAL_GENETICS = "medical genetics"
+    HOSPICE_PALLIATIVE_MEDICINE = "hospice and palliative medicine"
+    LIFESTYLE_MEDICINE = "lifestyle medicine"
+
+    # ===== Anesthesia =====
+    ANESTHESIOLOGY = "anesthesiology"
+
 
 
 class PatientContextInput(BaseModel):
