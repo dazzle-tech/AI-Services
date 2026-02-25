@@ -1,0 +1,159 @@
+{
+	"info": {
+		"name": "ICU Summarizer API",
+		"description": "REST API for generating ICU daily summaries and handoff presentations",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://127.0.0.1:8000",
+			"type": "string"
+		},
+		{
+			"key": "request_id",
+			"value": "{{$randomUUID}}",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Generate Summary",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Request-ID",
+						"value": "{{request_id}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"id\": \"P12345\",\n    \"name\": \"John Doe\",\n    \"age\": 65,\n    \"sex\": \"M\",\n    \"mrn\": \"MRN123456\"\n  },\n  \"encounter\": {\n    \"id\": \"E789\",\n    \"admit_time\": \"2024-01-20T08:00:00Z\",\n    \"icu_day\": 3\n  },\n  \"time_window\": {\n    \"start\": \"2024-01-23T00:00:00Z\",\n    \"end\": \"2024-01-23T23:59:59Z\"\n  },\n  \"flowsheet\": [\n    {\n      \"timestamp\": \"2024-01-23T08:00:00Z\",\n      \"item_name\": \"Heart Rate\",\n      \"value\": \"85\",\n      \"unit\": \"bpm\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T12:00:00Z\",\n      \"item_name\": \"Heart Rate\",\n      \"value\": \"90\",\n      \"unit\": \"bpm\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T18:00:00Z\",\n      \"item_name\": \"Heart Rate\",\n      \"value\": \"88\",\n      \"unit\": \"bpm\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T10:00:00Z\",\n      \"item_name\": \"Mean Arterial Pressure\",\n      \"value\": \"65\",\n      \"unit\": \"mmHg\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T14:00:00Z\",\n      \"item_name\": \"Mean Arterial Pressure\",\n      \"value\": \"70\",\n      \"unit\": \"mmHg\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T16:00:00Z\",\n      \"item_name\": \"Oxygen Saturation\",\n      \"value\": \"95\",\n      \"unit\": \"%\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T16:00:00Z\",\n      \"item_name\": \"FiO2\",\n      \"value\": \"40\",\n      \"unit\": \"%\"\n    }\n  ],\n  \"meds\": [\n    {\n      \"timestamp\": \"2024-01-23T08:00:00Z\",\n      \"med_name\": \"Norepinephrine\",\n      \"dose\": \"0.1\",\n      \"dose_unit\": \"mcg/kg/min\",\n      \"is_infusion\": true,\n      \"rate\": \"0.1\",\n      \"rate_unit\": \"mcg/kg/min\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T12:00:00Z\",\n      \"med_name\": \"Norepinephrine\",\n      \"dose\": \"0.15\",\n      \"dose_unit\": \"mcg/kg/min\",\n      \"is_infusion\": true,\n      \"rate\": \"0.15\",\n      \"rate_unit\": \"mcg/kg/min\"\n    }\n  ],\n  \"labs\": [\n    {\n      \"timestamp\": \"2024-01-23T06:00:00Z\",\n      \"lab_name\": \"Lactate\",\n      \"value\": \"2.5\",\n      \"unit\": \"mmol/L\",\n      \"ref_range\": \"0.5-2.2\"\n    }\n  ],\n  \"events\": [\n    {\n      \"timestamp\": \"2024-01-23T02:00:00Z\",\n      \"type\": \"Procedure\",\n      \"description\": \"Central line placed\"\n    }\n  ],\n  \"lines_tubes\": [\n    {\n      \"name\": \"Central Line\",\n      \"status\": \"in place\",\n      \"inserted_time\": \"2024-01-23T02:00:00Z\"\n    },\n    {\n      \"name\": \"ETT\",\n      \"status\": \"in place\"\n    }\n  ],\n  \"diagnoses\": [\"Septic Shock\", \"ARDS\"],\n  \"code_status\": \"Full Code\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/summaries",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"summaries"
+					]
+				},
+				"description": "Generate ICU daily summary note (markdown + structured JSON)"
+			},
+			"response": []
+		},
+		{
+			"name": "Generate Presentation",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "X-Request-ID",
+						"value": "{{request_id}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"id\": \"P12345\",\n    \"name\": \"John Doe\",\n    \"age\": 65,\n    \"sex\": \"M\",\n    \"mrn\": \"MRN123456\"\n  },\n  \"encounter\": {\n    \"id\": \"E789\",\n    \"admit_time\": \"2024-01-20T08:00:00Z\",\n    \"icu_day\": 3\n  },\n  \"time_window\": {\n    \"start\": \"2024-01-23T00:00:00Z\",\n    \"end\": \"2024-01-23T23:59:59Z\"\n  },\n  \"flowsheet\": [\n    {\n      \"timestamp\": \"2024-01-23T08:00:00Z\",\n      \"item_name\": \"Heart Rate\",\n      \"value\": \"85\",\n      \"unit\": \"bpm\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T12:00:00Z\",\n      \"item_name\": \"Heart Rate\",\n      \"value\": \"90\",\n      \"unit\": \"bpm\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T10:00:00Z\",\n      \"item_name\": \"Mean Arterial Pressure\",\n      \"value\": \"65\",\n      \"unit\": \"mmHg\"\n    },\n    {\n      \"timestamp\": \"2024-01-23T16:00:00Z\",\n      \"item_name\": \"Oxygen Saturation\",\n      \"value\": \"95\",\n      \"unit\": \"%\"\n    }\n  ],\n  \"meds\": [\n    {\n      \"timestamp\": \"2024-01-23T08:00:00Z\",\n      \"med_name\": \"Norepinephrine\",\n      \"dose\": \"0.1\",\n      \"dose_unit\": \"mcg/kg/min\",\n      \"is_infusion\": true,\n      \"rate\": \"0.1\",\n      \"rate_unit\": \"mcg/kg/min\"\n    }\n  ],\n  \"labs\": [],\n  \"events\": [],\n  \"lines_tubes\": [\n    {\n      \"name\": \"Central Line\",\n      \"status\": \"in place\"\n    }\n  ],\n  \"diagnoses\": [\"Septic Shock\"],\n  \"code_status\": \"Full Code\"\n}",
+					"options": {
+						"raw": "json"
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/presentations",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"presentations"
+					]
+				},
+				"description": "Generate ICU handoff presentation (PPTX file)"
+			},
+			"response": []
+		},
+		{
+			"name": "Test Invalid Time Window",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"id\": \"P12345\"\n  },\n  \"encounter\": {\n    \"id\": \"E789\"\n  },\n  \"time_window\": {\n    \"start\": \"2024-01-23T23:59:59Z\",\n    \"end\": \"2024-01-23T00:00:00Z\"\n  },\n  \"flowsheet\": [],\n  \"meds\": [],\n  \"labs\": [],\n  \"events\": [],\n  \"lines_tubes\": []\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/summaries",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"summaries"
+					]
+				},
+				"description": "Test validation error for invalid time window (end before start)"
+			},
+			"response": []
+		},
+		{
+			"name": "Test Missing Required Field",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"patient\": {\n    \"name\": \"John Doe\"\n  },\n  \"encounter\": {\n    \"id\": \"E789\"\n  },\n  \"time_window\": {\n    \"start\": \"2024-01-23T00:00:00Z\",\n    \"end\": \"2024-01-23T23:59:59Z\"\n  },\n  \"flowsheet\": [],\n  \"meds\": [],\n  \"labs\": [],\n  \"events\": [],\n  \"lines_tubes\": []\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/v1/summaries",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"v1",
+						"summaries"
+					]
+				},
+				"description": "Test schema validation error (missing patient.id)"
+			},
+			"response": []
+		}
+	]
+}

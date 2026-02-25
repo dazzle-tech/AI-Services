@@ -1,0 +1,114 @@
+# Clinical concept mappings
+# Maps flowsheet item names and codes to canonical clinical concepts
+
+heart_rate:
+  item_names:
+    - "heart rate"
+    - "hr"
+    - "pulse"
+    - "pulse rate"
+    - "cardiac rate"
+  item_codes:
+    - "HR"
+    - "PULSE"
+
+mean_arterial_pressure:
+  item_names:
+    - "mean arterial pressure"
+    - "map"
+    - "mean arterial bp"
+  item_codes:
+    - "MAP"
+    - "MEAN_ART_PRESS"
+
+blood_pressure_systolic:
+  item_names:
+    - "systolic blood pressure"
+    - "systolic bp"
+    - "sbp"
+    - "systolic"
+  item_codes:
+    - "SBP"
+    - "SYSTOLIC_BP"
+
+blood_pressure_diastolic:
+  item_names:
+    - "diastolic blood pressure"
+    - "diastolic bp"
+    - "dbp"
+    - "diastolic"
+  item_codes:
+    - "DBP"
+    - "DIASTOLIC_BP"
+
+temperature:
+  item_names:
+    - "temperature"
+    - "temp"
+    - "body temperature"
+    - "core temperature"
+  item_codes:
+    - "TEMP"
+    - "T"
+
+respiratory_rate:
+  item_names:
+    - "respiratory rate"
+    - "rr"
+    - "respiration rate"
+    - "breathing rate"
+  item_codes:
+    - "RR"
+    - "RESP_RATE"
+
+oxygen_saturation:
+  item_names:
+    - "oxygen saturation"
+    - "spo2"
+    - "o2 saturation"
+    - "sao2"
+    - "sp o2"
+  item_codes:
+    - "SPO2"
+    - "O2_SAT"
+    - "SAO2"
+
+fio2:
+  item_names:
+    - "fio2"
+    - "fraction of inspired oxygen"
+    - "inspired oxygen"
+    - "o2 concentration"
+  item_codes:
+    - "FIO2"
+    - "INSP_O2"
+
+peep:
+  item_names:
+    - "peep"
+    - "positive end expiratory pressure"
+    - "end expiratory pressure"
+  item_codes:
+    - "PEEP"
+    - "END_EXP_PRESS"
+
+tidal_volume:
+  item_names:
+    - "tidal volume"
+    - "tv"
+    - "vt"
+    - "tidal vol"
+  item_codes:
+    - "TV"
+    - "TIDAL_VOL"
+    - "VT"
+
+urine_output:
+  item_names:
+    - "urine output"
+    - "uop"
+    - "urine"
+    - "urinary output"
+  item_codes:
+    - "UOP"
+    - "URINE_OUT"
