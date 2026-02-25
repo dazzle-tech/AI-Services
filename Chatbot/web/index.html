@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="MedAI Assistant - Clinical data companion for your hospital"
+    />
+    <meta
+      name="keywords"
+      content="hospital, clinical data, medical assistant, healthcare"
+    />
+    <meta name="author" content="MedAI Hospital Assistant" />
+    <meta property="og:title" content="MedAI Assistant" />
+    <meta
+      property="og:description"
+      content="Clinical data companion for your hospital"
+    />
+    <meta property="og:type" content="website" />
+    <title>MedAI Assistant - Clinical Data Companion</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🩺</text></svg>"
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://localhost:* http://127.0.0.1:*;"
+    />
+
+    <style>
+      :root {
+        --primary: #2563eb;
+        --primary-soft: #dbeafe;
+        --accent: #1e40af;
+        --background: #ffffff;
+        --surface: #ffffff;
+        --surface-soft: #f9fafb;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --border: #e5e7eb;
+        --shadow: rgba(0, 0, 0, 0.05);
+        --approve: #10b981;
+        --reject: #ef4444;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: #f1f5f9;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        margin: 0;
+        color: var(--text);
+      }
+
+      .chat-window {
+        width: min(960px, 96vw);
+        height: min(88vh, 720px);
+        background: var(--surface);
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+
+      header {
+        background: #ffffff;
+        color: var(--text);
+        padding: 0.9rem 1.4rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        border-bottom: 2px solid var(--primary);
+      }
+
+      .header-left {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+      }
+
+      .hospital-badge {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
+
+      .hospital-badge::before,
+      .hospital-badge::after {
+        content: "";
+        position: absolute;
+        background: #ffffff;
+        border-radius: 2px;
+      }
+
+      .hospital-badge::before {
+        width: 18px;
+        height: 4px;
+      }
+
+      .hospital-badge::after {
+        width: 4px;
+        height: 18px;
+      }
+
+      .header-title {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .header-title span:first-child {
+        font-weight: 600;
+        letter-spacing: 0.02em;
+      }
+
+      .header-title span:last-child {
+        font-size: 0.83rem;
+        opacity: 0.9;
+      }
+
+      .header-buttons {
+        display: flex;
+        gap: 0.5rem;
+      }
+
+      .header-btn {
+        background: transparent;
+        color: var(--primary);
+        border: 1px solid var(--border);
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 500;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background 0.2s ease, border-color 0.2s ease;
+        position: relative;
+        z-index: 1;
+      }
+
+      .header-btn::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background: transparent;
+        border-radius: 7px;
+        transition: background 0.2s ease;
+        z-index: -1;
+      }
+
+      .header-btn:hover::before {
+        background: #dbeafe;
+      }
+
+      .header-btn:hover {
+        border-color: var(--primary);
+      }
+
+      .chat-area {
+        flex: 1;
+        padding: 1.1rem 1.4rem;
+        padding-bottom: 0.4rem;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        background: #ffffff;
+      }
+
+      .message {
+        max-width: 78%;
+        padding: 0.8rem 1rem;
+        border-radius: 18px;
+        margin: 0.2rem 0;
+        line-height: 1.5;
+        word-wrap: break-word;
+        animation: fadeIn 0.22s ease;
+        font-size: 0.96rem;
+      }
+
+      .message.user {
+        align-self: flex-end;
+        background: var(--primary);
+        color: #ffffff;
+        border-radius: 12px 12px 4px 12px;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+      }
+
+      .message.assistant {
+        align-self: flex-start;
+        background: var(--surface-soft);
+        border-radius: 12px 12px 12px 4px;
+        border: 1px solid var(--border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .message.assistant.summary-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 1rem;
+        font-size: 0.82rem;
+        background: #f0f9ff;
+        color: var(--text);
+        border: 1px solid var(--primary-soft);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .summary-chip::before {
+        content: "•";
+        font-size: 0.7rem;
+        color: var(--primary);
+      }
+
+      .message.assistant.results-card {
+        padding: 0.85rem 0.9rem 0.95rem;
+        background: #f8fafc;
+      }
+
+      .results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 0 0.15rem 0.3rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+        margin-bottom: 0.45rem;
+      }
+
+      .results-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #0f172a;
+      }
+
+      .results-meta {
+        font-size: 0.8rem;
+        color: #64748b;
+      }
+
+      /* scroll both directions if needed */
+      .results-table-wrapper {
+        border-radius: 10px;
+        background: #ffffff;
+        border: 1px solid rgba(203, 213, 225, 0.7);
+        overflow: auto;
+        max-height: 320px;
+      }
+
+      .assistant table {
+        border-collapse: separate;
+        border-spacing: 0;
+        table-layout: fixed;
+        font-size: 0.9rem;
+      }
+
+      .assistant thead tr {
+        background: #f9fafb;
+      }
+
+      .assistant th,
+      .assistant td {
+        padding: 0.6rem 0.75rem;
+        text-align: left;
+        vertical-align: top;
+        border-bottom: 1px solid #e5e7eb;
+
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .assistant th {
+        font-weight: 600;
+        color: var(--text);
+        border-bottom: 2px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f9fafb;
+      }
+
+      .assistant tbody tr:nth-child(2n) {
+        background: #f8fafc;
+      }
+
+      .assistant tbody tr:hover {
+        background: #e2e8f0;
+      }
+
+      .assistant.results-card tbody tr {
+        cursor: pointer; /* ✅ make rows clickable */
+        transition: background 0.12s ease, box-shadow 0.12s ease;
+      }
+
+      .assistant.results-card tbody tr:hover {
+        box-shadow: inset 0 0 0 1px var(--primary-soft);
+      }
+
+      .typing {
+        align-self: flex-start;
+        display: flex;
+        align-items: center;
+        background: var(--surface-soft);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 0.4rem 0.7rem;
+        margin: 0.2rem 0 0.4rem;
+        gap: 0.28rem;
+      }
+
+      .typing-dot {
+        width: 7px;
+        height: 7px;
+        background-color: var(--accent);
+        border-radius: 50%;
+        opacity: 0.35;
+        animation: typingDots 1.4s infinite ease-in-out both;
+      }
+
+      .typing-dot:nth-child(2) {
+        animation-delay: 0.18s;
+      }
+
+      .typing-dot:nth-child(3) {
+        animation-delay: 0.36s;
+      }
+
+      @keyframes typingDots {
+        0%,
+        80%,
+        100% {
+          transform: scale(0.7);
+          opacity: 0.3;
+        }
+        40% {
+          transform: scale(1);
+          opacity: 0.9;
+        }
+      }
+
+      .input-area {
+        display: flex;
+        flex-direction: column;
+        border-top: 1px solid var(--border);
+        background: #ffffff;
+      }
+
+      .input-controls {
+        display: flex;
+        padding: 0.7rem 1.2rem 0.85rem;
+        gap: 0.7rem;
+        align-items: center;
+      }
+
+      #userInput {
+        flex: 1;
+        padding: 0.7rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        font-size: 0.96rem;
+        outline: none;
+        transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+        background: #ffffff;
+      }
+
+      #userInput:focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px rgba(14, 116, 144, 0.25);
+        background: #f9fafb;
+      }
+
+      button {
+        background: var(--primary);
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 0.7rem 1.4rem;
+        font-size: 0.96rem;
+        cursor: pointer;
+        transition: background 0.2s ease, box-shadow 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      button:hover:not(:disabled) {
+        background: #3b82f6;
+        box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+      }
+
+      button:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+
+      .approval-buttons {
+        display: flex;
+        gap: 0.6rem;
+        margin-top: 0.4rem;
+      }
+
+      .approval-btn {
+        flex: 1;
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        font-size: 0.86rem;
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.3rem;
+      }
+
+      .approve {
+        background: var(--approve);
+      }
+      .reject {
+        background: var(--reject);
+      }
+
+      .footer {
+        text-align: center;
+        font-size: 0.78rem;
+        color: var(--muted);
+        padding: 0.5rem 0.75rem 0.7rem;
+        background: #ffffff;
+        border-top: 1px solid var(--border);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.3);
+        z-index: 40;
+      }
+
+      .modal.visible {
+        display: flex;
+      }
+
+      .modal-dialog {
+        width: min(900px, 96vw);
+        max-height: 90vh;
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--border);
+      }
+
+      .modal-header {
+        padding: 0.75rem 1rem;
+        border-bottom: 2px solid var(--primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ffffff;
+      }
+
+      .modal-title {
+        font-size: 1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+      }
+
+      .modal-title span {
+        font-size: 1.1rem;
+      }
+
+      .modal-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      #downloadPdfBtn {
+        background: #dbeafe;
+        border-radius: 8px;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: var(--primary);
+        border: 1px solid #bfdbfe;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      #downloadPdfBtn:hover:not(:disabled) {
+        background: #bfdbfe;
+        border-color: var(--primary);
+      }
+
+      #modalCloseBtn {
+        border: none;
+        border-radius: 6px;
+        width: 26px;
+        height: 26px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        cursor: pointer;
+        font-size: 1.25rem;
+        color: var(--muted);
+      }
+
+      #modalCloseBtn:hover {
+        background: #e2e8f0;
+        color: var(--text);
+      }
+
+      .modal-body {
+        padding: 0.75rem 1.25rem 1.25rem;
+        overflow-y: auto;
+        font-size: 0.9rem;
+        background: #ffffff;
+      }
+
+      .patient-report {
+        background: #ffffff;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+      }
+
+      .report-heading {
+        padding: 0.5rem 0.9rem;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #ffffff;
+      }
+
+      .report-heading-left {
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        color: #020617;
+      }
+
+      .report-heading-right {
+        font-size: 0.8rem;
+        color: #6b7280;
+      }
+
+      .report-section {
+        border-top: 1px solid #e2e8f0;
+      }
+
+      .report-section:first-of-type {
+        border-top: none;
+      }
+
+      .report-section-title {
+        padding: 0.45rem 0.9rem;
+        background: var(--surface-soft);
+        font-weight: 600;
+        font-size: 0.9rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--text);
+      }
+
+      .report-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 2.2fr 1.2fr 2.2fr;
+        border-top: 1px solid var(--border);
+      }
+
+      .report-row-label {
+        background: var(--surface-soft);
+        border-right: 1px solid var(--border);
+        border-bottom: 1px solid var(--border);
+        padding: 0.38rem 0.6rem;
+        font-weight: 600;
+        font-size: 0.88rem;
+        white-space: nowrap;
+        color: var(--text);
+      }
+
+      .report-row-value {
+        border-bottom: 1px solid var(--border);
+        padding: 0.38rem 0.7rem;
+        font-size: 0.9rem;
+        color: var(--text);
+      }
+
+      .report-row-value.muted {
+        color: #9ca3af;
+      }
+
+      .modal-subtle {
+        font-size: 0.82rem;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+      }
+
+      .modal-loading {
+        padding: 0.5rem 0;
+        color: #6b7280;
+        font-size: 0.88rem;
+      }
+
+      /* ✅ NEW: generic "Details sheet" for ANY table row (audit/history/etc.) */
+      .details-sheet {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        overflow: hidden;
+      }
+
+      .details-grid {
+        display: grid;
+        grid-template-columns: 1.2fr 2.8fr;
+      }
+
+      .details-label {
+        background: #f3f4f6;
+        border-right: 1px solid #e5e7eb;
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0.45rem 0.7rem;
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: #020617;
+        white-space: nowrap;
+      }
+
+      .details-value {
+        border-bottom: 1px solid #e5e7eb;
+        padding: 0.45rem 0.75rem;
+        font-size: 0.9rem;
+        color: #0f172a;
+        word-break: break-word;
+      }
+
+      .details-value.muted {
+        color: #9ca3af;
+      }
+
+      .details-mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.86rem;
+        white-space: pre-wrap;
+      }
+
+      .details-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.22rem 0.55rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.5);
+        background: #f8fafc;
+        font-size: 0.78rem;
+        color: #0f172a;
+      }
+
+      .details-row:last-child .details-label,
+      .details-row:last-child .details-value {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="chat-window">
+      <header>
+        <div class="header-left">
+          <div class="hospital-badge"></div>
+          <div class="header-title">
+            <span>MedAI Assistant</span>
+            <span>Clinical data companion for your hospital</span>
+          </div>
+        </div>
+        <div class="header-buttons">
+          <button
+            class="header-btn"
+            id="newChatBtn"
+            aria-label="Start new chat"
+            type="button"
+          >
+            New Chat
+          </button>
+          <button
+            class="header-btn"
+            id="clearBtn"
+            aria-label="Clear conversation"
+            type="button"
+          >
+            Clear
+          </button>
+        </div>
+      </header>
+
+      <div id="chatArea" class="chat-area"></div>
+
+      <div class="input-area">
+        <div class="input-controls">
+          <input
+            id="userInput"
+            type="text"
+            placeholder="Ask MedAI Assistant about admissions, allergies, results..."
+            aria-label="Message input"
+            aria-required="true"
+            autocomplete="off"
+            maxlength="1000"
+          />
+          <button id="sendBtn" aria-label="Send message" type="button">
+            ➤ Send
+          </button>
+        </div>
+      </div>
+
+      <div class="footer">MedAI Hospital Assistant · © 2026</div>
+    </div>
+
+    <div
+      id="patientModal"
+      class="modal"
+      role="dialog"
+      aria-labelledby="modal-title"
+      aria-modal="true"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <div class="modal-title" id="modal-title">
+            <span>🩺</span> Details
+          </div>
+          <div class="modal-header-actions">
+            <button
+              id="downloadPdfBtn"
+              type="button"
+              aria-label="Download as PDF"
+            >
+              PDF
+            </button>
+            <button
+              id="modalCloseBtn"
+              aria-label="Close modal"
+              type="button"
+              title="Close"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+      </div>
+    </div>
+
+    <script>
+      // Configuration - can be overridden by environment
+      const API_BASE_URL =
+        window.API_BASE_URL ||
+        (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1"
+          ? "http://127.0.0.1:8000"
+          : window.location.origin);
+
+      const API_URL = `${API_BASE_URL}/chat`;
+      const PATIENT_DETAILS_URL = `${API_BASE_URL}/patient_details`;
+      const RESET_URL = `${API_BASE_URL}/reset_sessions`;
+      const ADMIN_EVENT_URL = `${API_BASE_URL}/admin/history/event`;
+      const INTERACTION_DETAILS_URL = `${API_BASE_URL}/interaction_details`;
+
+      // Rate limiting
+      let lastRequestTime = 0;
+      const MIN_REQUEST_INTERVAL = 300; // 300ms between requests
+      let pendingRequests = 0;
+      const MAX_CONCURRENT_REQUESTS = 3;
+
+      // Request timeout (90 seconds - increased for CrewAI processing)
+      const REQUEST_TIMEOUT = 90000;
+
+      const chatArea = document.getElementById("chatArea");
+      const input = document.getElementById("userInput");
+      const sendBtn = document.getElementById("sendBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const newChatBtn = document.getElementById("newChatBtn");
+      // Role selector removed - defaulting to Doctor (u101)
+
+      const patientModal = document.getElementById("patientModal");
+      const modalBody = document.getElementById("modalBody");
+      const modalCloseBtn = document.getElementById("modalCloseBtn");
+      const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+
+      let sessionId = "session_" + Date.now();
+      let typingDiv = null;
+      let errorTimeout = null;
+      let lastPatient = null;
+
+      function updateSendButtonState() {
+        sendBtn.disabled = input.value.trim() === "";
+      }
+      input.addEventListener("input", updateSendButtonState);
+      updateSendButtonState();
+
+      function showErrorMessage(message) {
+        removeErrorMessage();
+        const errorDiv = document.createElement("div");
+        errorDiv.id = "errorMessage";
+        errorDiv.textContent = message;
+        errorDiv.style.color = "#dc2626";
+        errorDiv.style.fontSize = "0.86rem";
+        errorDiv.style.marginTop = "0.25rem";
+        errorDiv.style.marginLeft = "0.2rem";
+        document.querySelector(".input-area").appendChild(errorDiv);
+
+        input.style.borderColor = "#dc2626";
+        input.style.backgroundColor = "#fef2f2";
+
+        clearTimeout(errorTimeout);
+        errorTimeout = setTimeout(removeErrorMessage, 2500);
+      }
+
+      function removeErrorMessage() {
+        const existingError = document.getElementById("errorMessage");
+        if (existingError) existingError.remove();
+        input.style.borderColor = "var(--border)";
+        input.style.backgroundColor = "#ffffff";
+      }
+
+      function addMessage(text, sender, extraClass = "") {
+        const msg = document.createElement("div");
+        msg.classList.add("message", sender);
+        if (extraClass) msg.classList.add(extraClass);
+        // Use textContent for safety, but allow HTML for formatted messages
+        if (extraClass === "summary-chip" || sender === "assistant") {
+          // Sanitize HTML for assistant messages
+          msg.innerHTML = sanitizeHtml(text);
+        } else {
+          msg.textContent = text;
+        }
+        msg.setAttribute(
+          "role",
+          sender === "user" ? "user-message" : "assistant-message"
+        );
+        msg.setAttribute("aria-live", "polite");
+        chatArea.appendChild(msg);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function prettifyHeader(key) {
+        return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+
+      function openModal(titleText, bodyHtml) {
+        const titleEl = patientModal.querySelector(".modal-title");
+        titleEl.innerHTML = `<span>🩺</span> ${escapeHtml(titleText)}`;
+        modalBody.innerHTML = bodyHtml || "";
+        patientModal.classList.add("visible");
+        patientModal.setAttribute("aria-hidden", "false");
+        // Focus management for accessibility
+        modalCloseBtn.focus();
+      }
+
+      function closeModal() {
+        patientModal.classList.remove("visible");
+        patientModal.setAttribute("aria-hidden", "true");
+        modalBody.innerHTML = "";
+        lastPatient = null;
+        downloadPdfBtn.disabled = true;
+        // Return focus to input
+        input.focus();
+      }
+
+      modalCloseBtn.addEventListener("click", closeModal);
+      patientModal.addEventListener("click", (e) => {
+        if (e.target === patientModal) closeModal();
+      });
+
+      // -----------------------------
+      // ✅ NEW: Build generic details sheet (for ANY row)
+      // -----------------------------
+      // Enhanced HTML escaping to prevent XSS
+      function escapeHtml(str) {
+        if (str === null || str === undefined) return "";
+        const div = document.createElement("div");
+        div.textContent = String(str);
+        return div.innerHTML;
+      }
+
+      // Sanitize HTML - only allow safe tags
+      function sanitizeHtml(html) {
+        const div = document.createElement("div");
+        div.textContent = html;
+        return div.innerHTML;
+      }
+
+      // Rate limiting helper
+      function canMakeRequest() {
+        const now = Date.now();
+        if (now - lastRequestTime < MIN_REQUEST_INTERVAL) {
+          return false;
+        }
+        if (pendingRequests >= MAX_CONCURRENT_REQUESTS) {
+          return false;
+        }
+        return true;
+      }
+
+      // Fetch with timeout and better error handling
+      async function fetchWithTimeout(
+        url,
+        options = {},
+        timeout = REQUEST_TIMEOUT
+      ) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, timeout);
+
+        try {
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          
+          // Check if response is ok
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => "Unknown error");
+            throw new Error(`Server error (${response.status}): ${errorText}`);
+          }
+          
+          return response;
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (error.name === "AbortError" || error.name === "TimeoutError") {
+            throw new Error(`Request timeout after ${timeout / 1000} seconds. CrewAI processing can take 30-60 seconds. Please try again.`);
+          }
+          // Re-throw network errors with more context
+          if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+            throw new Error("Network error - please check your connection and ensure the backend is running.");
+          }
+          throw error;
+        }
+      }
+
+      function maybeJsonPretty(value) {
+        if (value == null) return null;
+        if (typeof value === "object") return JSON.stringify(value, null, 2);
+        const s = String(value).trim();
+        if (!s) return "";
+        if (
+          (s.startsWith("{") && s.endsWith("}")) ||
+          (s.startsWith("[") && s.endsWith("]"))
+        ) {
+          try {
+            return JSON.stringify(JSON.parse(s), null, 2);
+          } catch (_) {
+            return null;
+          }
+        }
+        return null;
+      }
+
+      function buildRowDetailsSheet(rowObj, title = "Row details") {
+        const keys = Object.keys(rowObj || {});
+        if (!rowObj || keys.length === 0) {
+          return `<p class="modal-subtle">No details available for this row.</p>`;
+        }
+
+        const now = new Date();
+        const printed =
+          now.getFullYear() +
+          "-" +
+          String(now.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(now.getDate()).padStart(2, "0") +
+          " " +
+          String(now.getHours()).padStart(2, "0") +
+          ":" +
+          String(now.getMinutes()).padStart(2, "0");
+
+        let rowsHtml = "";
+        keys.forEach((k) => {
+          const label = prettifyHeader(k);
+          const raw = rowObj[k];
+
+          let valueHtml = "";
+          if (raw === null || raw === undefined || raw === "") {
+            valueHtml = `<div class="details-value muted">—</div>`;
+          } else {
+            const pretty = maybeJsonPretty(raw);
+            if (pretty !== null) {
+              valueHtml = `<div class="details-value details-mono">${escapeHtml(
+                pretty
+              )}</div>`;
+            } else {
+              valueHtml = `<div class="details-value">${escapeHtml(raw)}</div>`;
+            }
+          }
+
+          rowsHtml += `
+            <div class="details-label">${escapeHtml(label)}</div>
+            ${valueHtml}
+          `;
+        });
+
+        return `
+          <div class="details-sheet">
+            <div class="report-heading">
+              <div class="report-heading-left">${escapeHtml(
+                title.toUpperCase()
+              )}</div>
+              <div class="report-heading-right">Generated: ${escapeHtml(
+                printed
+              )}</div>
+            </div>
+
+            <div class="report-section">
+              <div class="report-section-title">Details</div>
+              <div class="details-grid">
+                ${rowsHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // -----------------------------
+      // Patient details (existing)
+      // -----------------------------
+      downloadPdfBtn.addEventListener("click", () => {
+        const report = patientModal.querySelector(
+          ".patient-report, .details-sheet"
+        );
+        if (!report) {
+          addMessage(
+            "⚠️ No details available to export.",
+            "assistant",
+            "summary-chip"
+          );
+          return;
+        }
+
+        addMessage(
+          "⏳ Preparing print-ready PDF view…",
+          "assistant",
+          "summary-chip"
+        );
+
+        const reportHtml = report.outerHTML;
+        const title = "Details";
+
+        const printWindow = window.open("", "_blank");
+        if (!printWindow) {
+          addMessage(
+            "❌ Pop-up blocked. Allow pop-ups for this site to save as PDF.",
+            "assistant",
+            "summary-chip"
+          );
+          return;
+        }
+
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>${title}</title>
+              <style>
+                body {
+                  font-family: "Inter", system-ui, -apple-system, sans-serif;
+                  margin: 20px;
+                  background: #ffffff;
+                  color: #0f172a;
+                }
+                .details-sheet, .patient-report {
+                  width: 100%;
+                  border: 1px solid #e2e8f0;
+                  border-radius: 8px;
+                  overflow: hidden;
+                  font-size: 12px;
+                }
+                .report-heading {
+                  padding: 8px 12px;
+                  border-bottom: 1px solid #e2e8f0;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  background: #f8fafc;
+                }
+                .report-heading-left {
+                  font-weight: 600;
+                  letter-spacing: 0.06em;
+                  font-size: 11px;
+                }
+                .report-heading-right {
+                  font-size: 11px;
+                  color: #6b7280;
+                }
+                .report-section-title {
+                  padding: 6px 12px;
+                  background: #f3f4f6;
+                  font-weight: 600;
+                  font-size: 11px;
+                  border-bottom: 1px solid #e5e7eb;
+                }
+                .details-grid {
+                  display: grid;
+                  grid-template-columns: 1.2fr 2.8fr;
+                }
+                .details-label {
+                  background: #f9fafb;
+                  border-right: 1px solid #e5e7eb;
+                  border-bottom: 1px solid #e5e7eb;
+                  padding: 4px 8px;
+                  font-weight: 600;
+                  font-size: 11px;
+                  white-space: nowrap;
+                }
+                .details-value {
+                  border-bottom: 1px solid #e5e7eb;
+                  padding: 4px 8px;
+                  font-size: 11px;
+                  white-space: pre-wrap;
+                }
+                @media print { body { margin: 0; } }
+              </style>
+            </head>
+            <body>
+              ${reportHtml}
+              <script>
+                window.onload = function() { window.print(); };
+              <\/script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+
+        addMessage(
+          "✅ Print dialog opened. Choose “Save as PDF” to download.",
+          "assistant",
+          "summary-chip"
+        );
+      });
+
+      function buildReportRow(label, value) {
+        const safeVal =
+          value === null || value === undefined || value === ""
+            ? "<span class='report-row-value muted'>—</span>"
+            : `<span class='report-row-value'>${String(value)}</span>`;
+        return `
+          <div class="report-row-label">${label}</div>
+          ${safeVal}
+        `;
+      }
+
+      function buildPatientReport(patient) {
+        if (!patient) {
+          return "<p class='modal-subtle'>No data found for this patient.</p>";
+        }
+
+        // Helper function to format empty values
+        const formatValue = (value) => {
+          if (
+            value === null ||
+            value === undefined ||
+            value === "" ||
+            value === "null" ||
+            value === "undefined"
+          ) {
+            return "—";
+          }
+          return value;
+        };
+
+        // Helper function to format gender
+        const formatGender = (gender) => {
+          if (!gender) return "—";
+          if (
+            gender === "1" ||
+            gender === 1 ||
+            gender === "male" ||
+            gender === "Male"
+          )
+            return "Male";
+          if (
+            gender === "2" ||
+            gender === 2 ||
+            gender === "female" ||
+            gender === "Female"
+          )
+            return "Female";
+          return gender;
+        };
+
+        const overviewHtml = `
+          <div class="report-section">
+            <div class="report-section-title">Patient Information</div>
+            <div class="report-grid">
+              ${buildReportRow(
+                "Patient ID",
+                formatValue(patient.key || patient.patient_id)
+              )}
+              ${buildReportRow("Name", formatValue(patient.full_name))}
+              ${buildReportRow("Date of Birth", formatValue(patient.dob))}
+              ${buildReportRow("Gender", formatGender(patient.gender_lkey))}
+            </div>
+          </div>
+        `;
+
+        const contactHtml = `
+          <div class="report-section">
+            <div class="report-section-title">Contact & Insurance</div>
+            <div class="report-grid">
+              ${buildReportRow(
+                "Phone",
+                formatValue(patient.phone_number || patient.mobile_number)
+              )}
+              ${buildReportRow("Email", formatValue(patient.email))}
+              ${buildReportRow(
+                "Insurance Provider",
+                formatValue(patient.patient_details_insurance_provider)
+              )}
+              ${buildReportRow(
+                "Emergency Contact",
+                formatValue(patient.emergency_contact_name)
+              )}
+            </div>
+          </div>
+        `;
+
+        const medicalHtml = `
+          <div class="report-section">
+            <div class="report-section-title">Medical Profile</div>
+            <div class="report-grid">
+              ${buildReportRow(
+                "Blood Type",
+                formatValue(patient.blood_group_lkey)
+              )}
+              ${buildReportRow(
+                "Allergies",
+                formatValue(patient.patient_health_allergies)
+              )}
+              ${buildReportRow(
+                "Chronic Conditions",
+                formatValue(patient.patient_health_chronic_conditions)
+              )}
+              ${buildReportRow(
+                "Medications",
+                formatValue(patient.patient_health_medications)
+              )}
+              ${buildReportRow(
+                "Height (cm)",
+                formatValue(patient.patient_health_height_cm)
+              )}
+              ${buildReportRow(
+                "Weight (kg)",
+                formatValue(patient.patient_health_weight_kg)
+              )}
+              ${buildReportRow("BMI", formatValue(patient.patient_health_bmi))}
+              ${buildReportRow(
+                "Smoking Status",
+                formatValue(patient.patient_health_smoking_status)
+              )}
+              ${buildReportRow(
+                "Alcohol Use",
+                formatValue(patient.patient_health_alcohol_use)
+              )}
+              ${buildReportRow(
+                "Last Checkup Date",
+                formatValue(patient.patient_health_last_checkup_date)
+              )}
+              ${buildReportRow(
+                "Clinical Notes",
+                formatValue(patient.patient_health_notes)
+              )}
+            </div>
+          </div>
+        `;
+
+        const admissionHtml = `
+          <div class="report-section">
+            <div class="report-section-title">Latest Admission</div>
+            <div class="report-grid">
+              ${buildReportRow(
+                "Admission Date",
+                formatValue(patient.admissions_actual_start_date)
+              )}
+              ${buildReportRow(
+                "Discharge Date",
+                formatValue(patient.admissions_discharge_at)
+              )}
+              ${buildReportRow(
+                "Diagnosis",
+                formatValue(patient.patient_details_description)
+              )}
+            </div>
+          </div>
+        `;
+
+        const now = new Date();
+        const printed =
+          now.getFullYear() +
+          "-" +
+          String(now.getMonth() + 1).padStart(2, "0") +
+          "-" +
+          String(now.getDate()).padStart(2, "0") +
+          " " +
+          String(now.getHours()).padStart(2, "0") +
+          ":" +
+          String(now.getMinutes()).padStart(2, "0");
+
+        return `
+          <div class="patient-report">
+            <div class="report-heading">
+              <div class="report-heading-left">PATIENT INFORMATION SHEET</div>
+              <div class="report-heading-right">Generated: ${printed}</div>
+            </div>
+            ${overviewHtml}
+            ${contactHtml}
+            ${medicalHtml}
+            ${admissionHtml}
+          </div>
+        `;
+      }
+
+      async function handleInteractionClick(interactionId) {
+        const userId = "u101"; // Default to Doctor role
+
+        if (!canMakeRequest()) {
+          addMessage(
+            "⚠️ Please wait a moment before making another request.",
+            "assistant",
+            "summary-chip"
+          );
+          return;
+        }
+
+        downloadPdfBtn.disabled = true;
+        pendingRequests++;
+
+        openModal(
+          "Interaction details",
+          `<p class="modal-subtle">Fetching interaction details…</p>
+           <div class="modal-loading">Loading…</div>`
+        );
+
+        try {
+          lastRequestTime = Date.now();
+          const res = await fetchWithTimeout(INTERACTION_DETAILS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              interaction_id: interactionId,
+              user_id: userId,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || !data.ok) {
+            const msg =
+              (data && (data.detail || data.message)) ||
+              "Unable to fetch interaction details.";
+            modalBody.innerHTML = `<p>⚠️ ${msg}</p>`;
+            downloadPdfBtn.disabled = true;
+            return;
+          }
+
+          const interaction = data.interaction || {};
+          const serviceCalls = data.service_calls || [];
+
+          // Build interaction details HTML
+          let html = `
+            <div class="details-sheet">
+              <div class="report-heading">
+                <div class="report-heading-left">INTERACTION DETAILS</div>
+                <div class="report-heading-right">Interaction ID: ${interactionId}</div>
+              </div>
+              
+              <div class="report-section">
+                <div class="report-section-title">Interaction</div>
+                <div class="details-grid">
+                  ${buildDetailsRow("ID", interaction.id)}
+                  ${buildDetailsRow("Timestamp (UTC)", interaction.ts_utc)}
+                  ${buildDetailsRow("User ID", interaction.user_id)}
+                  ${buildDetailsRow("Session ID", interaction.session_id)}
+                  ${buildDetailsRow("Role", interaction.role)}
+                  ${buildDetailsRow("Intent", interaction.intent)}
+                  ${buildDetailsRow(
+                    "Approved",
+                    interaction.approved ? "Yes" : "No"
+                  )}
+                  ${buildDetailsRow("Raw Message", interaction.raw_message)}
+                  ${buildDetailsRow("Final Message", interaction.final_message)}
+                  ${buildDetailsRow("Reply Text", interaction.reply_text)}
+                  ${buildDetailsRow("SQL Query", interaction.sql_query, true)}
+                  ${buildDetailsRow("Row Count", interaction.row_count)}
+                  ${buildDetailsRow("Status", interaction.ok ? "OK" : "Error")}
+                  ${buildDetailsRow("Error", interaction.error)}
+                </div>
+              </div>
+              
+              ${
+                serviceCalls.length > 0
+                  ? `
+              <div class="report-section">
+                <div class="report-section-title">Service Calls (${
+                  serviceCalls.length
+                })</div>
+                <div class="details-grid">
+                  ${serviceCalls
+                    .map((call, idx) => {
+                      let requestJson = null;
+                      let responseJson = null;
+                      try {
+                        if (call.request_json) {
+                          requestJson =
+                            typeof call.request_json === "string"
+                              ? JSON.stringify(
+                                  JSON.parse(call.request_json),
+                                  null,
+                                  2
+                                )
+                              : JSON.stringify(call.request_json, null, 2);
+                        }
+                      } catch (e) {
+                        requestJson = String(call.request_json);
+                      }
+                      try {
+                        if (call.response_json) {
+                          responseJson =
+                            typeof call.response_json === "string"
+                              ? JSON.stringify(
+                                  JSON.parse(call.response_json),
+                                  null,
+                                  2
+                                )
+                              : JSON.stringify(call.response_json, null, 2);
+                        }
+                      } catch (e) {
+                        responseJson = String(call.response_json);
+                      }
+                      return `
+                    ${buildDetailsRow(`Service ${idx + 1}`, call.service)}
+                    ${buildDetailsRow(`  URL`, call.url)}
+                    ${buildDetailsRow(`  Status`, call.ok ? "OK" : "Error")}
+                    ${buildDetailsRow(`  HTTP Code`, call.status_code)}
+                    ${buildDetailsRow(
+                      `  Latency`,
+                      call.latency_ms ? `${call.latency_ms}ms` : null
+                    )}
+                    ${buildDetailsRow(`  Request`, requestJson, true)}
+                    ${buildDetailsRow(`  Response`, responseJson, true)}
+                    ${buildDetailsRow(`  Error`, call.error)}
+                  `;
+                    })
+                    .join("")}
+                </div>
+              </div>
+              `
+                  : ""
+              }
+            </div>
+          `;
+
+          modalBody.innerHTML = html;
+          downloadPdfBtn.disabled = false;
+        } catch (err) {
+          console.error("Error loading interaction details:", err);
+          const errorMsg = err.message || "Unable to load interaction details";
+          modalBody.innerHTML = `<p class="modal-subtle">❌ ${escapeHtml(
+            errorMsg
+          )}. Please try again.</p>`;
+          downloadPdfBtn.disabled = true;
+          addMessage(`⚠️ Error: ${errorMsg}`, "assistant", "summary-chip");
+        } finally {
+          pendingRequests = Math.max(0, pendingRequests - 1);
+        }
+      }
+
+      async function handleAdminEventClick(eventId) {
+        const userId = "u101"; // Default to Doctor role
+
+        if (!canMakeRequest()) {
+          addMessage(
+            "⚠️ Please wait a moment before making another request.",
+            "assistant",
+            "summary-chip"
+          );
+          return;
+        }
+
+        downloadPdfBtn.disabled = true;
+        pendingRequests++;
+
+        openModal(
+          "Event details",
+          `<p class="modal-subtle">Fetching event details…</p>
+           <div class="modal-loading">Loading…</div>`
+        );
+
+        try {
+          lastRequestTime = Date.now();
+          const res = await fetchWithTimeout(
+            `${ADMIN_EVENT_URL}/${eventId}?admin_user_id=${userId}`,
+            {
+              method: "GET",
+              headers: { "Content-Type": "application/json" },
+            }
+          );
+
+          const data = await res.json();
+
+          if (!res.ok || !data.ok) {
+            const msg =
+              (data && (data.detail || data.message)) ||
+              "Unable to fetch event details.";
+            modalBody.innerHTML = `<p>⚠️ ${msg}</p>`;
+            downloadPdfBtn.disabled = true;
+            return;
+          }
+
+          const eventData = data.data;
+          const interaction = eventData.interaction || {};
+          const serviceCalls = eventData.service_calls || [];
+
+          // Build event details HTML
+          let html = `
+            <div class="details-sheet">
+              <div class="report-heading">
+                <div class="report-heading-left">EVENT DETAILS</div>
+                <div class="report-heading-right">Event ID: ${eventId}</div>
+              </div>
+              
+              <div class="report-section">
+                <div class="report-section-title">Interaction</div>
+                <div class="details-grid">
+                  ${buildDetailsRow("ID", interaction.id)}
+                  ${buildDetailsRow("Timestamp (UTC)", interaction.ts_utc)}
+                  ${buildDetailsRow("User ID", interaction.user_id)}
+                  ${buildDetailsRow("Session ID", interaction.session_id)}
+                  ${buildDetailsRow("Role", interaction.role)}
+                  ${buildDetailsRow("Intent", interaction.intent)}
+                  ${buildDetailsRow(
+                    "Approved",
+                    interaction.approved ? "Yes" : "No"
+                  )}
+                  ${buildDetailsRow("Raw Message", interaction.raw_message)}
+                  ${buildDetailsRow("Final Message", interaction.final_message)}
+                  ${buildDetailsRow("Reply Text", interaction.reply_text)}
+                  ${buildDetailsRow("SQL Query", interaction.sql_query, true)}
+                  ${buildDetailsRow("Row Count", interaction.row_count)}
+                  ${buildDetailsRow("Status", interaction.ok ? "OK" : "Error")}
+                  ${buildDetailsRow("Error", interaction.error)}
+                </div>
+              </div>
+              
+              ${
+                serviceCalls.length > 0
+                  ? `
+              <div class="report-section">
+                <div class="report-section-title">Service Calls (${
+                  serviceCalls.length
+                })</div>
+                <div class="details-grid">
+                  ${serviceCalls
+                    .map((call, idx) => {
+                      let requestJson = null;
+                      let responseJson = null;
+                      try {
+                        if (call.request_json) {
+                          requestJson =
+                            typeof call.request_json === "string"
+                              ? JSON.stringify(
+                                  JSON.parse(call.request_json),
+                                  null,
+                                  2
+                                )
+                              : JSON.stringify(call.request_json, null, 2);
+                        }
+                      } catch (e) {
+                        requestJson = String(call.request_json);
+                      }
+                      try {
+                        if (call.response_json) {
+                          responseJson =
+                            typeof call.response_json === "string"
+                              ? JSON.stringify(
+                                  JSON.parse(call.response_json),
+                                  null,
+                                  2
+                                )
+                              : JSON.stringify(call.response_json, null, 2);
+                        }
+                      } catch (e) {
+                        responseJson = String(call.response_json);
+                      }
+                      return `
+                    ${buildDetailsRow(`Service ${idx + 1}`, call.service)}
+                    ${buildDetailsRow(`  URL`, call.url)}
+                    ${buildDetailsRow(`  Status`, call.ok ? "OK" : "Error")}
+                    ${buildDetailsRow(`  HTTP Code`, call.status_code)}
+                    ${buildDetailsRow(
+                      `  Latency`,
+                      call.latency_ms ? `${call.latency_ms}ms` : null
+                    )}
+                    ${buildDetailsRow(`  Request`, requestJson, true)}
+                    ${buildDetailsRow(`  Response`, responseJson, true)}
+                    ${buildDetailsRow(`  Error`, call.error)}
+                  `;
+                    })
+                    .join("")}
+                </div>
+              </div>
+              `
+                  : ""
+              }
+            </div>
+          `;
+
+          modalBody.innerHTML = html;
+          downloadPdfBtn.disabled = false;
+        } catch (err) {
+          console.error("Error loading event details:", err);
+          const errorMsg = err.message || "Unable to load event details";
+          modalBody.innerHTML = `<p class="modal-subtle">❌ ${escapeHtml(
+            errorMsg
+          )}. Please try again.</p>`;
+          downloadPdfBtn.disabled = true;
+          addMessage(`⚠️ Error: ${errorMsg}`, "assistant", "summary-chip");
+        } finally {
+          pendingRequests = Math.max(0, pendingRequests - 1);
+        }
+      }
+
+      function buildDetailsRow(label, value, isCode = false) {
+        if (value === null || value === undefined || value === "") {
+          return `
+            <div class="details-label">${escapeHtml(label)}</div>
+            <div class="details-value muted">—</div>
+          `;
+        }
+        const valueClass = isCode
+          ? "details-value details-mono"
+          : "details-value";
+        return `
+          <div class="details-label">${escapeHtml(label)}</div>
+          <div class="${valueClass}">${escapeHtml(String(value))}</div>
+        `;
+      }
+
+      async function handleRowClick(patientId, name) {
+        const userId = "u101"; // Default to Doctor role
+        const roleText = "doctor";
+
+        if (!patientId && !name) return;
+
+        if (!canMakeRequest()) {
+          addMessage(
+            "⚠️ Please wait a moment before making another request.",
+            "assistant",
+            "summary-chip"
+          );
+          return;
+        }
+
+        downloadPdfBtn.disabled = true;
+        pendingRequests++;
+
+        openModal(
+          "Patient details",
+          `<p class="modal-subtle">Fetching patient details based on your role…</p>
+           <div class="modal-loading">Loading…</div>`
+        );
+
+        // Validate patient_id exists (required for /patient_details endpoint)
+        if (!patientId) {
+          modalBody.innerHTML =
+            "<p class='modal-subtle'>This row has no patient ID. Please run a query that includes patient_id to view full patient details.</p>";
+          pendingRequests = Math.max(0, pendingRequests - 1);
+          return;
+        }
+
+        // Validate patient_id format
+        if (typeof patientId !== "string" && typeof patientId !== "number") {
+          modalBody.innerHTML =
+            "<p class='modal-subtle'>Invalid patient ID format.</p>";
+          pendingRequests = Math.max(0, pendingRequests - 1);
+          return;
+        }
+
+        try {
+          lastRequestTime = Date.now();
+          const res = await fetchWithTimeout(PATIENT_DETAILS_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              patient_id: String(patientId),
+              user_id: userId,
+              role: roleText,
+              session_id: sessionId, // Include session_id to save patient_id to Redis memory
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok || !data.ok) {
+            const msg =
+              (data && (data.detail || data.message)) ||
+              "Unable to execute the query: Validation failed.";
+            modalBody.innerHTML = `<p>⚠️ ${msg}</p>`;
+            downloadPdfBtn.disabled = true;
+            return;
+          }
+
+          const patient = data.patient;
+          lastPatient = patient;
+          modalBody.innerHTML = buildPatientReport(patient);
+          downloadPdfBtn.disabled = false;
+        } catch (err) {
+          console.error("Error loading patient details:", err);
+          const errorMsg = err.message || "Unable to load patient details";
+          modalBody.innerHTML = `<p class="modal-subtle">❌ ${escapeHtml(
+            errorMsg
+          )}. Please try again.</p>`;
+          downloadPdfBtn.disabled = true;
+          addMessage(`⚠️ Error: ${errorMsg}`, "assistant", "summary-chip");
+        } finally {
+          pendingRequests = Math.max(0, pendingRequests - 1);
+        }
+      }
+
+      // -----------------------------
+      // ✅ UPDATED: any table row click shows modal:
+      // - If patient_id exists -> fetch patient details
+      // - Else -> show row details sheet directly
+      // -----------------------------
+      function addTable(rows, columns, contextMessage = null) {
+        if (!rows || rows.length === 0) {
+          // Don't show table if no data - just show summary message
+          return;
+        }
+
+        const headers =
+          columns && columns.length ? columns : Object.keys(rows[0]);
+
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("message", "assistant", "results-card");
+
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "results-header";
+
+        const title = document.createElement("div");
+        title.className = "results-title";
+        title.textContent = "Query results";
+
+        const meta = document.createElement("div");
+        meta.className = "results-meta";
+        meta.textContent =
+          rows.length === 1 ? "1 record" : rows.length + " records";
+
+        headerDiv.appendChild(title);
+        headerDiv.appendChild(meta);
+        wrapper.appendChild(headerDiv);
+
+        const tableContainer = document.createElement("div");
+        tableContainer.className = "results-table-wrapper";
+
+        const table = document.createElement("table");
+
+        // equal column widths
+        const COL_WIDTH = 200;
+        table.style.width = `${headers.length * COL_WIDTH}px`;
+
+        const colgroup = document.createElement("colgroup");
+        headers.forEach(() => {
+          const col = document.createElement("col");
+          col.style.width = `${COL_WIDTH}px`;
+          colgroup.appendChild(col);
+        });
+        table.appendChild(colgroup);
+
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+
+        headers.forEach((h) => {
+          const th = document.createElement("th");
+          const label = prettifyHeader(h);
+          th.textContent = label;
+          th.title = label;
+          headRow.appendChild(th);
+        });
+        thead.appendChild(headRow);
+
+        const tbody = document.createElement("tbody");
+
+        // Detect table type: audit/admin vs patient data
+        // Audit tables have columns like: id, ts_utc, user_id, session_id, raw_message, sql_query
+        const isAuditTable = headers.some((h) => {
+          const lower = h.toLowerCase();
+          return (
+            (lower === "id" &&
+              headers.some((h2) => h2.toLowerCase() === "ts_utc")) ||
+            lower === "ts_utc" ||
+            lower === "raw_message" ||
+            lower === "sql_query" ||
+            lower === "interaction_id"
+          );
+        });
+
+        // detect patient id and/or name columns (if present)
+        // Check for variations: patient_id, patients_patient_id, patientId, etc.
+        const pidKey = headers.find((h) => {
+          const lower = h.toLowerCase();
+          return lower.includes("patient_id") || lower === "patientid";
+        });
+        const nameKey = headers.find((h) => h.toLowerCase().includes("name"));
+        // For audit tables, "id" is event_id, not patient_id
+        const eventIdKey = isAuditTable
+          ? headers.find((h) => h.toLowerCase() === "id")
+          : null;
+
+        // Helper function to format gender values
+        const formatGender = (gender) => {
+          if (gender === null || gender === undefined || gender === "")
+            return "";
+          const genderStr = String(gender).toLowerCase();
+          if (genderStr === "1" || genderStr === "male") return "Male";
+          if (genderStr === "2" || genderStr === "female") return "Female";
+          return gender; // Return as-is if not 1/2
+        };
+
+        rows.forEach((r) => {
+          const tr = document.createElement("tr");
+
+          headers.forEach((h) => {
+            const td = document.createElement("td");
+            const v = r[h];
+
+            // Format gender columns
+            let text;
+            const headerLower = h.toLowerCase();
+            if (
+              headerLower.includes("gender") ||
+              headerLower === "gender_lkey"
+            ) {
+              text = formatGender(v);
+            } else {
+              text = v == null ? "" : String(v);
+            }
+
+            td.textContent = text;
+            td.title = text;
+            tr.appendChild(td);
+          });
+
+          // ✅ click ANY row:
+          // - If audit table + event_id exists -> fetch interaction details (non-admin)
+          // - If patient_id exists -> open patient details (full role-based details)
+          // - Else -> show generic "Row details" sheet with all columns from the query result
+          tr.addEventListener("click", async () => {
+            // Check if this is an audit/admin table row
+            if (isAuditTable && eventIdKey) {
+              const eventId = r[eventIdKey];
+              if (eventId != null) {
+                // Use non-admin endpoint for interaction details
+                await handleInteractionClick(eventId);
+                return;
+              }
+            }
+
+            // Try to find patient_id in multiple ways:
+            // 1. Check the detected column key
+            let pid = pidKey ? r[pidKey] : null;
+
+            // 2. If not found, check all keys for patient_id variations
+            if (!pid) {
+              for (const key of Object.keys(r)) {
+                const lower = key.toLowerCase();
+                if (
+                  (lower.includes("patient_id") || lower === "patientid") &&
+                  r[key] != null
+                ) {
+                  pid = r[key];
+                  break;
+                }
+              }
+            }
+
+            // 3. Check if any value looks like a patient ID (numeric, reasonable range)
+            // Skip if this looks like an audit table (has ts_utc, raw_message, etc.)
+            if (!pid && !isAuditTable) {
+              for (const [key, value] of Object.entries(r)) {
+                if (
+                  value != null &&
+                  typeof value === "number" &&
+                  value > 0 &&
+                  value < 1000000
+                ) {
+                  const lower = key.toLowerCase();
+                  if (
+                    lower.includes("id") &&
+                    !lower.includes("admission") &&
+                    !lower.includes("diagnosis") &&
+                    !lower.includes("interaction")
+                  ) {
+                    pid = value;
+                    break;
+                  }
+                }
+              }
+            }
+
+            // 4. If still not found, try to extract from context message (e.g., "Patient 1002 is Jane Smith")
+            if (!pid && contextMessage) {
+              const patientIdMatch = contextMessage.match(
+                /\bpatient\s*(?:#|id)?\s*(\d{1,6})\b/i
+              );
+              if (patientIdMatch) {
+                pid = parseInt(patientIdMatch[1], 10);
+              }
+            }
+
+            const nm = nameKey ? r[nameKey] : null;
+
+            // If we have patient_id, fetch full patient details using /patient_details endpoint
+            if (pid) {
+              await handleRowClick(pid, nm);
+              return;
+            }
+
+            // If row doesn't have patient_id, show generic row details (all columns from query result)
+            // UI can show row info only, or user can run query including patient_id
+            lastPatient = null;
+            downloadPdfBtn.disabled = false; // allow PDF for row sheet too
+            openModal("Row details", buildRowDetailsSheet(r, "Row details"));
+          });
+
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        tableContainer.appendChild(table);
+        wrapper.appendChild(tableContainer);
+
+        chatArea.appendChild(wrapper);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function showTyping() {
+        typingDiv = document.createElement("div");
+        typingDiv.className = "typing";
+        typingDiv.innerHTML = `
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+          <div class="typing-dot"></div>
+        `;
+        chatArea.appendChild(typingDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function removeTyping() {
+        if (typingDiv) {
+          typingDiv.remove();
+          typingDiv = null;
+        }
+      }
+
+      function showApprovalButtons(original, corrected, userId) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "approval-buttons";
+
+        const approveBtn = document.createElement("button");
+        approveBtn.textContent = "✅ Approve";
+        approveBtn.className = "approval-btn approve";
+        approveBtn.onclick = async () => {
+          wrapper.remove();
+          addMessage("✅ Approved correction.", "user");
+          await sendMessage(corrected, userId, true);
+        };
+
+        const rejectBtn = document.createElement("button");
+        rejectBtn.textContent = "❌ Reject";
+        rejectBtn.className = "approval-btn reject";
+        rejectBtn.onclick = () => {
+          wrapper.remove();
+          addMessage(
+            "❌ Correction rejected. Please retype your query.",
+            "assistant"
+          );
+        };
+
+        wrapper.appendChild(approveBtn);
+        wrapper.appendChild(rejectBtn);
+        chatArea.appendChild(wrapper);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      async function resetBackendSessions() {
+        try {
+          await fetchWithTimeout(RESET_URL, { method: "POST" }, 5000);
+        } catch (err) {
+          console.warn("Failed to reset backend sessions", err);
+          // Don't show error to user for background operation
+        }
+      }
+
+      // Cleanup function for memory management
+      function cleanup() {
+        // Remove all event listeners if needed
+        // Currently using addEventListener which is automatically cleaned up
+        // when elements are removed from DOM
+      }
+
+      // Handle page unload
+      window.addEventListener("beforeunload", cleanup);
+
+      async function sendMessage(
+        textParam = null,
+        userIdParam = null,
+        approved = false
+      ) {
+        const text = textParam || input.value.trim();
+
+        if (!text) {
+          showErrorMessage("⚠️ You can't send an empty message.");
+          return;
+        }
+
+        // Validate input length
+        if (text.length > 1000) {
+          showErrorMessage("⚠️ Message is too long. Maximum 1000 characters.");
+          return;
+        }
+
+        // Rate limiting
+        if (!canMakeRequest()) {
+          showErrorMessage(
+            "⚠️ Please wait a moment before sending another message."
+          );
+          return;
+        }
+
+        removeErrorMessage();
+        const userId = userIdParam || "u101"; // Default to Doctor role
+        if (!textParam) addMessage(text, "user");
+        input.value = "";
+        updateSendButtonState();
+        showTyping();
+        sendBtn.disabled = true;
+        pendingRequests++;
+
+        try {
+          lastRequestTime = Date.now();
+          const res = await fetchWithTimeout(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              message: text.substring(0, 1000), // Ensure max length
+              session_id: sessionId,
+              user_id: userId,
+              approved: approved,
+            }),
+          });
+
+          const data = await res.json();
+          removeTyping();
+
+          if (data.intent === "approval_required") {
+            addMessage(data.text, "assistant");
+            showApprovalButtons(data.original, text, userId);
+            return;
+          }
+
+          if (
+            data.data_json &&
+            data.data_json.type === "table" &&
+            Array.isArray(data.data_json.table)
+          ) {
+            const summaryText =
+              data.text || `${data.data_json.table.length} record(s) found.`;
+            addMessage(summaryText, "assistant", "summary-chip");
+            // Only show table if there are actual rows with data
+            if (data.data_json.table.length > 0) {
+              // Pass the summary text as context to help extract patient_id if missing from table
+              addTable(
+                data.data_json.table,
+                data.data_json.columns || null,
+                summaryText
+              );
+            }
+            // If no rows, the summary message is enough (table won't be shown)
+          } else {
+            addMessage(data.text || "No response.", "assistant");
+          }
+        } catch (err) {
+          console.error("Error sending message:", err);
+          removeTyping();
+          let errorMsg = err.message || "Connection error";
+          
+          // Provide more helpful error messages
+          if (errorMsg.includes("timeout") || errorMsg.includes("AbortError")) {
+            errorMsg = "Request took too long. CrewAI processing can take 30-60 seconds. Please try again or wait a bit longer.";
+          } else if (errorMsg.includes("Failed to fetch") || errorMsg.includes("NetworkError")) {
+            errorMsg = "Network error. Please check your connection and ensure the backend is running.";
+          } else if (errorMsg.includes("Connection error")) {
+            errorMsg = "Connection error. Please ensure the backend is running on port 8000.";
+          }
+          
+          addMessage(
+            `⚠️ ${errorMsg}`,
+            "assistant"
+          );
+        } finally {
+          sendBtn.disabled = false;
+          pendingRequests = Math.max(0, pendingRequests - 1);
+        }
+      }
+
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          if (!sendBtn.disabled) {
+            sendMessage();
+          }
+        }
+      });
+
+      // Add keyboard navigation for modal
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && patientModal.classList.contains("visible")) {
+          closeModal();
+        }
+      });
+
+      sendBtn.addEventListener("click", () => sendMessage());
+
+      clearBtn.addEventListener("click", async () => {
+        await resetBackendSessions();
+        chatArea.innerHTML = "";
+        addMessage("🧹 Conversation cleared.", "assistant", "summary-chip");
+        sessionId = "session_" + Date.now();
+      });
+
+      newChatBtn.addEventListener("click", async () => {
+        await resetBackendSessions();
+        chatArea.innerHTML = "";
+        sessionId = "session_" + Date.now();
+        addMessage(
+          `✨ New session started. Hello, Doctor. How can I help today?`,
+          "assistant"
+        );
+      });
+
+      downloadPdfBtn.disabled = true;
+    </script>
+  </body>
+</html>

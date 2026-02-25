@@ -1,0 +1,115 @@
+{
+  "info": {
+    "name": "AI Auto-Population Service",
+    "description": "Collection for testing the AI Auto-Population Service API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8010/api/v1/health",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8010",
+          "path": ["api", "v1", "health"]
+        },
+        "description": "Health check endpoint to verify the service is running"
+      },
+      "response": []
+    },
+    {
+      "name": "Auto-Populate (Doctor Role)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"req_postman_001\",\n  \"user_context\": {\n    \"user_id\": \"doctor_123\",\n    \"user_role\": \"doctor\",\n    \"department\": \"cardiology\"\n  },\n  \"input_language\": \"en\",\n  \"output_language\": \"en\",\n  \"user_text\": \"Patient is a 65-year-old male presenting with acute chest pain that started 2 hours ago. Blood pressure is 150/90, heart rate 95 bpm. Patient has history of hypertension and is currently taking Lisinopril 10mg daily. No known allergies. Assessment: Possible acute coronary syndrome. Plan: EKG, cardiac enzymes, aspirin 325mg.\",\n  \"patient_data\": {\n    \"medications\": [\n      {\n        \"name\": \"Lisinopril\",\n        \"dosage\": \"10mg\",\n        \"frequency\": \"daily\"\n      }\n    ],\n    \"allergies\": [],\n    \"vitals\": {\n      \"bp\": \"140/85\",\n      \"hr\": \"92\"\n    },\n    \"past_medical_history\": [\"hypertension\"]\n  },\n  \"expected_output\": [\n    \"chief_complaint\",\n    \"history_of_present_illness\",\n    \"diagnosis\",\n    \"medications\",\n    \"vitals\",\n    \"assessment\",\n    \"plan\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8010/api/v1/auto-populate",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8010",
+          "path": ["api", "v1", "auto-populate"]
+        },
+        "description": "Extract structured medical data from free text (Doctor role - full access)"
+      },
+      "response": []
+    },
+    {
+      "name": "Auto-Populate (Nurse Role)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"req_postman_002\",\n  \"user_context\": {\n    \"user_id\": \"nurse_456\",\n    \"user_role\": \"nurse\",\n    \"department\": \"emergency\"\n  },\n  \"input_language\": \"en\",\n  \"output_language\": \"en\",\n  \"user_text\": \"Patient reports headache and nausea. Vital signs: BP 120/80, HR 72, Temp 98.6F. Administered acetaminophen 500mg PO.\",\n  \"patient_data\": {\n    \"medications\": [],\n    \"allergies\": [\"penicillin\"],\n    \"vitals\": {\n      \"bp\": \"118/78\",\n      \"hr\": \"70\"\n    }\n  },\n  \"expected_output\": [\n    \"chief_complaint\",\n    \"medications\",\n    \"vitals\",\n    \"assessment\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8010/api/v1/auto-populate",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8010",
+          "path": ["api", "v1", "auto-populate"]
+        },
+        "description": "Extract structured medical data (Nurse role - restricted from diagnosis/procedures)"
+      },
+      "response": []
+    },
+    {
+      "name": "Auto-Populate V2 (Doctor Role - Full Request)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"req_postman_v2_001\",\n  \"task_type\": \"auto_population\",\n  \"user\": {\n    \"user_id\": \"doctor_123\",\n    \"role\": \"doctor\",\n    \"department\": \"cardiology\"\n  },\n  \"languages\": {\n    \"input\": \"en\",\n    \"output\": \"en\"\n  },\n  \"inputs\": {\n    \"user_text\": \"Patient is a 65-year-old male presenting with acute chest pain that started 2 hours ago. Blood pressure is 150/90, heart rate 95 bpm. Patient has history of hypertension and is currently taking Lisinopril 10mg daily. No known allergies. Assessment: Possible acute coronary syndrome. Plan: EKG, cardiac enzymes, aspirin 325mg.\",\n    \"onsite\": {\n      \"patient_record_id\": \"pr_456\",\n      \"is_deidentified\": true,\n      \"documents\": [\n        {\n          \"doc_id\": \"doc_1\",\n          \"doc_type\": \"patient_history\"\n        }\n      ],\n      \"patient_data\": {\n        \"medications\": [\n          {\n            \"name\": \"Lisinopril\",\n            \"dosage\": \"10mg\",\n            \"frequency\": \"daily\"\n          }\n        ],\n        \"allergies\": [],\n        \"vitals\": {\n          \"bp\": \"140/85\",\n          \"hr\": \"92\"\n        },\n        \"past_medical_history\": [\"hypertension\"]\n      }\n    }\n  },\n  \"requested_outputs\": {\n    \"include_summary\": true,\n    \"include_structured_fields\": false,\n    \"include_vitals\": true\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8010/api/v1/auto-populate/v2",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "8010",
+          "path": ["api", "v1", "auto-populate", "v2"]
+        },
+        "description": "V2 API: Extract structured medical data with summary, structured fields, and vitals. Includes organized request/response structure."
+      },
+      "response": []
+    }
+  ]
+}
