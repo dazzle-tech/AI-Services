@@ -1,0 +1,83 @@
+"""Configuration management for MedAI Assistant services."""
+import os
+from typing import Optional
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings."""
+    
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        env_file_encoding="utf-8",
+        extra="ignore"  # Ignore extra environment variables that don't match fields
+    )
+    
+    # Service URLs
+    sql_gen_url: str = os.getenv("SQL_GEN_URL", "http://localhost:8001")
+    validator_url: str = os.getenv("VALIDATOR_URL", "http://localhost:8002")
+    formatter_url: str = os.getenv("FORMATTER_URL", "http://localhost:8003")
+    http_timeout_secs: int = int(os.getenv("HTTP_TIMEOUT_SECS", "90"))  # Increased for CrewAI processing
+    
+    # CrewAI Configuration
+    use_crewai: bool = os.getenv("USE_CREWAI", "false").lower() == "true"  # Disable CrewAI by default for faster responses
+    
+    # LLM Configuration
+    llm_provider: str = os.getenv("LLM_PROVIDER", "ollama")  # "ollama" or "openai"
+    
+    # Ollama Configuration
+    ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    llm_model: str = os.getenv("LLM_MODEL", "llama3:8b")
+    sql_gen_model: str = os.getenv("SQL_GEN_MODEL", "llama3:8b")
+    
+    # OpenAI Configuration
+    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+    openai_sql_gen_model: str = os.getenv("OPENAI_SQL_GEN_MODEL", "gpt-4o")
+    
+    # Database Configuration
+    # Database Type: "sqlite" or "postgresql"
+    db_type: str = os.getenv("DB_TYPE", "sqlite")
+    
+    # SQLite Database Paths (used when db_type="sqlite")
+    hospital_db_path: str = os.getenv("HOSPITAL_SQLITE_PATH", "data/hospital.db")
+    audit_db_path: str = os.getenv("AUDIT_DB_PATH", "data/medai_audit.db")
+    
+    # PostgreSQL Configuration (used when db_type="postgresql")
+    db_host: str = os.getenv("DB_HOST", "localhost")
+    db_port: int = int(os.getenv("DB_PORT", "5432"))
+    db_name: str = os.getenv("DB_NAME", "DBLocal")
+    db_user: str = os.getenv("DB_USER", "postgres")
+    db_password: str = os.getenv("DB_PASSWORD", "")
+    db_schema: str = os.getenv("DB_SCHEMA", "public")
+    
+    # Configuration File Paths
+    access_control_path: str = os.getenv("ACCESS_CONTROL_PATH", "data/access_control.json")
+    schema_graph_path: str = os.getenv("SCHEMA_GRAPH_PATH", "data/schema_graph.json")
+    sessions_memory_path: str = os.getenv("SESSIONS_MEMORY_PATH", "data/sessions_memory.json")
+    
+    # Redis Configuration (for session memory)
+    redis_host: str = os.getenv("REDIS_HOST", "localhost")
+    redis_port: int = int(os.getenv("REDIS_PORT", "6379"))
+    redis_db: int = int(os.getenv("REDIS_DB", "0"))
+    session_ttl_seconds: int = int(os.getenv("SESSION_TTL_SECONDS", "86400"))  # 24 hours
+    
+    # Audit Configuration
+    audit_max_row_preview: int = int(os.getenv("AUDIT_MAX_ROW_PREVIEW", "10"))
+    audit_store_full_rows: bool = os.getenv("AUDIT_STORE_FULL_ROWS", "0") == "1"
+    
+    # Server Configuration
+    api_host: str = os.getenv("API_HOST", "0.0.0.0")
+    orchestrator_port: int = int(os.getenv("ORCHESTRATOR_PORT", "8000"))
+    sql_generator_port: int = int(os.getenv("SQL_GENERATOR_PORT", "8001"))
+    validator_port: int = int(os.getenv("VALIDATOR_PORT", "8002"))
+    formatter_port: int = int(os.getenv("FORMATTER_PORT", "8003"))
+    api_reload: bool = os.getenv("API_RELOAD", "true").lower() == "true"  # Default to True for development
+    
+    # Logging
+    log_level: str = os.getenv("LOG_LEVEL", "INFO")
+
+
+settings = Settings()
+

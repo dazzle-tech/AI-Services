@@ -1,0 +1,59 @@
+{
+  "ap_patient": {
+    "columns": [
+      "key",
+      "patient_mrn",
+      "first_name",
+      "last_name",
+      "full_name",
+      "dob",
+      "gender_lkey",
+      "phone_number",
+      "mobile_number",
+      "email",
+      "is_valid"
+    ],
+    "foreign_keys": []
+  },
+  "ap_encounter": {
+    "columns": [
+      "key",
+      "patient_key",
+      "actual_start_date",
+      "discharge_at",
+      "encounter_status_lkey",
+      "encounter_type_lkey",
+      "is_valid"
+    ],
+    "foreign_keys": [
+      {
+        "from": "patient_key",
+        "to_table": "ap_patient",
+        "to_col": "key"
+      }
+    ]
+  },
+  "ap_patient_diagnose": {
+    "columns": [
+      "key",
+      "patient_key",
+      "visit_key",
+      "diagnose_code",
+      "description",
+      "diagnose_status_lkey",
+      "is_valid"
+    ],
+    "foreign_keys": [
+      {
+        "from": "patient_key",
+        "to_table": "ap_patient",
+        "to_col": "key"
+      },
+      {
+        "from": "visit_key",
+        "to_table": "ap_encounter",
+        "to_col": "key"
+      }
+    ]
+  }
+}

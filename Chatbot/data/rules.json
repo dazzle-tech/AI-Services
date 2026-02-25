@@ -1,0 +1,219 @@
+{
+  "max_results": {
+    "enabled": true,
+    "limit": 1000,
+    "message": "This query would return too many results. Please refine your query with specific criteria (e.g., date range, patient name, or other filters)."
+  },
+  "forbidden_queries": {
+    "enabled": true,
+    "patterns": [
+      {
+        "pattern": "\\b(all|every|entire)\\s+(patient|patients)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all patients in the hospital as this would be too many results. Please specify a date range, patient name, or other criteria to narrow down your query."
+      },
+      {
+        "pattern": "\\bshow\\s+(me\\s+)?all\\s+(patient|patients)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all patients in the hospital as this would be too many results. Please specify a date range, patient name, or other criteria to narrow down your query."
+      },
+      {
+        "pattern": "\\blist\\s+(all\\s+)?(patient|patients)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all patients in the hospital as this would be too many results. Please specify a date range, patient name, or other criteria to narrow down your query."
+      },
+      {
+        "pattern": "\\bget\\s+(all|every)\\s+(patient|patients)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all patients in the hospital as this would be too many results. Please specify a date range, patient name, or other criteria to narrow down your query."
+      },
+      {
+        "pattern": "\\bcount\\s+(all|every)\\s+(patient|patients)\\b",
+        "case_sensitive": false,
+        "message": "Counting all patients would require processing too many records. Please specify a date range or other criteria to narrow down your query."
+      },
+      {
+        "pattern": "\\bselect\\s+\\*\\s+from\\s+ap_patient\\s*(where\\s+1\\s*=\\s*1)?\\s*$",
+        "case_sensitive": false,
+        "message": "This query would return all patients, which is not allowed. Please add specific filters."
+      },
+      {
+        "pattern": "\\b(export|download|dump|backup|extract)\\s+(all|every|entire)\\b",
+        "case_sensitive": false,
+        "message": "I cannot export or download all data. Please specify what specific information you need with appropriate filters."
+      },
+      {
+        "pattern": "\\b(export|download|dump)\\s+(patient|data|records)\\b",
+        "case_sensitive": false,
+        "message": "Bulk data export is not available through this interface. Please specify the specific information you need with filters."
+      },
+      {
+        "pattern": "\\b(delete|remove|drop|truncate|alter|modify|update|insert|create)\\s+",
+        "case_sensitive": false,
+        "message": "Data modification operations (DELETE, UPDATE, INSERT, DROP, etc.) are not allowed. This system is read-only for data queries."
+      },
+      {
+        "pattern": "\\b(show|list|get|find|search)\\s+(all|every|entire)\\s+(encounter|encounters|admission|admissions|diagnosis|diagnoses|test|tests|result|results|treatment|treatments|prescription|prescriptions)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all records without filters. Please specify a date range, patient, or other criteria to narrow down your query."
+      },
+      {
+        "pattern": "\\b(show|list|get|find)\\s+(all|every|entire)\\s+(doctor|doctors|nurse|nurses|staff|employee|employees)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all staff members without filters. Please specify a department, role, or other criteria to narrow down your query."
+      },
+      {
+        "pattern": "\\b(show|list|get|find)\\s+(all|every|entire)\\s+(ward|wards|room|rooms|department|departments)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all locations without filters. Please specify a date range, status, or other criteria to narrow down your query."
+      }
+    ]
+  },
+  "required_filters": {
+    "enabled": true,
+    "rules": [
+      {
+        "table": "ap_patient",
+        "when": "querying all patients",
+        "required_filters": ["date_range", "patient_name", "patient_id", "status", "ward", "room"],
+        "message": "When querying patients, you must include at least one filter: date range, patient name/ID, status, ward, or room number."
+      },
+      {
+        "table": "ap_encounter",
+        "when": "querying all encounters",
+        "required_filters": ["date_range", "patient_id", "patient_name", "status", "ward", "department"],
+        "message": "When querying encounters, you must include at least one filter: date range, patient, status, ward, or department."
+      },
+      {
+        "table": "ap_diagnosis",
+        "when": "querying all diagnoses",
+        "required_filters": ["date_range", "patient_id", "patient_name", "diagnosis_code", "diagnosis_name"],
+        "message": "When querying diagnoses, you must include at least one filter: date range, patient, or diagnosis code/name."
+      }
+    ]
+  },
+  "date_range_limits": {
+    "enabled": true,
+    "max_days": 365,
+    "message": "The requested date range is too large. Please limit your query to a maximum of 365 days."
+  },
+  "future_date_restrictions": {
+    "enabled": true,
+    "message": "I cannot query data for future dates. Please specify a date in the past or present."
+  },
+  "historical_data_limits": {
+    "enabled": true,
+    "max_years_back": 10,
+    "message": "I cannot query data older than 10 years. Please specify a more recent date range."
+  },
+  "sensitive_data": {
+    "enabled": true,
+    "restrictions": [
+      {
+        "pattern": "\\b(ssn|social\\s+security|credit\\s+card|bank\\s+account|account\\s+number|routing\\s+number)\\b",
+        "case_sensitive": false,
+        "message": "I cannot provide sensitive financial or identification information."
+      },
+      {
+        "pattern": "\\b(password|passwd|pin|pii|personally\\s+identifiable)\\b",
+        "case_sensitive": false,
+        "message": "I cannot provide sensitive personal identification information or passwords."
+      }
+    ]
+  },
+  "sql_restrictions": {
+    "enabled": true,
+    "forbidden_keywords": [
+      "DELETE",
+      "DROP",
+      "TRUNCATE",
+      "ALTER",
+      "CREATE",
+      "INSERT",
+      "UPDATE",
+      "GRANT",
+      "REVOKE",
+      "EXEC",
+      "EXECUTE",
+      "CALL"
+    ],
+    "forbidden_patterns": [
+      {
+        "pattern": "\\bselect\\s+\\*\\s+from\\s+\\w+\\s*(where\\s+1\\s*=\\s*1)?\\s*$",
+        "case_sensitive": false,
+        "message": "Queries selecting all columns without proper filters are not allowed. Please specify the columns you need and add appropriate WHERE conditions."
+      },
+      {
+        "pattern": "\\bjoin\\s+\\w+\\s+join\\s+\\w+\\s+join\\s+\\w+\\s+join",
+        "case_sensitive": false,
+        "message": "Queries with more than 3 JOINs may be too complex and slow. Please simplify your query or break it into smaller queries."
+      },
+      {
+        "pattern": "\\bselect\\s+count\\(\\*\\)\\s+from\\s+\\w+\\s*(where\\s+1\\s*=\\s*1|where\\s+true)?\\s*$",
+        "case_sensitive": false,
+        "message": "Counting all rows in a table without filters is not allowed. Please add a WHERE clause with specific criteria."
+      },
+      {
+        "pattern": "\\bunion\\s+all\\s+select",
+        "case_sensitive": false,
+        "message": "UNION ALL queries without proper limits are restricted. Please add LIMIT clauses or more specific filters."
+      },
+      {
+        "pattern": "\\border\\s+by\\s+\\w+\\s+limit\\s+\\d+\\s*$",
+        "case_sensitive": false,
+        "message": "Queries with ORDER BY and LIMIT should include WHERE clauses to avoid full table scans."
+      }
+    ],
+    "message": "This SQL query contains restricted operations or patterns that are not allowed."
+  },
+  "performance_restrictions": {
+    "enabled": true,
+    "max_joins": 3,
+    "max_subqueries": 2,
+    "require_where_clause": true,
+    "message": "This query may be too complex or resource-intensive. Please simplify your query or add more specific filters."
+  },
+  "aggregate_restrictions": {
+    "enabled": true,
+    "require_group_by": false,
+    "max_aggregate_functions": 5,
+    "message": "Aggregate queries without proper grouping or with too many aggregate functions may be restricted. Please refine your query."
+  },
+  "text_search_restrictions": {
+    "enabled": true,
+    "max_text_search_length": 100,
+    "require_limit": true,
+    "message": "Text search queries must include LIMIT clauses and reasonable search terms to prevent performance issues."
+  },
+  "bulk_operations": {
+    "enabled": true,
+    "restrictions": [
+      {
+        "pattern": "\\b(all|every|entire)\\s+(name|names|address|addresses|phone|phones|email|emails)\\b",
+        "case_sensitive": false,
+        "message": "I cannot return all personal information in bulk. Please specify which patients or records you need."
+      },
+      {
+        "pattern": "\\b(export|download|copy|transfer)\\s+(patient|data|record|information)\\b",
+        "case_sensitive": false,
+        "message": "Bulk data export is not available. Please query specific information with appropriate filters."
+      }
+    ]
+  },
+  "time_based_restrictions": {
+    "enabled": true,
+    "max_query_time_seconds": 30,
+    "message": "Queries that take longer than 30 seconds are automatically cancelled to prevent system overload."
+  },
+  "column_restrictions": {
+    "enabled": true,
+    "forbidden_columns": [
+      "password",
+      "passwd",
+      "secret",
+      "token",
+      "api_key"
+    ],
+    "message": "Access to certain sensitive columns is restricted."
+  }
+}

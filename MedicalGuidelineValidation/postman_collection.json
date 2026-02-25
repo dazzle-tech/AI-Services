@@ -1,0 +1,157 @@
+{
+  "info": {
+    "_postman_id": "medical-guideline-validation",
+    "name": "Medical Guideline Validation API",
+    "description": "Postman collection for Medical Guideline Validation API - AI-powered clinical decision support using OpenAI GPT-4",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Root",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": ["{{base_url}}"],
+          "path": [""]
+        },
+        "description": "API root - service info"
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        },
+        "description": "Health check - OpenAI configured and validator status"
+      },
+      "response": []
+    },
+    {
+      "name": "Guideline Check (full body)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"P001\",\n  \"specialty\": \"cardiology\",\n  \"active_orders\": {\n    \"medications\": [\n      {\n        \"order_id\": \"MED001\",\n        \"medication\": \"Atorvastatin\",\n        \"dose\": \"80 mg\",\n        \"route\": \"PO\",\n        \"frequency\": \"Daily\",\n        \"indication\": \"High-intensity statin for ACS\"\n      },\n      {\n        \"order_id\": \"MED002\",\n        \"medication\": \"Metoprolol\",\n        \"dose\": \"25 mg\",\n        \"route\": \"PO\",\n        \"frequency\": \"BID\"\n      }\n    ],\n    \"labs\": [\n      {\n        \"order_id\": \"LAB001\",\n        \"test\": \"Serial Troponin\",\n        \"frequency\": \"Every 6 hours x 3\"\n      }\n    ],\n    \"procedures\": [],\n    \"imaging\": []\n  },\n  \"clinical_context\": {\n    \"chief_complaint\": \"Chest pain\",\n    \"admission_reason\": \"Acute Coronary Syndrome\",\n    \"current_status\": \"Stable post-PCI\"\n  },\n  \"patient_record\": {\n    \"patient_id\": \"P001\",\n    \"age\": 67,\n    \"gender\": \"M\",\n    \"allergies\": [\"Penicillin\", \"Sulfa drugs\"],\n    \"comorbidities\": [\"Type 2 Diabetes\", \"Hypertension\", \"CKD Stage 3\"],\n    \"current_diagnosis\": \"Acute Coronary Syndrome\",\n    \"department\": \"Cardiology\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/validate/guideline-check",
+          "host": ["{{base_url}}"],
+          "path": ["validate", "guideline-check"]
+        },
+        "description": "Full guideline validation with complete patient data and active orders"
+      },
+      "response": []
+    },
+    {
+      "name": "Quick Check (sample patient)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"P001\",\n  \"specialty\": \"cardiology\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/validate/quick-check",
+          "host": ["{{base_url}}"],
+          "path": ["validate", "quick-check"]
+        },
+        "description": "Quick check using sample patient (P001, P002, P003). Fetches sample data server-side."
+      },
+      "response": []
+    },
+    {
+      "name": "Quick Check - P002",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": \"P002\",\n  \"specialty\": \"pulmonary\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/validate/quick-check",
+          "host": ["{{base_url}}"],
+          "path": ["validate", "quick-check"]
+        },
+        "description": "Quick check for sample patient P002 (CAP)"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Sample Patients",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/sample-patients",
+          "host": ["{{base_url}}"],
+          "path": ["sample-patients"]
+        },
+        "description": "List available sample patients (P001, P002, P003)"
+      },
+      "response": []
+    },
+    {
+      "name": "Get Patient Details",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/patient-details/P001",
+          "host": ["{{base_url}}"],
+          "path": ["patient-details", "P001"]
+        },
+        "description": "Full sample patient data including active_orders and clinical_context"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8008",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "info": {
+    "_postman_id": "clinical-recommendations-service",
+    "name": "Clinical Recommendations Service API",
+    "description": "Postman collection for Clinical Recommendations Service REST API. Evidence-based recommendations from patient context, specialty consultation, and user-role perspective.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Root Endpoint",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/",
+          "host": ["{{base_url}}"],
+          "path": [""]
+        },
+        "description": "Get service information and status"
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/v1/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "health"]
+        },
+        "description": "Check service health and OpenAI API status"
+      },
+      "response": []
+    },
+    {
+      "name": "Recommendations - Complete",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-req-001\",\n  \"patient_context\": {\n    \"age\": \"65 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Acute ST-Elevation Myocardial Infarction (STEMI)\",\n    \"symptoms\": [\"Chest pain\", \"Shortness of breath\", \"Diaphoresis\"],\n    \"medications\": [\"Aspirin 325mg daily\", \"Metoprolol 50mg BID\", \"Atorvastatin 40mg daily\", \"Lisinopril 10mg daily\"],\n    \"allergies\": [\"Penicillin\"],\n    \"comorbidities\": [\"Hypertension\", \"Hyperlipidemia\", \"Type 2 Diabetes Mellitus\"],\n    \"vitals\": {\n      \"BP\": \"140/90 mmHg\",\n      \"HR\": \"72 bpm\",\n      \"RR\": \"18\",\n      \"Temp\": \"98.6 F\",\n      \"SpO2\": \"98%\"\n    },\n    \"lab_results\": {\n      \"Troponin\": \"0.4 ng/mL\",\n      \"HbA1c\": \"7.5%\",\n      \"Creatinine\": \"1.1 mg/dL\",\n      \"LDL\": \"95 mg/dL\"\n    },\n    \"surgeries\": [\n      { \"name\": \"PCI (stent) 2024\", \"status\": \"completed\" },\n      { \"name\": \"Cardiac catheterization\", \"status\": \"scheduled\" }\n    ],\n    \"clinical_notes\": \"Patient post-PCI, doing well. Cardiac rehab discussed. Discharge planned with close cardiology follow-up.\"\n  },\n  \"recommendation_types\": [\"medication\", \"diagnostic\", \"treatment\", \"monitoring\", \"lifestyle\", \"referral\", \"general\"],\n  \"focus_areas\": [\"medication optimization\", \"cardiac rehab\", \"secondary prevention\"]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/recommendations",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "recommendations"]
+        },
+        "description": "Full recommendations from complete patient context. All recommendation types and focus areas."
+      },
+      "response": []
+    },
+    {
+      "name": "Recommendations - Minimal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_context\": {\n    \"age\": \"45 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Hypertension\",\n    \"symptoms\": [\"Headache\"],\n    \"medications\": [\"Lisinopril 10mg\"],\n    \"allergies\": [],\n    \"comorbidities\": [],\n    \"vitals\": {},\n    \"lab_results\": {},\n    \"surgeries\": []\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/recommendations",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "recommendations"]
+        },
+        "description": "Recommendations with minimal required patient data (default recommendation_types: general)"
+      },
+      "response": []
+    },
+    {
+      "name": "Consultation - Specialty (Minimal)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-spec-001\",\n  \"specialty\": \"cardiology\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/consultation/specialty",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "consultation", "specialty"]
+        },
+        "description": "General specialty consultation – summary of standard protocols, tests, and procedures for the specialty (no patient context)"
+      },
+      "response": []
+    },
+    {
+      "name": "Consultation - Specialty (With Context)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-spec-002\",\n  \"specialty\": \"endocrinology\",\n  \"patient_context\": {\n    \"age\": \"65 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Acute ST-Elevation Myocardial Infarction (STEMI)\",\n    \"symptoms\": [\"Chest pain\", \"Shortness of breath\", \"Diaphoresis\"],\n    \"medications\": [\"Aspirin 325mg daily\", \"Metoprolol 50mg BID\", \"Atorvastatin 40mg daily\", \"Lisinopril 10mg daily\"],\n    \"allergies\": [\"Penicillin\"],\n    \"comorbidities\": [\"Hypertension\", \"Hyperlipidemia\", \"Type 2 Diabetes Mellitus\"],\n    \"vitals\": {\n      \"BP\": \"140/90 mmHg\",\n      \"HR\": \"72 bpm\",\n      \"RR\": \"18\",\n      \"Temp\": \"98.6 F\",\n      \"SpO2\": \"98%\"\n    },\n    \"lab_results\": {\n      \"Troponin\": \"0.4 ng/mL\",\n      \"HbA1c\": \"7.5%\",\n      \"Creatinine\": \"1.1 mg/dL\",\n      \"LDL\": \"95 mg/dL\"\n    },\n    \"surgeries\": [\n      { \"name\": \"PCI (stent) 2024\", \"status\": \"completed\" },\n      { \"name\": \"Cardiac catheterization\", \"status\": \"scheduled\" }\n    ]\n  },\n  \"complaint\": \"Poor glycemic control despite metformin\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/consultation/specialty",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "consultation", "specialty"]
+        },
+        "description": "Specialty consultation with optional patient context and chief complaint"
+      },
+      "response": []
+    },
+    {
+      "name": "User-Role Recommendations - Complete",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-role-001\",\n  \"user_role\": \"cardiology\",\n  \"patient_context\": {\n    \"age\": \"65 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Type 2 Diabetes with chest pain on exertion\",\n    \"symptoms\": [\"Chest pain\", \"Fatigue\"],\n    \"medications\": [\"Metformin\", \"Lisinopril\", \"Atorvastatin\"],\n    \"allergies\": [\"Penicillin\"],\n    \"comorbidities\": [\"Hypertension\", \"Hyperlipidemia\"],\n    \"vitals\": {\n      \"BP\": \"140/90 mmHg\",\n      \"HR\": \"78 bpm\"\n    },\n    \"lab_results\": {\n      \"HbA1c\": \"7.5%\",\n      \"Troponin\": \"negative\"\n    },\n    \"clinical_notes\": \"Patient reports chest pain on exertion. Stress test pending.\"\n  },\n  \"recommendation_types\": [\"diagnostic\", \"treatment\", \"monitoring\"],\n  \"focus_areas\": [\"ischemic workup\", \"glycemic control\"]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/recommendations/user-role",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "recommendations", "user-role"]
+        },
+        "description": "Recommendations from the perspective of the logged-in user's specialty (e.g. as a cardiologist would evaluate)"
+      },
+      "response": []
+    },
+    {
+      "name": "User-Role Recommendations - Minimal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_role\": \"endocrinology\",\n  \"patient_context\": {\n    \"age\": \"52 years\",\n    \"gender\": \"Male\",\n    \"diagnosis\": \"Type 2 Diabetes\",\n    \"symptoms\": [\"Polyuria\"],\n    \"medications\": [\"Metformin\"],\n    \"allergies\": [],\n    \"comorbidities\": [],\n    \"vitals\": {},\n    \"lab_results\": {}\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/recommendations/user-role",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "recommendations", "user-role"]
+        },
+        "description": "User-role recommendations with minimal required patient data"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8007",
+      "type": "string"
+    }
+  ]
+}

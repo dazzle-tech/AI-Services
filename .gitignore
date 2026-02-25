@@ -11,6 +11,9 @@ env/
 venv/
 .venv/
 ENV/
+*.pyc
+*.pyo
+*.pyd
 
 # Environment variables
 .env
@@ -34,3 +37,21 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Node.js (if not using)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Vite (build tool cache - not used in this project)
+.vite/
+dist/
+build/
+
+# Database files (runtime)
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Temporary/duplicate directories
+chatbot/chatbot/
