@@ -1,0 +1,52 @@
+{
+  "template_id": "mri_lumbar_spine",
+  "name": "MRI Lumbar Spine — Degenerative/Radiculopathy",
+  "modality": "MRI",
+  "body_region": "Lumbar Spine",
+  "description": "Lumbar spine MRI template for back pain and radiculopathy. Emphasizes alignment, discs, canal/foramina, and nerve root impingement by level.",
+  "keywords": ["MRI lumbar", "radiculopathy", "disc herniation", "foraminal narrowing", "spinal stenosis", "L4-L5", "L5-S1"],
+  "fields": [
+    {
+      "name": "exam",
+      "label": "Exam",
+      "description": "Exam name and protocol details if provided.",
+      "required": true
+    },
+    {
+      "name": "clinical_history",
+      "label": "Clinical History",
+      "description": "Symptoms, distribution, indication.",
+      "required": true
+    },
+    {
+      "name": "technique",
+      "label": "Technique",
+      "description": "Sequences and planes if stated.",
+      "required": true
+    },
+    {
+      "name": "comparison",
+      "label": "Comparison",
+      "description": "Prior studies if any.",
+      "required": false
+    },
+    {
+      "name": "findings_alignment",
+      "label": "Findings — Alignment/Vertebrae",
+      "description": "Alignment, marrow signal, fractures/lesions if mentioned.",
+      "required": false
+    },
+    {
+      "name": "findings_discs_levels",
+      "label": "Findings — Discs/Levels",
+      "description": "Describe degenerative changes by level and note nerve root contact/impingement if stated.",
+      "required": true
+    },
+    {
+      "name": "impression",
+      "label": "Impression",
+      "description": "Concise key abnormalities and symptomatic level if supported by input.",
+      "required": true
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "template_id": "mammography_screening",
+  "name": "Screening Mammography — Bilateral",
+  "modality": "Mammography",
+  "body_region": "Breast",
+  "description": "Screening mammography template. Focuses on breast density, masses, calcifications, asymmetries, distortion, and BI-RADS assessment/recommendation.",
+  "keywords": ["screening mammogram", "tomosynthesis", "BI-RADS", "calcifications", "mass", "architectural distortion", "density"],
+  "fields": [
+    {
+      "name": "exam",
+      "label": "Exam",
+      "description": "Exam type and technique (e.g., 2D + DBT) if provided.",
+      "required": true
+    },
+    {
+      "name": "clinical_history",
+      "label": "Clinical History",
+      "description": "Screening vs diagnostic; symptoms if mentioned.",
+      "required": true
+    },
+    {
+      "name": "technique",
+      "label": "Technique",
+      "description": "Views and tomosynthesis if mentioned.",
+      "required": true
+    },
+    {
+      "name": "comparison",
+      "label": "Comparison",
+      "description": "Prior mammograms and dates if available.",
+      "required": false
+    },
+    {
+      "name": "findings_density",
+      "label": "Findings — Breast Density",
+      "description": "ACR density category if stated; otherwise describe qualitatively from input.",
+      "required": false
+    },
+    {
+      "name": "findings",
+      "label": "Findings",
+      "description": "Masses, calcifications, asymmetries, distortion, and any pertinent negatives.",
+      "required": true
+    },
+    {
+      "name": "impression",
+      "label": "Impression",
+      "description": "BI-RADS assessment and recommendation if supported by input; otherwise concise summary.",
+      "required": true
+    }
+  ]
+}

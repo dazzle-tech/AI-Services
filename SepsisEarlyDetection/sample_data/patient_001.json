@@ -1,0 +1,164 @@
+{
+  "patient_info": {
+    "patient_id": "PT-001",
+    "name": "Margaret Ellis",
+    "age": 62,
+    "gender": "Female",
+    "weight_kg": 72,
+    "height_cm": 165,
+    "bmi": 26.4,
+    "blood_type": "A+",
+    "admission_reason": "Elective hip replacement surgery (post-op monitoring)",
+    "comorbidities": ["Hypertension", "Type 2 Diabetes (well-controlled)"],
+    "allergies": ["Penicillin"],
+    "admission_date": "2025-06-10",
+    "monitoring_start": "2025-06-10T00:00:00",
+    "sepsis_outcome": "No sepsis — stable post-operative recovery"
+  },
+  "hourly_data": [
+    {
+      "hour": 0,
+      "timestamp": "2025-06-10T00:00:00",
+      "vitals": { "HR": 74, "Resp": 15, "SBP": 128, "DBP": 78, "MAP": 95, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.2, "Platelets": 220, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 1,
+      "timestamp": "2025-06-10T01:00:00",
+      "vitals": { "HR": 72, "Resp": 14, "SBP": 126, "DBP": 76, "MAP": 93, "O2Sat": 97, "Temp": 36.6, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.2, "Platelets": 220, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 2,
+      "timestamp": "2025-06-10T02:00:00",
+      "vitals": { "HR": 71, "Resp": 14, "SBP": 124, "DBP": 75, "MAP": 91, "O2Sat": 97, "Temp": 36.6, "EtCO2": 37 },
+      "labs": { "Lactate": 1.0, "WBC": 8.2, "Platelets": 220, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 3,
+      "timestamp": "2025-06-10T03:00:00",
+      "vitals": { "HR": 70, "Resp": 13, "SBP": 122, "DBP": 74, "MAP": 90, "O2Sat": 98, "Temp": 36.5, "EtCO2": 37 },
+      "labs": { "Lactate": 0.9, "WBC": 8.0, "Platelets": 222, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 4,
+      "timestamp": "2025-06-10T04:00:00",
+      "vitals": { "HR": 70, "Resp": 13, "SBP": 121, "DBP": 74, "MAP": 90, "O2Sat": 98, "Temp": 36.5, "EtCO2": 37 },
+      "labs": { "Lactate": 0.9, "WBC": 8.0, "Platelets": 222, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 5,
+      "timestamp": "2025-06-10T05:00:00",
+      "vitals": { "HR": 69, "Resp": 13, "SBP": 120, "DBP": 73, "MAP": 89, "O2Sat": 98, "Temp": 36.5, "EtCO2": 37 },
+      "labs": { "Lactate": 0.9, "WBC": 8.0, "Platelets": 222, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 6,
+      "timestamp": "2025-06-10T06:00:00",
+      "vitals": { "HR": 71, "Resp": 14, "SBP": 122, "DBP": 75, "MAP": 91, "O2Sat": 97, "Temp": 36.6, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.3, "Platelets": 218, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 39 }
+    },
+    {
+      "hour": 7,
+      "timestamp": "2025-06-10T07:00:00",
+      "vitals": { "HR": 73, "Resp": 14, "SBP": 125, "DBP": 77, "MAP": 93, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.3, "Platelets": 218, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 39 }
+    },
+    {
+      "hour": 8,
+      "timestamp": "2025-06-10T08:00:00",
+      "vitals": { "HR": 75, "Resp": 15, "SBP": 127, "DBP": 78, "MAP": 94, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.1, "WBC": 8.5, "Platelets": 215, "Creatinine": 1.0, "Bilirubin_total": 0.7, "HCO3": 23, "BUN": 15, "Hct": 39 }
+    },
+    {
+      "hour": 9,
+      "timestamp": "2025-06-10T09:00:00",
+      "vitals": { "HR": 76, "Resp": 15, "SBP": 129, "DBP": 79, "MAP": 96, "O2Sat": 97, "Temp": 36.8, "EtCO2": 39 },
+      "labs": { "Lactate": 1.1, "WBC": 8.5, "Platelets": 215, "Creatinine": 1.0, "Bilirubin_total": 0.7, "HCO3": 23, "BUN": 15, "Hct": 39 }
+    },
+    {
+      "hour": 10,
+      "timestamp": "2025-06-10T10:00:00",
+      "vitals": { "HR": 74, "Resp": 15, "SBP": 126, "DBP": 77, "MAP": 93, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.4, "Platelets": 216, "Creatinine": 1.0, "Bilirubin_total": 0.7, "HCO3": 23, "BUN": 15, "Hct": 39 }
+    },
+    {
+      "hour": 11,
+      "timestamp": "2025-06-10T11:00:00",
+      "vitals": { "HR": 73, "Resp": 14, "SBP": 125, "DBP": 76, "MAP": 92, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.4, "Platelets": 216, "Creatinine": 1.0, "Bilirubin_total": 0.7, "HCO3": 23, "BUN": 15, "Hct": 39 }
+    },
+    {
+      "hour": 12,
+      "timestamp": "2025-06-10T12:00:00",
+      "vitals": { "HR": 72, "Resp": 14, "SBP": 124, "DBP": 76, "MAP": 92, "O2Sat": 98, "Temp": 36.6, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.2, "Platelets": 218, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 13,
+      "timestamp": "2025-06-10T13:00:00",
+      "vitals": { "HR": 71, "Resp": 14, "SBP": 123, "DBP": 75, "MAP": 91, "O2Sat": 98, "Temp": 36.6, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.2, "Platelets": 218, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 14,
+      "timestamp": "2025-06-10T14:00:00",
+      "vitals": { "HR": 72, "Resp": 14, "SBP": 124, "DBP": 76, "MAP": 92, "O2Sat": 97, "Temp": 36.6, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.3, "Platelets": 217, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 39 }
+    },
+    {
+      "hour": 15,
+      "timestamp": "2025-06-10T15:00:00",
+      "vitals": { "HR": 74, "Resp": 15, "SBP": 126, "DBP": 77, "MAP": 93, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.3, "Platelets": 217, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 39 }
+    },
+    {
+      "hour": 16,
+      "timestamp": "2025-06-10T16:00:00",
+      "vitals": { "HR": 75, "Resp": 15, "SBP": 127, "DBP": 78, "MAP": 94, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.1, "WBC": 8.4, "Platelets": 216, "Creatinine": 1.0, "Bilirubin_total": 0.7, "HCO3": 23, "BUN": 15, "Hct": 39 }
+    },
+    {
+      "hour": 17,
+      "timestamp": "2025-06-10T17:00:00",
+      "vitals": { "HR": 73, "Resp": 15, "SBP": 125, "DBP": 77, "MAP": 93, "O2Sat": 97, "Temp": 36.7, "EtCO2": 38 },
+      "labs": { "Lactate": 1.1, "WBC": 8.4, "Platelets": 216, "Creatinine": 1.0, "Bilirubin_total": 0.7, "HCO3": 23, "BUN": 15, "Hct": 39 }
+    },
+    {
+      "hour": 18,
+      "timestamp": "2025-06-10T18:00:00",
+      "vitals": { "HR": 72, "Resp": 14, "SBP": 124, "DBP": 76, "MAP": 92, "O2Sat": 97, "Temp": 36.6, "EtCO2": 38 },
+      "labs": { "Lactate": 1.0, "WBC": 8.2, "Platelets": 219, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 19,
+      "timestamp": "2025-06-10T19:00:00",
+      "vitals": { "HR": 72, "Resp": 14, "SBP": 123, "DBP": 75, "MAP": 91, "O2Sat": 98, "Temp": 36.6, "EtCO2": 37 },
+      "labs": { "Lactate": 1.0, "WBC": 8.2, "Platelets": 219, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 20,
+      "timestamp": "2025-06-10T20:00:00",
+      "vitals": { "HR": 71, "Resp": 14, "SBP": 122, "DBP": 74, "MAP": 90, "O2Sat": 98, "Temp": 36.5, "EtCO2": 37 },
+      "labs": { "Lactate": 0.9, "WBC": 8.1, "Platelets": 220, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 21,
+      "timestamp": "2025-06-10T21:00:00",
+      "vitals": { "HR": 70, "Resp": 13, "SBP": 121, "DBP": 73, "MAP": 89, "O2Sat": 98, "Temp": 36.5, "EtCO2": 37 },
+      "labs": { "Lactate": 0.9, "WBC": 8.1, "Platelets": 220, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 22,
+      "timestamp": "2025-06-10T22:00:00",
+      "vitals": { "HR": 70, "Resp": 13, "SBP": 120, "DBP": 73, "MAP": 89, "O2Sat": 98, "Temp": 36.5, "EtCO2": 37 },
+      "labs": { "Lactate": 0.9, "WBC": 8.0, "Platelets": 221, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    },
+    {
+      "hour": 23,
+      "timestamp": "2025-06-10T23:00:00",
+      "vitals": { "HR": 69, "Resp": 13, "SBP": 119, "DBP": 72, "MAP": 88, "O2Sat": 98, "Temp": 36.5, "EtCO2": 37 },
+      "labs": { "Lactate": 0.9, "WBC": 8.0, "Platelets": 221, "Creatinine": 0.9, "Bilirubin_total": 0.6, "HCO3": 24, "BUN": 14, "Hct": 40 }
+    }
+  ]
+}

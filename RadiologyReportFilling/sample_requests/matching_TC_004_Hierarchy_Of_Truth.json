@@ -1,0 +1,18 @@
+{
+  "clinical_report": "Follow-up of pulmonary nodule. A stable 1.2cm nodule is noted in the left upper lobe.",
+  "ai_image_analysis": {
+    "findings": [
+      {
+        "label": "Nodule",
+        "location": "Left Upper Lobe",
+        "size_mm": 18,
+        "confidence": 0.92
+      }
+    ]
+  },
+  "extracted_dicom_metadata": {
+    "Modality": "DX",
+    "ViewPosition": "PA",
+    "StudyDescription": "CHEST SINGLE VIEW"
+  }
+}

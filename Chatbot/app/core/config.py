@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     )
     
     # Service URLs
-    sql_gen_url: str = os.getenv("SQL_GEN_URL", "http://localhost:8001")
-    validator_url: str = os.getenv("VALIDATOR_URL", "http://localhost:8002")
-    formatter_url: str = os.getenv("FORMATTER_URL", "http://localhost:8003")
+    sql_gen_url: str = os.getenv("SQL_GEN_URL", "http://localhost:8013")
+    validator_url: str = os.getenv("VALIDATOR_URL", "http://localhost:8014")
+    formatter_url: str = os.getenv("FORMATTER_URL", "http://localhost:8015")
     http_timeout_secs: int = int(os.getenv("HTTP_TIMEOUT_SECS", "90"))  # Increased for CrewAI processing
     
     # CrewAI Configuration
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     db_port: int = int(os.getenv("DB_PORT", "5432"))
     db_name: str = os.getenv("DB_NAME", "DBLocal")
     db_user: str = os.getenv("DB_USER", "postgres")
-    db_password: str = os.getenv("DB_PASSWORD", "")
+    db_password: str = os.getenv("DB_PASSWORD", "123456")
     db_schema: str = os.getenv("DB_SCHEMA", "public")
     
     # Configuration File Paths
@@ -69,10 +69,10 @@ class Settings(BaseSettings):
     
     # Server Configuration
     api_host: str = os.getenv("API_HOST", "0.0.0.0")
-    orchestrator_port: int = int(os.getenv("ORCHESTRATOR_PORT", "8000"))
-    sql_generator_port: int = int(os.getenv("SQL_GENERATOR_PORT", "8001"))
-    validator_port: int = int(os.getenv("VALIDATOR_PORT", "8002"))
-    formatter_port: int = int(os.getenv("FORMATTER_PORT", "8003"))
+    orchestrator_port: int = int(os.getenv("ORCHESTRATOR_PORT", "8011"))
+    sql_generator_port: int = int(os.getenv("SQL_GENERATOR_PORT", "8013"))
+    validator_port: int = int(os.getenv("VALIDATOR_PORT", "8014"))
+    formatter_port: int = int(os.getenv("FORMATTER_PORT", "8015"))
     api_reload: bool = os.getenv("API_RELOAD", "true").lower() == "true"  # Default to True for development
     
     # Logging

@@ -147,14 +147,14 @@ class BusinessRulesService:
             - error_message: None if allowed, error message if restricted
         """
         # Check forbidden query patterns
-        # NOTE: Allow "all patients" queries - they will get a default "last 2 weeks" filter
         if self.rules.get("forbidden_queries", {}).get("enabled", True):
             forbidden_patterns = self.rules["forbidden_queries"].get("patterns", [])
             message_lower = user_message.lower()
             
-            # Check if this is a patient list query (these are now allowed with default date filter)
+            # Check if this is a patient list query
             is_patient_list_query = any(phrase in message_lower for phrase in [
                 "all patients", "every patient", "all patient", "list of patients", 
+                "list patients", "list patient",
                 "give me a list of patients", "show me all patients", "get all patients"
             ])
             
@@ -163,9 +163,9 @@ class BusinessRulesService:
                 case_sensitive = rule.get("case_sensitive", False)
                 error_message = rule.get("message", "This query is not allowed.")
                 
-                # Skip blocking patient list queries - they're allowed with default date filter
+                # Keep patient list queries allowed; result limits still apply later in the pipeline.
                 if is_patient_list_query and ("patient" in pattern.lower() or "patients" in pattern.lower()):
-                    logger.info(f"✅ Allowing patient list query (will apply default 'last 2 weeks' filter): {pattern}")
+                    logger.info(f"✅ Allowing patient list query without forcing a default date filter: {pattern}")
                     continue
                 
                 if case_sensitive:
@@ -340,50 +340,59 @@ class BusinessRulesService:
                         return False, error_message
         
         # Check future date restrictions
-        if self.rules.get("future_date_restrictions", {}).get("enabled", True):
-            # Check for future date keywords
-            future_keywords = [
-                "tomorrow", "next week", "next month", "next year", "future", "upcoming",
-                "in 2025", "in 2026", "in 2027", "in 2028", "in 2029", "in 2030"
-            ]
+        future_section = self.rules.get("future_date_restrictions") or {}
+        if future_section.get("enabled", False):
             message_lower = user_message.lower()
-            if any(keyword in message_lower for keyword in future_keywords):
-                error_message = self.rules["future_date_restrictions"].get(
+
+            # Check for future date keywords (relative).
+            future_keywords = ["tomorrow", "next week", "next month", "next year", "future", "upcoming"]
+            blocks = any(keyword in message_lower for keyword in future_keywords)
+
+            # Check for explicit future year references (absolute).
+            if not blocks:
+                from datetime import datetime
+
+                current_year = datetime.now().year
+                for match in re.findall(r"\b(19\d{2}|20\d{2}|21\d{2})\b", user_message):
+                    try:
+                        year = int(match)
+                    except ValueError:
+                        continue
+                    if year > current_year:
+                        blocks = True
+                        break
+
+            if blocks:
+                error_message = future_section.get(
                     "message",
-                    "I cannot query data for future dates. Please specify a date in the past or present."
+                    "I cannot query data for future dates. Please specify a date in the past or present.",
                 )
                 logger.warning("🚫 Query blocked - future date restriction")
                 return False, error_message
         
         # Check historical data limits
-        if self.rules.get("historical_data_limits", {}).get("enabled", True):
-            max_years_back = self.rules["historical_data_limits"].get("max_years_back", 10)
-            # Check for very old date patterns
-            old_date_patterns = [
-                r"\b(19\d{2}|200\d|201[0-3])\b",  # Years before 2014 (assuming current year is 2024+)
-            ]
-            message_lower = user_message.lower()
-            for pattern in old_date_patterns:
-                matches = re.findall(pattern, user_message)
-                if matches:
-                    # Check if any matched year is too old
-                    from datetime import datetime
-                    current_year = datetime.now().year
-                    for match in matches:
-                        try:
-                            year = int(match)
-                            if current_year - year > max_years_back:
-                                error_message = self.rules["historical_data_limits"].get(
-                                    "message",
-                                    f"I cannot query data older than {max_years_back} years. Please specify a more recent date range."
-                                )
-                                logger.warning(f"🚫 Query blocked - historical data limit: {year}")
-                                return False, error_message
-                        except ValueError:
-                            pass
+        historical_section = self.rules.get("historical_data_limits") or {}
+        if historical_section.get("enabled", False):
+            max_years_back = historical_section.get("max_years_back", 10)
+            from datetime import datetime
+
+            current_year = datetime.now().year
+            for match in re.findall(r"\b(19\d{2}|20\d{2}|21\d{2})\b", user_message):
+                try:
+                    year = int(match)
+                except ValueError:
+                    continue
+                if current_year - year > max_years_back:
+                    error_message = historical_section.get(
+                        "message",
+                        f"I cannot query data older than {max_years_back} years. Please specify a more recent date range.",
+                    )
+                    logger.warning(f"🚫 Query blocked - historical data limit: {year}")
+                    return False, error_message
         
         # Check text search restrictions
-        if self.rules.get("text_search_restrictions", {}).get("enabled", True):
+        text_search_rules = self.rules.get("text_search_restrictions", {})
+        if text_search_rules.get("enabled", True):
             # Check for LIKE or ILIKE patterns that might be too broad
             if sql_query:
                 sql_lower = sql_query.lower()
@@ -391,9 +400,11 @@ class BusinessRulesService:
                 like_patterns = re.findall(r"like\s+['\"]%[^%]*%['\"]", sql_lower)
                 if like_patterns:
                     has_limit = "limit" in sql_lower
-                    require_limit = self.rules["text_search_restrictions"].get("require_limit", True)
+                    # Default to *not* requiring LIMIT so text-search queries can run,
+                    # with max_results/timeouts acting as the primary safety rails.
+                    require_limit = text_search_rules.get("require_limit", False)
                     if require_limit and not has_limit:
-                        error_message = self.rules["text_search_restrictions"].get(
+                        error_message = text_search_rules.get(
                             "message",
                             "Text search queries must include LIMIT clauses to prevent performance issues."
                         )
@@ -406,26 +417,21 @@ class BusinessRulesService:
             return True, None
         
         # Check if general query has required filters
-        # NOTE: We no longer block "all patients" queries - instead we'll add a default "last 2 weeks" filter
-        # This check is kept for other types of queries that might need filters
         if not is_specific and self.rules.get("required_filters", {}).get("enabled", True):
             # Check if query mentions date range, patient name, or other filters
             message_lower = user_message.lower()
             has_date_filter = any(keyword in message_lower for keyword in [
                 "today", "yesterday", "this week", "this month", "last week", "last month",
-                "date", "admitted", "discharged", "between", "from", "to", "since", "after", "before",
-                "last 2 weeks", "past 2 weeks", "two weeks", "2 weeks"
+                "date", "admitted", "discharged", "between", "from", "to", "since", "after", "before"
             ])
-            has_patient_filter = entities and (entities.get("patient_name") or entities.get("patient_id"))
+            has_patient_filter = entities and (entities.get("patient_name") or entities.get("medical_record_number"))
             has_other_filter = any(keyword in message_lower for keyword in [
                 "ward", "room", "status", "diagnosis", "doctor", "nurse", "department"
             ])
             
-            # Allow "all patients" queries - they will get a default "last 2 weeks" filter in chat_orchestrator
-            # Only block if it's not a patient query (e.g., other entities that need filters)
-            if any(phrase in message_lower for phrase in ["all patients", "every patient", "all patient", "list of patients", "give me a list of patients"]):
-                # Patient queries are allowed - they'll get default date filter
-                logger.info("✅ Allowing 'all patients' query - will apply default 'last 2 weeks' filter")
+            # Allow broad patient-list requests without injecting a synthetic date range.
+            if any(phrase in message_lower for phrase in ["all patients", "every patient", "all patient", "list of patients", "list patients", "list patient", "give me a list of patients"]):
+                logger.info("✅ Allowing 'all patients' query without applying a default date filter")
                 pass
         
         logger.info("✅ Query allowed - passed all rule checks")

@@ -121,6 +121,8 @@ class AuditRepository:
                     out[k] = "[REDACTED_PHONE]"
                 elif "address" in lk:
                     out[k] = "[REDACTED_ADDRESS]"
+                elif lk in ("patientid", "patients_id", "last_patient_id", "last_patient_ids") or "patient_id" in lk:
+                    out[k] = "[REDACTED_PATIENT_ID]"
                 else:
                     out[k] = self._redact(v)
             return out

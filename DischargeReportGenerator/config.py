@@ -25,7 +25,7 @@ OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
 
 # API Configuration
 API_HOST = os.environ.get("API_HOST", "0.0.0.0")
-API_PORT = int(os.environ.get("API_PORT", "8002"))
+API_PORT = int(os.environ.get("API_PORT", "8005"))
 API_RELOAD = os.environ.get("API_RELOAD", "False").lower() == "true"
 
 # Validation

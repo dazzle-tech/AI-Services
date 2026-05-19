@@ -1,0 +1,18 @@
+{
+  "clinical_report": "Patient has a rib fracture on the right side. Lungs are clear.",
+  "ai_image_analysis": {
+    "findings": [
+      {
+        "label": "Fracture",
+        "location": "Right 5th rib, posterior segment",
+        "type": "Acute",
+        "confidence": 0.97
+      }
+    ]
+  },
+  "extracted_dicom_metadata": {
+    "Modality": "CR",
+    "ViewPosition": "PA",
+    "BodyPartExamined": "CHEST"
+  }
+}

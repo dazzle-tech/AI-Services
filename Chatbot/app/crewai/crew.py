@@ -96,9 +96,9 @@ def build_medai_crew(
         context_parts.append(f"\nExtracted entities: {json.dumps(entities, ensure_ascii=False)}")
     
     if is_specific:
-        context_parts.append("\n⚠️ IMPORTANT: This query is about a SPECIFIC patient. Use patient_id if provided in entities.")
+        context_parts.append("\n⚠️ IMPORTANT: This query is about a SPECIFIC patient. Use medical_record_number (MRN) if provided in entities.")
     else:
-        context_parts.append("\n⚠️ IMPORTANT: This is a GENERAL query (not about a specific patient). Do NOT restrict by patient_id.")
+        context_parts.append("\n⚠️ IMPORTANT: This is a GENERAL query (not about a specific patient). Do NOT restrict by MRN unless explicitly requested.")
     
     context = "\n".join(context_parts)
     
@@ -110,7 +110,7 @@ def build_medai_crew(
             "just answer the user directly and STOP.\n"
             "If it IS a data question, return ONLY a short, clear text "
             "that describes the data to fetch (who/what/when) in one paragraph. "
-            "Use patient IDs if they are provided in the entities."
+            "Use MRNs if they are provided in the entities."
         ),
         agent=planner_agent,
         expected_output="A clear, concise text description of what data to fetch from the database, or a direct answer if it's not a data question.",

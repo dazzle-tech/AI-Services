@@ -1,0 +1,165 @@
+{
+  "info": {
+    "_postman_id": "7c6b8e56-5d4c-4f15-911e-6e340bc332a0",
+    "name": "SepsisSentinel REST API",
+    "description": "Postman collection for the SepsisSentinel REST API.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8016"
+    },
+    {
+      "key": "patientId",
+      "value": "1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Root",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        }
+      }
+    },
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "List Patients",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/patients",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "patients"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Get Patient By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/patients/{{patientId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "patients",
+            "{{patientId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Sample Patient Analysis",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/patients/{{patientId}}/analyses",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "patients",
+            "{{patientId}}",
+            "analyses"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Custom Analysis",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"patient_info\": {\n      \"name\": \"Jane Doe\",\n      \"age\": 58,\n      \"gender\": \"Female\",\n      \"weight_kg\": 65,\n      \"height_cm\": 165,\n      \"bmi\": 23.9,\n      \"blood_type\": \"A+\",\n      \"admission_reason\": \"Suspected UTI\",\n      \"comorbidities\": [\"Diabetes\"],\n      \"allergies\": [\"Penicillin\"]\n    },\n    \"hourly_data\": []\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/analyses",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "analyses"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Legacy Analyze",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_id\": {{patientId}}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/analyze",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "analyze"
+          ]
+        }
+      }
+    }
+  ]
+}

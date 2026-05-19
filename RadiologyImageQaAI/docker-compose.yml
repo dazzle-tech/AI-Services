@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: radiology-qc-ai
+    ports:
+      - "8016:8016"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_PORT=8016
+      - API_RELOAD=false
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SERVICE_NAME=${SERVICE_NAME:-radiology-qc-ai}
+      - BLADDER_MISSING_IS_FAIL=${BLADDER_MISSING_IS_FAIL:-false}
+      - OPENAI_ENABLED=${OPENAI_ENABLED:-false}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
+      - DEIDENTIFY_BEFORE_GPT=${DEIDENTIFY_BEFORE_GPT:-true}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8016/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

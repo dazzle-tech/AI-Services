@@ -4,32 +4,26 @@ This document outlines the recommended VM specifications needed to deploy all AI
 
 ## Services Overview
 
-### 1. Chatbot Service (4 Microservices)
-- **Orchestrator**: Port 8000
-- **SQL Generator**: Port 8001
-- **Validator**: Port 8002
-- **Formatter**: Port 8003
-
-### 2. AI Auto-Population Service
-- **Port**: 8006
-
-### 3. Recommendations Service
-- **Port**: 8004
-
-### 4. Summarization Service
-- **Port**: 8007
-
-### 5. Medication Test Orders Validation
-- **Port**: 8005
-
-### 6. Medical Guideline Validation
-- **Port**: 8008
-
-### 7. Discharge Report Generator
-- **Port**: 8009
-
-### 8. Quality Discharge Report
-- **Port**: 8010
+### Service Ports (Docker Compose host ports)
+- **Radiology QC AI**: 8000
+- **Patient Timeline**: 8001
+- **Nurse Task Prioritization**: 8002
+- **Lab Result Interpreter**: 8003
+- **Smart Discharge Planner**: 8004
+- **Discharge Report Generator**: 8005
+- **Medication Test Orders Validation**: 8006
+- **Recommendations**: 8007
+- **Medical Guideline Validation**: 8008
+- **Summarization**: 8009
+- **AI Auto-Population**: 8010
+- **Quality Discharge Report**: 8011
+- **OCR Parsing**: 8012
+- **ICU Summarizer**: 8013
+- **Specialist Alert**: 8014
+- **Medical Image Interpretation Assist**: 8015
+- **Sepsis Early Detection**: 8016
+- **Chatbot Orchestrator API**: 8017
+- **Chatbot UI/Web (if enabled)**: 8080
 
 ## Infrastructure Requirements
 
@@ -128,17 +122,25 @@ This document outlines the recommended VM specifications needed to deploy all AI
 
 | Service | Port | Notes |
 |---------|------|-------|
-| Chatbot Orchestrator | 8000 | Main entry point |
-| Chatbot SQL Generator | 8001 | Internal service |
-| Chatbot Validator | 8002 | Internal service |
-| Chatbot Formatter | 8003 | Internal service |
-| Recommendations | 8004 | Standalone service |
-| Medication Validation | 8005 | Standalone service |
-| AI Auto-Population | 8006 | Standalone service |
-| Summarization | 8007 | Standalone service |
+| Radiology QC AI | 8000 | CT/X-ray intake; CT QC supported |
+| Patient Timeline | 8001 | Standalone service |
+| Nurse Task Prioritization | 8002 | Standalone service |
+| Lab Result Interpreter | 8003 | Standalone service |
+| Smart Discharge Planner | 8004 | Standalone service |
+| Discharge Report Generator | 8005 | Standalone service |
+| Medication Test Orders Validation | 8006 | Standalone service |
+| Recommendations | 8007 | Standalone service |
 | Medical Guideline Validation | 8008 | Standalone service |
-| Discharge Report Generator | 8009 | Standalone service |
-| Quality Discharge Report | 8010 | Standalone service |
+| Summarization | 8009 | Standalone service |
+| AI Auto-Population | 8010 | Standalone service |
+| Quality Discharge Report | 8011 | Standalone service |
+| OCR Parsing | 8012 | Standalone service |
+| ICU Summarizer | 8013 | Standalone service |
+| Specialist Alert | 8014 | Standalone service |
+| Medical Image Interpretation Assist | 8015 | Standalone service |
+| Sepsis Early Detection | 8016 | Standalone service |
+| Chatbot Orchestrator API | 8017 | Standalone service |
+| Chatbot UI/Web | 8080 | Optional |
 | Redis | 6379 | Infrastructure |
 | PostgreSQL | 5432 | Infrastructure (optional) |
 | HTTP/HTTPS | 80, 443 | Reverse proxy (if used) |
@@ -154,7 +156,7 @@ New-NetFirewallRule -DisplayName "HTTP" -Direction Inbound -LocalPort 80 -Protoc
 New-NetFirewallRule -DisplayName "HTTPS" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow
 
 # Allow service ports
-New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8000-8010 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8000-8017,8080 -Protocol TCP -Action Allow
 
 # Allow Redis (internal only - restrict to localhost)
 New-NetFirewallRule -DisplayName "Redis" -Direction Inbound -LocalPort 6379 -Protocol TCP -Action Allow -RemoteAddress 127.0.0.1

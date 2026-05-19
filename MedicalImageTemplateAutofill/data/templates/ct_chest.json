@@ -1,0 +1,70 @@
+{
+  "template_id": "ct_chest",
+  "name": "CT Chest (CTPA) — Pulmonary Embolism Protocol",
+  "modality": "CT",
+  "body_region": "Chest",
+  "description": "CT pulmonary angiography template for suspected pulmonary embolism. Emphasizes pulmonary arteries, heart strain, lungs/pleura, mediastinum, and incidental findings.",
+  "keywords": ["CTPA", "pulmonary embolism", "PE", "chest pain", "shortness of breath", "CTA chest", "pulmonary arteries"],
+  "fields": [
+    {
+      "name": "exam",
+      "label": "Exam",
+      "description": "Exam name and protocol.",
+      "required": true
+    },
+    {
+      "name": "clinical_history",
+      "label": "Clinical History",
+      "description": "Indication and key symptoms.",
+      "required": true
+    },
+    {
+      "name": "technique",
+      "label": "Technique",
+      "description": "CT protocol, contrast usage, phases if relevant.",
+      "required": true
+    },
+    {
+      "name": "comparison",
+      "label": "Comparison",
+      "description": "Prior studies and dates if mentioned, otherwise none.",
+      "required": false
+    },
+    {
+      "name": "findings_pulmonary_arteries",
+      "label": "Findings — Pulmonary Arteries",
+      "description": "Describe presence/absence of filling defects and distribution (main/lobar/segmental/subsegmental).",
+      "required": true
+    },
+    {
+      "name": "findings_heart",
+      "label": "Findings — Heart/Great Vessels",
+      "description": "Right heart strain signs if described, heart size, aorta if noted.",
+      "required": false
+    },
+    {
+      "name": "findings_lungs",
+      "label": "Findings — Lungs/Airways",
+      "description": "Consolidation, atelectasis, nodules, edema, airway findings if mentioned.",
+      "required": false
+    },
+    {
+      "name": "findings_pleura",
+      "label": "Findings — Pleura",
+      "description": "Effusions, pneumothorax if described.",
+      "required": false
+    },
+    {
+      "name": "findings_mediastinum",
+      "label": "Findings — Mediastinum/Lymph Nodes",
+      "description": "Adenopathy or mediastinal findings if mentioned.",
+      "required": false
+    },
+    {
+      "name": "impression",
+      "label": "Impression",
+      "description": "Concise key diagnoses and relevant negatives. Do not invent findings.",
+      "required": true
+    }
+  ]
+}

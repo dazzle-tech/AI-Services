@@ -7,12 +7,21 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot-orchestrator-service
     ports:
-      - "8000:8000"
+      - "8017:8017"
+      - "8080:8080"
+    environment:
+      - API_HOST=0.0.0.0
+      - ORCHESTRATOR_PORT=8017
+      - SQL_GENERATOR_PORT=8018
+      - VALIDATOR_PORT=8019
+      - FORMATTER_PORT=8020
+      - FRONTEND_HOST=0.0.0.0
+      - FRONTEND_PORT=8080
     env_file:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8017/')"]
       interval: 30s
       timeout: 10s
       retries: 3

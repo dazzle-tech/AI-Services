@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: specialist-alert-service
+    ports:
+      - "8014:8014"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.1}
+      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-1400}
+      - OPENAI_TIMEOUT=${OPENAI_TIMEOUT:-45}
+      - OPENAI_MAX_RETRIES=${OPENAI_MAX_RETRIES:-3}
+      - OPENAI_RETRY_DELAY=${OPENAI_RETRY_DELAY:-1.0}
+      - API_HOST=0.0.0.0
+      - API_PORT=8014
+      - API_RELOAD=false
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - ENABLE_USAGE_TRACKING=${ENABLE_USAGE_TRACKING:-true}
+      - MAX_INPUT_LENGTH=${MAX_INPUT_LENGTH:-50000}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8014/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

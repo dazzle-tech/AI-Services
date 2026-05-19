@@ -1,0 +1,170 @@
+{
+  "patient_info": {
+    "patient_id": "PT-003",
+    "name": "James Okonkwo",
+    "age": 58,
+    "gender": "Male",
+    "weight_kg": 95,
+    "height_cm": 182,
+    "bmi": 28.7,
+    "blood_type": "B+",
+    "admission_reason": "Post-abdominal surgery (bowel resection) — suspected anastomotic leak",
+    "comorbidities": ["Colorectal cancer (Stage III)", "Obesity", "COPD (mild)"],
+    "allergies": ["None known"],
+    "admission_date": "2025-08-22",
+    "monitoring_start": "2025-08-22T00:00:00",
+    "sepsis_outcome": "Rapid-onset septic shock — deterioration begins Hour 4, septic shock by Hour 10, critical by Hour 16. Aggressive intervention initiated."
+  },
+  "hourly_data": [
+    {
+      "hour": 0,
+      "timestamp": "2025-08-22T00:00:00",
+      "vitals": { "HR": 94, "Resp": 18, "SBP": 118, "DBP": 72, "MAP": 87, "O2Sat": 95, "Temp": 37.4, "EtCO2": 35 },
+      "labs": { "Lactate": 1.6, "WBC": 13.0, "Platelets": 185, "Creatinine": 1.1, "Bilirubin_total": 1.2, "HCO3": 21, "BUN": 18, "Hct": 37 }
+    },
+    {
+      "hour": 1,
+      "timestamp": "2025-08-22T01:00:00",
+      "vitals": { "HR": 96, "Resp": 19, "SBP": 116, "DBP": 71, "MAP": 86, "O2Sat": 95, "Temp": 37.6, "EtCO2": 34 },
+      "labs": { "Lactate": 1.7, "WBC": 13.5, "Platelets": 182, "Creatinine": 1.1, "Bilirubin_total": 1.2, "HCO3": 21, "BUN": 18, "Hct": 37 }
+    },
+    {
+      "hour": 2,
+      "timestamp": "2025-08-22T02:00:00",
+      "vitals": { "HR": 99, "Resp": 20, "SBP": 113, "DBP": 69, "MAP": 84, "O2Sat": 94, "Temp": 37.9, "EtCO2": 34 },
+      "labs": { "Lactate": 1.9, "WBC": 14.2, "Platelets": 178, "Creatinine": 1.2, "Bilirubin_total": 1.3, "HCO3": 20, "BUN": 20, "Hct": 36 }
+    },
+    {
+      "hour": 3,
+      "timestamp": "2025-08-22T03:00:00",
+      "vitals": { "HR": 103, "Resp": 21, "SBP": 110, "DBP": 67, "MAP": 81, "O2Sat": 94, "Temp": 38.3, "EtCO2": 33 },
+      "labs": { "Lactate": 2.2, "WBC": 15.0, "Platelets": 172, "Creatinine": 1.3, "Bilirubin_total": 1.4, "HCO3": 20, "BUN": 21, "Hct": 36 }
+    },
+    {
+      "hour": 4,
+      "timestamp": "2025-08-22T04:00:00",
+      "vitals": { "HR": 108, "Resp": 22, "SBP": 106, "DBP": 65, "MAP": 79, "O2Sat": 93, "Temp": 38.7, "EtCO2": 32 },
+      "labs": { "Lactate": 2.6, "WBC": 16.0, "Platelets": 165, "Creatinine": 1.4, "Bilirubin_total": 1.5, "HCO3": 19, "BUN": 23, "Hct": 35 },
+      "clinical_note": "Early warning — HR >100, RR >20, lactate rising above 2, temperature >38.5. Possible source: peritonitis from anastomotic leak."
+    },
+    {
+      "hour": 5,
+      "timestamp": "2025-08-22T05:00:00",
+      "vitals": { "HR": 113, "Resp": 23, "SBP": 102, "DBP": 62, "MAP": 75, "O2Sat": 92, "Temp": 39.1, "EtCO2": 31 },
+      "labs": { "Lactate": 3.0, "WBC": 17.2, "Platelets": 157, "Creatinine": 1.6, "Bilirubin_total": 1.7, "HCO3": 18, "BUN": 25, "Hct": 35 }
+    },
+    {
+      "hour": 6,
+      "timestamp": "2025-08-22T06:00:00",
+      "vitals": { "HR": 118, "Resp": 24, "SBP": 97, "DBP": 59, "MAP": 72, "O2Sat": 91, "Temp": 39.5, "EtCO2": 30 },
+      "labs": { "Lactate": 3.5, "WBC": 18.4, "Platelets": 148, "Creatinine": 1.8, "Bilirubin_total": 1.9, "HCO3": 17, "BUN": 28, "Hct": 34 }
+    },
+    {
+      "hour": 7,
+      "timestamp": "2025-08-22T07:00:00",
+      "vitals": { "HR": 123, "Resp": 25, "SBP": 93, "DBP": 56, "MAP": 68, "O2Sat": 90, "Temp": 39.8, "EtCO2": 29 },
+      "labs": { "Lactate": 4.0, "WBC": 19.5, "Platelets": 139, "Creatinine": 2.0, "Bilirubin_total": 2.1, "HCO3": 16, "BUN": 31, "Hct": 33 }
+    },
+    {
+      "hour": 8,
+      "timestamp": "2025-08-22T08:00:00",
+      "vitals": { "HR": 128, "Resp": 27, "SBP": 88, "DBP": 53, "MAP": 65, "O2Sat": 89, "Temp": 40.1, "EtCO2": 27 },
+      "labs": { "Lactate": 4.6, "WBC": 21.0, "Platelets": 128, "Creatinine": 2.3, "Bilirubin_total": 2.4, "HCO3": 15, "BUN": 34, "Hct": 32 }
+    },
+    {
+      "hour": 9,
+      "timestamp": "2025-08-22T09:00:00",
+      "vitals": { "HR": 134, "Resp": 28, "SBP": 83, "DBP": 50, "MAP": 61, "O2Sat": 87, "Temp": 40.3, "EtCO2": 26 },
+      "labs": { "Lactate": 5.2, "WBC": 22.5, "Platelets": 116, "Creatinine": 2.6, "Bilirubin_total": 2.7, "HCO3": 14, "BUN": 37, "Hct": 31 }
+    },
+    {
+      "hour": 10,
+      "timestamp": "2025-08-22T10:00:00",
+      "vitals": { "HR": 138, "Resp": 30, "SBP": 79, "DBP": 47, "MAP": 58, "O2Sat": 86, "Temp": 40.4, "EtCO2": 24 },
+      "labs": { "Lactate": 5.8, "WBC": 23.8, "Platelets": 104, "Creatinine": 3.0, "Bilirubin_total": 3.1, "HCO3": 13, "BUN": 41, "Hct": 30 },
+      "clinical_note": "SEPTIC SHOCK — MAP <65 despite IV fluids, lactate >4 mmol/L, vasopressors initiated (norepinephrine). ICU transfer. Mechanical ventilation considered."
+    },
+    {
+      "hour": 11,
+      "timestamp": "2025-08-22T11:00:00",
+      "vitals": { "HR": 141, "Resp": 31, "SBP": 76, "DBP": 45, "MAP": 55, "O2Sat": 85, "Temp": 40.5, "EtCO2": 23 },
+      "labs": { "Lactate": 6.3, "WBC": 24.5, "Platelets": 95, "Creatinine": 3.3, "Bilirubin_total": 3.4, "HCO3": 12, "BUN": 44, "Hct": 29 }
+    },
+    {
+      "hour": 12,
+      "timestamp": "2025-08-22T12:00:00",
+      "vitals": { "HR": 143, "Resp": 32, "SBP": 74, "DBP": 43, "MAP": 53, "O2Sat": 84, "Temp": 40.5, "EtCO2": 22 },
+      "labs": { "Lactate": 6.7, "WBC": 25.0, "Platelets": 87, "Creatinine": 3.6, "Bilirubin_total": 3.7, "HCO3": 11, "BUN": 47, "Hct": 28 },
+      "clinical_note": "CRITICAL — Multi-organ dysfunction syndrome (MODS) emerging. Broad-spectrum antibiotics escalated. Surgical consult for exploratory laparotomy."
+    },
+    {
+      "hour": 13,
+      "timestamp": "2025-08-22T13:00:00",
+      "vitals": { "HR": 140, "Resp": 31, "SBP": 76, "DBP": 45, "MAP": 55, "O2Sat": 85, "Temp": 40.4, "EtCO2": 23 },
+      "labs": { "Lactate": 6.4, "WBC": 24.8, "Platelets": 90, "Creatinine": 3.5, "Bilirubin_total": 3.6, "HCO3": 12, "BUN": 46, "Hct": 29 },
+      "clinical_note": "Minimal stabilization on vasopressors — patient mechanically ventilated"
+    },
+    {
+      "hour": 14,
+      "timestamp": "2025-08-22T14:00:00",
+      "vitals": { "HR": 137, "Resp": 30, "SBP": 79, "DBP": 47, "MAP": 58, "O2Sat": 86, "Temp": 40.2, "EtCO2": 24 },
+      "labs": { "Lactate": 6.0, "WBC": 24.2, "Platelets": 94, "Creatinine": 3.4, "Bilirubin_total": 3.5, "HCO3": 12, "BUN": 45, "Hct": 29 }
+    },
+    {
+      "hour": 15,
+      "timestamp": "2025-08-22T15:00:00",
+      "vitals": { "HR": 133, "Resp": 29, "SBP": 82, "DBP": 50, "MAP": 61, "O2Sat": 87, "Temp": 40.0, "EtCO2": 25 },
+      "labs": { "Lactate": 5.5, "WBC": 23.5, "Platelets": 99, "Creatinine": 3.2, "Bilirubin_total": 3.3, "HCO3": 13, "BUN": 43, "Hct": 30 }
+    },
+    {
+      "hour": 16,
+      "timestamp": "2025-08-22T16:00:00",
+      "vitals": { "HR": 130, "Resp": 28, "SBP": 85, "DBP": 52, "MAP": 63, "O2Sat": 87, "Temp": 39.8, "EtCO2": 25 },
+      "labs": { "Lactate": 5.1, "WBC": 23.0, "Platelets": 103, "Creatinine": 3.1, "Bilirubin_total": 3.2, "HCO3": 13, "BUN": 42, "Hct": 30 },
+      "clinical_note": "Post-surgical intervention (laparotomy performed 15:30) — source control achieved. Very slow improvement expected over next 12–24h."
+    },
+    {
+      "hour": 17,
+      "timestamp": "2025-08-22T17:00:00",
+      "vitals": { "HR": 127, "Resp": 27, "SBP": 88, "DBP": 54, "MAP": 65, "O2Sat": 88, "Temp": 39.6, "EtCO2": 26 },
+      "labs": { "Lactate": 4.7, "WBC": 22.4, "Platelets": 107, "Creatinine": 3.0, "Bilirubin_total": 3.1, "HCO3": 14, "BUN": 41, "Hct": 31 }
+    },
+    {
+      "hour": 18,
+      "timestamp": "2025-08-22T18:00:00",
+      "vitals": { "HR": 123, "Resp": 26, "SBP": 91, "DBP": 56, "MAP": 68, "O2Sat": 89, "Temp": 39.4, "EtCO2": 27 },
+      "labs": { "Lactate": 4.3, "WBC": 21.8, "Platelets": 111, "Creatinine": 2.9, "Bilirubin_total": 2.9, "HCO3": 14, "BUN": 40, "Hct": 31 }
+    },
+    {
+      "hour": 19,
+      "timestamp": "2025-08-22T19:00:00",
+      "vitals": { "HR": 120, "Resp": 25, "SBP": 94, "DBP": 58, "MAP": 70, "O2Sat": 89, "Temp": 39.2, "EtCO2": 27 },
+      "labs": { "Lactate": 3.9, "WBC": 21.2, "Platelets": 116, "Creatinine": 2.8, "Bilirubin_total": 2.8, "HCO3": 15, "BUN": 39, "Hct": 32 }
+    },
+    {
+      "hour": 20,
+      "timestamp": "2025-08-22T20:00:00",
+      "vitals": { "HR": 116, "Resp": 24, "SBP": 97, "DBP": 61, "MAP": 73, "O2Sat": 90, "Temp": 38.9, "EtCO2": 28 },
+      "labs": { "Lactate": 3.5, "WBC": 20.5, "Platelets": 121, "Creatinine": 2.6, "Bilirubin_total": 2.6, "HCO3": 15, "BUN": 37, "Hct": 32 }
+    },
+    {
+      "hour": 21,
+      "timestamp": "2025-08-22T21:00:00",
+      "vitals": { "HR": 112, "Resp": 23, "SBP": 100, "DBP": 63, "MAP": 75, "O2Sat": 91, "Temp": 38.7, "EtCO2": 29 },
+      "labs": { "Lactate": 3.1, "WBC": 19.9, "Platelets": 126, "Creatinine": 2.5, "Bilirubin_total": 2.5, "HCO3": 16, "BUN": 36, "Hct": 33 }
+    },
+    {
+      "hour": 22,
+      "timestamp": "2025-08-22T22:00:00",
+      "vitals": { "HR": 109, "Resp": 22, "SBP": 103, "DBP": 65, "MAP": 78, "O2Sat": 91, "Temp": 38.5, "EtCO2": 29 },
+      "labs": { "Lactate": 2.8, "WBC": 19.3, "Platelets": 130, "Creatinine": 2.4, "Bilirubin_total": 2.4, "HCO3": 16, "BUN": 35, "Hct": 33 }
+    },
+    {
+      "hour": 23,
+      "timestamp": "2025-08-22T23:00:00",
+      "vitals": { "HR": 106, "Resp": 22, "SBP": 106, "DBP": 67, "MAP": 80, "O2Sat": 92, "Temp": 38.3, "EtCO2": 30 },
+      "labs": { "Lactate": 2.4, "WBC": 18.7, "Platelets": 134, "Creatinine": 2.3, "Bilirubin_total": 2.3, "HCO3": 17, "BUN": 34, "Hct": 34 },
+      "clinical_note": "Slow but consistent improvement post-surgery. Still critical — ICU, vasopressors being weaned. Lactate trending down."
+    }
+  ]
+}

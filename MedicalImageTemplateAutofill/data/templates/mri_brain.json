@@ -1,0 +1,58 @@
+{
+  "template_id": "mri_brain",
+  "name": "MRI Brain — Stroke/Acute Neuro Deficit",
+  "modality": "MRI",
+  "body_region": "Brain",
+  "description": "MRI brain template tailored for acute stroke workup. Focuses on DWI/ADC, hemorrhage assessment, mass effect, and major intracranial findings.",
+  "keywords": ["MRI brain", "stroke", "CVA", "DWI", "ADC", "acute infarct", "hemorrhage", "SWI"],
+  "fields": [
+    {
+      "name": "exam",
+      "label": "Exam",
+      "description": "Exam name and protocol (with/without contrast if stated).",
+      "required": true
+    },
+    {
+      "name": "clinical_history",
+      "label": "Clinical History",
+      "description": "Indication, timing, symptoms if provided.",
+      "required": true
+    },
+    {
+      "name": "technique",
+      "label": "Technique",
+      "description": "Sequences obtained as described; if not provided, keep generic.",
+      "required": true
+    },
+    {
+      "name": "comparison",
+      "label": "Comparison",
+      "description": "Prior imaging and dates if mentioned.",
+      "required": false
+    },
+    {
+      "name": "findings_diffusion",
+      "label": "Findings — Diffusion",
+      "description": "Acute ischemia on DWI/ADC; location/territory if described.",
+      "required": true
+    },
+    {
+      "name": "findings_hemorrhage",
+      "label": "Findings — Hemorrhage",
+      "description": "Hemorrhage on SWI/GRE if addressed; otherwise state not seen if explicitly mentioned.",
+      "required": false
+    },
+    {
+      "name": "findings_other",
+      "label": "Findings — Other",
+      "description": "Mass, edema, hydrocephalus, chronic microvascular changes if mentioned.",
+      "required": false
+    },
+    {
+      "name": "impression",
+      "label": "Impression",
+      "description": "Concise summary of key findings and diagnosis.",
+      "required": true
+    }
+  ]
+}

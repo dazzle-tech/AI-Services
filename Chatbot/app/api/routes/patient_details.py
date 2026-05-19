@@ -24,23 +24,26 @@ def patient_details(req: PatientDetailsRequest) -> PatientDetailsResponse:
     Get patient details (row-click popup, no LLM).
     
     Steps:
-    1. Validate patient_id exists (can be integer ID or string key like 'pat001')
-    2. Build role-safe SQL using build_patient_details_sql(user_id, patient_id)
+    1. Validate medical_record_number exists
+    2. Build role-safe SQL using build_patient_details_sql(user_id, medical_record_number, lookup_field="medical_record_number")
        - reads access_control.json
        - selects only allowed columns
        - adds joins only if allowed
     3. Send that SQL to validator to execute
     4. Return first row as {ok:true, patient:{...}}
     """
-    logger.info(f"🔍 [PATIENT_DETAILS] Starting request: user_id={req.user_id}, patient_id={req.patient_id}")
+    logger.info(
+        "🔍 [PATIENT_DETAILS] Starting request: user_id=%s, medical_record_number=%s",
+        req.user_id,
+        req.medical_record_number,
+    )
     
-    # Validate patient_id exists (can be string key or numeric ID)
-    patient_id = str(req.patient_id).strip()
-    if not patient_id:
-        logger.error(f"❌ [PATIENT_DETAILS] Invalid patient_id: {req.patient_id}")
-        raise HTTPException(status_code=400, detail="Invalid patient_id.")
+    medical_record_number = str(req.medical_record_number).strip()
+    if not medical_record_number:
+        logger.error("❌ [PATIENT_DETAILS] Invalid medical_record_number: %s", req.medical_record_number)
+        raise HTTPException(status_code=400, detail="Invalid medical_record_number.")
     
-    logger.info(f"📋 [PATIENT_DETAILS] Processing patient_id: '{patient_id}'")
+    logger.info("📋 [PATIENT_DETAILS] Processing medical_record_number: '%s'", medical_record_number)
     
     interaction_id = _audit_repo.insert_interaction(
         user_id=req.user_id,
@@ -48,13 +51,17 @@ def patient_details(req: PatientDetailsRequest) -> PatientDetailsResponse:
         role=req.role,
         intent="patient_details",
         approved=True,
-        raw_message=f"patient_details patient_id={patient_id}",
-        final_message=f"patient_details patient_id={patient_id}",
+        raw_message=f"patient_details medical_record_number={medical_record_number}",
+        final_message=f"patient_details medical_record_number={medical_record_number}",
     )
     logger.info(f"📝 [PATIENT_DETAILS] Created interaction_id: {interaction_id}")
     
-    logger.info(f"🔨 [PATIENT_DETAILS] Building SQL for user_id={req.user_id}, patient_id={patient_id}")
-    sql = _patient_details_service.build_patient_details_sql(req.user_id, patient_id)
+    logger.info(f"🔨 [PATIENT_DETAILS] Building SQL for user_id={req.user_id} by medical_record_number")
+    sql = _patient_details_service.build_patient_details_sql(
+        req.user_id,
+        medical_record_number,
+        lookup_field="medical_record_number",
+    )
     
     if not sql:
         logger.error(f"❌ [PATIENT_DETAILS] No SQL generated - user may not have access")
@@ -92,7 +99,10 @@ def patient_details(req: PatientDetailsRequest) -> PatientDetailsResponse:
     logger.info(f"📊 [PATIENT_DETAILS] Validation message: {validation_result.get('message', 'N/A')}")
     
     if not rows:
-        logger.warning(f"⚠️ [PATIENT_DETAILS] No rows returned for patient_id={patient_id}")
+        logger.warning(
+            "⚠️ [PATIENT_DETAILS] No rows returned for medical_record_number=%s",
+            medical_record_number,
+        )
         logger.warning(f"📜 [PATIENT_DETAILS] SQL that returned no rows:\n{sql}")
         
         # Try to check if patient exists at all
@@ -100,14 +110,22 @@ def patient_details(req: PatientDetailsRequest) -> PatientDetailsResponse:
         try:
             from app.infrastructure.db.hospital_repo import HospitalRepository
             repo = HospitalRepository()
-            check_sql = f"SELECT key, full_name FROM ap_patient WHERE key = '{patient_id}' LIMIT 1"
+            safe_mrn = medical_record_number.replace("'", "''")
+            check_sql = (
+                "SELECT medical_record_number, TRIM(COALESCE(first_name, '') || ' ' || COALESCE(second_name, '') || "
+                "COALESCE(' ' || third_name, '') || ' ' || COALESCE(last_name, '')) AS full_name "
+                f"FROM patients WHERE CAST(medical_record_number AS TEXT) = '{safe_mrn}' LIMIT 1"
+            )
             logger.info(f"🔍 [PATIENT_DETAILS] Executing check query: {check_sql}")
             check_result = repo.execute_query(check_sql)
             logger.info(f"🔍 [PATIENT_DETAILS] Patient exists check: {len(check_result)} row(s)")
             if check_result:
                 logger.info(f"🔍 [PATIENT_DETAILS] Patient found: {check_result[0]}")
             else:
-                logger.warning(f"⚠️ [PATIENT_DETAILS] Patient with key '{patient_id}' does not exist in ap_patient table")
+                logger.warning(
+                    "⚠️ [PATIENT_DETAILS] Patient with MRN '%s' does not exist in patients table",
+                    medical_record_number,
+                )
         except Exception as e:
             logger.error(f"❌ [PATIENT_DETAILS] Error checking patient existence: {e}", exc_info=True)
         _audit_repo.update_interaction(interaction_id, reply_text="No data found for this patient.", sql_query=sql, row_count=0)
@@ -116,78 +134,33 @@ def patient_details(req: PatientDetailsRequest) -> PatientDetailsResponse:
     logger.info(f"✅ [PATIENT_DETAILS] Found patient data, processing first row")
     patient = rows[0]
     logger.debug(f"📋 [PATIENT_DETAILS] Raw patient data keys: {list(patient.keys())[:10]}...")  # Log first 10 keys
-    
-    # Transform field names: remove 'patients_' prefix from patients table columns
-    # This matches the frontend expectations (key, full_name, dob instead of patients_key, patients_full_name, patients_dob)
-    transformed_patient = {}
-    for key, value in patient.items():
-        if key.startswith("patients_"):
-            # Remove 'patients_' prefix (9 characters: p-a-t-i-e-n-t-s-_)
-            new_key = key[9:]  # len("patients_") = 9
-            transformed_patient[new_key] = value
-        else:
-            # Keep other prefixes (patient_details_, patient_health_, admissions_)
-            transformed_patient[key] = value
-    
+
+    transformed_patient = _patient_details_service.transform_patient_data(patient)
     logger.info(f"✅ [PATIENT_DETAILS] Transformed patient data: {len(transformed_patient)} fields")
     logger.debug(f"📋 [PATIENT_DETAILS] Transformed keys: {list(transformed_patient.keys())[:10]}...")  # Log first 10 keys
     
-    # Convert millisecond timestamps to readable dates
-    # Admission date: created_at (milliseconds) -> admissions_actual_start_date
-    # Discharge date: discharge_at (milliseconds) -> admissions_discharge_at
-    def convert_millisecond_timestamp(ms_timestamp):
-        """Convert millisecond timestamp to ISO date string."""
-        if ms_timestamp is None:
-            return None
-        try:
-            # Handle both numeric and string timestamps
-            if isinstance(ms_timestamp, str):
-                ms_timestamp = float(ms_timestamp)
-            # Convert milliseconds to seconds (divide by 1000)
-            seconds = float(ms_timestamp) / 1000.0
-            from datetime import datetime
-            dt = datetime.fromtimestamp(seconds)
-            return dt.strftime("%Y-%m-%d")
-        except (ValueError, TypeError, OSError) as e:
-            logger.warning(f"⚠️ [PATIENT_DETAILS] Failed to convert timestamp {ms_timestamp}: {e}")
-            return None
-    
-    # Convert admission date (created_at)
-    if "admissions_actual_start_date" in transformed_patient:
-        original_value = transformed_patient["admissions_actual_start_date"]
-        converted = convert_millisecond_timestamp(original_value)
-        if converted:
-            transformed_patient["admissions_actual_start_date"] = converted
-            logger.debug(f"🕐 [PATIENT_DETAILS] Converted admission timestamp {original_value} -> {converted}")
-    
-    # Convert discharge date (discharge_at) - only if not 0 (0 means not discharged)
-    if "admissions_discharge_at" in transformed_patient:
-        original_value = transformed_patient["admissions_discharge_at"]
-        # Check if it's 0 (not discharged) or a valid timestamp
-        if original_value and original_value != 0 and str(original_value) != "0":
-            converted = convert_millisecond_timestamp(original_value)
-            if converted:
-                transformed_patient["admissions_discharge_at"] = converted
-                logger.debug(f"🕐 [PATIENT_DETAILS] Converted discharge timestamp {original_value} -> {converted}")
-        else:
-            # Not discharged (discharge_at = 0)
-            transformed_patient["admissions_discharge_at"] = None
-            logger.debug(f"🕐 [PATIENT_DETAILS] Patient not discharged (discharge_at = {original_value})")
-    
-    # Save patient_id to session memory in Redis for pronoun resolution ("he", "she", "this patient")
+    # Save MRN to session memory in Redis for pronoun resolution ("he", "she", "this patient")
     if req.session_id and req.session_id != "no_session":
         try:
             session = _session_memory.get_session(req.session_id)
-            session["last_patient_id"] = patient_id
+            session["last_patient_mrn"] = medical_record_number
             patient_name = transformed_patient.get("full_name")
             if patient_name:
                 session["last_patient"] = patient_name
             _session_memory.save_session(req.session_id, session)
-            logger.info(f"💾 [MEMORY] ✅ Saved to Redis: patient_id={patient_id}, patient_name={patient_name or 'N/A'}, session_id={req.session_id}")
+            logger.info(
+                "💾 [MEMORY] ✅ Saved to Redis: medical_record_number=%s, patient_name=%s, session_id=%s",
+                medical_record_number,
+                patient_name or "N/A",
+                req.session_id,
+            )
         except Exception as e:
             logger.error(f"❌ [MEMORY] Failed to save to Redis: {e}", exc_info=True)
     
     _audit_repo.update_interaction(interaction_id, reply_text="Patient details returned.", sql_query=sql, row_count=1)
-    logger.info(f"✅ [PATIENT_DETAILS] Successfully returning patient details for patient_id={patient_id}")
+    logger.info(
+        "✅ [PATIENT_DETAILS] Successfully returning patient details for medical_record_number=%s",
+        medical_record_number,
+    )
     return PatientDetailsResponse(ok=True, patient=transformed_patient)
 

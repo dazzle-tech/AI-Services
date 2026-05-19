@@ -1,0 +1,18 @@
+{
+  "clinical_report": "Nonspecific bowel gas pattern. No evidence of free air or obstruction.",
+  "ai_image_analysis": {
+    "detected_anatomy": "Abdomen",
+    "findings": [
+      {
+        "label": "Bowel Gas",
+        "status": "Normal",
+        "confidence": 0.88
+      }
+    ]
+  },
+  "extracted_dicom_metadata": {
+    "BodyPartExamined": "CHEST",
+    "ProtocolName": "CHEST_PA",
+    "PatientID": "99988"
+  }
+}

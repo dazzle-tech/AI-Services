@@ -78,10 +78,9 @@ Rules can be configured in `data/rules.json` or by modifying the default rules i
 
 ### 5. Date Range Limits
 
-**Purpose**: Prevents queries with excessively large date ranges.
+**Purpose**: (Optional) Prevents queries with excessively large date ranges.
 
-- **Maximum Range**: 365 days
-- **Message**: "The requested date range is too large. Please limit your query to a maximum of 365 days."
+**Status**: Disabled by default (see `data/rules.json`).
 
 **Example**:
 - ❌ Blocked: "Show me all patients from the last 5 years"
@@ -122,7 +121,9 @@ Rules can be configured in `data/rules.json` or by modifying the default rules i
 
 ### 8. Future Date Restrictions
 
-**Purpose**: Prevents queries for future dates (data doesn't exist yet).
+**Purpose**: (Optional) Prevents queries for future dates (data doesn't exist yet).
+
+**Status**: Disabled by default (see `data/rules.json`).
 
 **Blocked Patterns**:
 - "tomorrow", "next week", "next month", "next year"
@@ -138,10 +139,9 @@ Rules can be configured in `data/rules.json` or by modifying the default rules i
 
 ### 9. Historical Data Limits
 
-**Purpose**: Prevents queries for very old data (beyond retention period).
+**Purpose**: (Optional) Prevents queries for very old data (beyond retention period).
 
-- **Maximum Age**: 10 years (configurable)
-- **Message**: "I cannot query data older than 10 years. Please specify a more recent date range."
+**Status**: Disabled by default (see `data/rules.json`).
 
 **Example Blocked Queries**:
 - "Show me patients from 2010"
@@ -195,16 +195,16 @@ Rules can be configured in `data/rules.json` or by modifying the default rules i
 
 ### 13. Text Search Restrictions
 
-**Purpose**: Ensures text search queries include LIMIT clauses.
+**Purpose**: Helps prevent overly broad text searches from impacting performance.
 
 **Requirements**:
-- Text search queries (LIKE/ILIKE) must include LIMIT
-- Prevents full table scans on text fields
+- LIMIT is recommended for text search queries (LIKE/ILIKE), but not required
+- Other safety rails still apply (timeouts and max-results)
 
 **Example Blocked Query**:
-- `SELECT * FROM ap_patient WHERE notes LIKE '%search%'` (no LIMIT)
+- None (LIMIT is not enforced for text search)
 
-**Message**: "Text search queries must include LIMIT clauses to prevent performance issues."
+**Message**: "Text search queries may be large. Consider adding LIMIT clauses and reasonable search terms to prevent performance issues."
 
 ### 14. Column Restrictions
 

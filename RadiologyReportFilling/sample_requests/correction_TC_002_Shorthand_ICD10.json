@@ -1,0 +1,12 @@
+{
+  "doctor_notes": "68yo M with hx of COPD and CHF. C/o SOB for 3 days. R/o pneumonia.",
+  "radiologist_notes": "Hyperinflated lung fields and flattened diaphragms consistent with emphysema. Patchy opacities in RML suggesting focal infection.",
+  "exam_type": "Chest X-ray PA",
+  "extracted_dicom_metadata": {
+    "PatientAge": "068Y",
+    "PatientSex": "M",
+    "BodyPartExamined": "CHEST",
+    "ViewPosition": "PA",
+    "StudyDescription": "CHEST PA"
+  }
+}

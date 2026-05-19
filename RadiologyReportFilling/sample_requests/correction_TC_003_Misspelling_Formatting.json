@@ -1,0 +1,11 @@
+{
+  "doctor_notes": "Possible cardimegaly and pleural effuzion in patient with chronic hypertension.",
+  "radiologist_notes": "Heart size is within normal limits. No cardimegaly found. Tiny trace of pleural effuzion at the costofrenic angles.",
+  "exam_type": "Chest X-ray",
+  "extracted_dicom_metadata": {
+    "PatientID": "67890",
+    "Modality": "DX",
+    "BodyPartExamined": "CHEST",
+    "ViewPosition": "AP"
+  }
+}

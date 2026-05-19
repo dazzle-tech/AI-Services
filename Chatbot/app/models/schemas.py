@@ -12,11 +12,13 @@ class ChatRequest(BaseModel):
     user_id: str = Field(default="default_user")
     role: Optional[str] = None
     approved: bool = Field(default=False)
+    correction_rejected: bool = Field(default=False)
 
 
 class ChatResponse(BaseModel):
     """Chat response model."""
     intent: str
+    mode: Optional[str] = None
     text: str
     data_json: Optional[Dict[str, Any]] = None
     original: Optional[str] = None
@@ -27,7 +29,7 @@ class ChatResponse(BaseModel):
 # Patient Details
 class PatientDetailsRequest(BaseModel):
     """Patient details request model."""
-    patient_id: Union[int, str]  # Can be integer ID or string key (e.g., 'pat001')
+    medical_record_number: Union[int, str]
     user_id: str = Field(default="default_user")
     role: Optional[str] = None
     session_id: Optional[str] = None

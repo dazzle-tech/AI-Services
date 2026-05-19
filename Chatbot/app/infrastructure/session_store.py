@@ -26,6 +26,8 @@ Session data structure:
 """
 import json
 import logging
+import threading
+import time
 from typing import Dict, Any, Optional
 from app.core.config import settings
 
@@ -48,6 +50,12 @@ class SessionStore:
     All methods are safe if Redis is unavailable - they will log warnings and return
     default values without crashing the application.
     """
+
+    # In-process fallback store for when Redis is unavailable.
+    # NOTE: This does not share session state across multiple workers/containers.
+    _fallback_lock = threading.Lock()
+    _fallback_sessions: Dict[str, Dict[str, Any]] = {}
+    _fallback_expiry: Dict[str, float] = {}
     
     def __init__(
         self,
@@ -71,6 +79,7 @@ class SessionStore:
         self.ttl_seconds = ttl_seconds or settings.session_ttl_seconds
         self._client: Optional[redis.Redis] = None
         self._connected = False
+        self._use_fallback = True
         
         if not REDIS_AVAILABLE:
             logger.warning("⚠️ Redis library not available. Session store will use fallback mode.")
@@ -90,6 +99,7 @@ class SessionStore:
             # Test connection with retry
             self._client.ping()
             self._connected = True
+            self._use_fallback = False
             logger.info(f"✅ Connected to Redis at {self.host}:{self.port}/{self.db}")
         except redis.ConnectionError as e:
             logger.warning(f"⚠️ Failed to connect to Redis: {e}. Session store will use fallback mode.")
@@ -110,8 +120,10 @@ class SessionStore:
         return {
             "last_patient": None,
             "last_patient_id": None,
+            "last_patient_mrn": None,
             "last_patient_ids": None,  # cohort memory
             "last_intent": None,
+            "last_data_question": None,
             "history": [],
         }
     
@@ -126,6 +138,19 @@ class SessionStore:
             Session dictionary. Returns default empty session if not found or Redis unavailable.
         """
         if not self._connected or not self._client:
+            if self._use_fallback:
+                now = time.time()
+                with self._fallback_lock:
+                    exp = self._fallback_expiry.get(session_id)
+                    if exp is not None and exp <= now:
+                        self._fallback_sessions.pop(session_id, None)
+                        self._fallback_expiry.pop(session_id, None)
+                        return self._get_default_session()
+                    existing = self._fallback_sessions.get(session_id)
+                    if existing is None:
+                        return self._get_default_session()
+                    return json.loads(json.dumps(existing, ensure_ascii=False))
+
             logger.debug(f"Redis unavailable, returning default session for {session_id}")
             return self._get_default_session()
         
@@ -155,6 +180,12 @@ class SessionStore:
             data: Complete session dictionary to store
         """
         if not self._connected or not self._client:
+            if self._use_fallback:
+                with self._fallback_lock:
+                    self._fallback_sessions[session_id] = json.loads(json.dumps(data, ensure_ascii=False))
+                    self._fallback_expiry[session_id] = time.time() + float(self.ttl_seconds or 0)
+                return
+
             logger.debug(f"Redis unavailable, skipping set for {session_id}")
             return
         
@@ -175,6 +206,12 @@ class SessionStore:
             patch: Dictionary of fields to update (merged with existing session)
         """
         if not self._connected or not self._client:
+            if self._use_fallback:
+                current = self.get(session_id)
+                current.update(patch)
+                self.set(session_id, current)
+                return
+
             logger.debug(f"Redis unavailable, skipping update for {session_id}")
             return
         
@@ -197,6 +234,12 @@ class SessionStore:
             session_id: Session identifier
         """
         if not self._connected or not self._client:
+            if self._use_fallback:
+                with self._fallback_lock:
+                    self._fallback_sessions.pop(session_id, None)
+                    self._fallback_expiry.pop(session_id, None)
+                return
+
             logger.debug(f"Redis unavailable, skipping delete for {session_id}")
             return
         
@@ -215,6 +258,13 @@ class SessionStore:
             Number of keys deleted
         """
         if not self._connected or not self._client:
+            if self._use_fallback:
+                with self._fallback_lock:
+                    deleted = len(self._fallback_sessions)
+                    self._fallback_sessions.clear()
+                    self._fallback_expiry.clear()
+                    return deleted
+
             logger.warning("Redis unavailable, cannot clear sessions")
             return 0
         
@@ -240,6 +290,15 @@ class SessionStore:
             Dictionary mapping session_id to session data
         """
         if not self._connected or not self._client:
+            if self._use_fallback:
+                now = time.time()
+                with self._fallback_lock:
+                    expired = [sid for sid, exp in self._fallback_expiry.items() if exp <= now]
+                    for sid in expired:
+                        self._fallback_sessions.pop(sid, None)
+                        self._fallback_expiry.pop(sid, None)
+                    return json.loads(json.dumps(self._fallback_sessions, ensure_ascii=False))
+
             logger.debug("Redis unavailable, returning empty sessions dict")
             return {}
         
@@ -267,4 +326,3 @@ _session_store = SessionStore()
 def get_session_store() -> SessionStore:
     """Get the global session store instance."""
     return _session_store
-

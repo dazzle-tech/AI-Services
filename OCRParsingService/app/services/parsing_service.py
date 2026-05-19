@@ -3,6 +3,7 @@ import json
 import logging
 import re
 import subprocess
+import time
 from textwrap import dedent
 from typing import Any
 
@@ -26,22 +27,25 @@ class ParsingService:
         prompt = self._build_prompt(cleaned_text)
         logger.info("Sending parse request to Ollama model=%s", self.model)
 
+        start_time = time.monotonic()
         process = subprocess.run(
             [self.command, "run", self.model],
-            input=prompt,
+            input=prompt.encode("utf-8"),
             capture_output=True,
-            text=True,
             timeout=self.timeout_seconds,
             check=False,
         )
+        elapsed_seconds = time.monotonic() - start_time
+        logger.info("Ollama request finished in %.2fs (exit_code=%s)", elapsed_seconds, process.returncode)
 
         if process.returncode != 0:
-            stderr = process.stderr.strip()
+            stderr = (process.stderr or b"").decode("utf-8", errors="replace").strip()
             raise RuntimeError(
                 f"Ollama command failed with exit code {process.returncode}: {stderr}"
             )
 
-        return self._extract_json(process.stdout)
+        stdout = (process.stdout or b"").decode("utf-8", errors="replace")
+        return self._extract_json(stdout)
 
     def _build_prompt(self, cleaned_text: str) -> str:
         return dedent(

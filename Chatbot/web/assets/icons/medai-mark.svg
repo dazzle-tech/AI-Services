@@ -1,0 +1,12 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="medaiGradient" x1="12" y1="14" x2="114" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#123C69" />
+      <stop offset="1" stop-color="#0F766E" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="30" fill="url(#medaiGradient)" />
+  <rect x="56" y="30" width="16" height="68" rx="8" fill="white" />
+  <rect x="30" y="56" width="68" height="16" rx="8" fill="white" />
+  <circle cx="96" cy="32" r="10" fill="#D5F3EF" />
+</svg>

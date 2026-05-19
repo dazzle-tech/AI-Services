@@ -5,7 +5,7 @@
 Based on the patient details modal, the following fields are displayed:
 
 ### Patient Information
-- ✅ Patient ID (`pat004`)
+- ✅ Medical Record Number (MRN) (`MRN004`)
 - ✅ Name (`Emily Johnson`)
 - ✅ Date of Birth (`2002-02-14`)
 - ✅ Gender (`female`)

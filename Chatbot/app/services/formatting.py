@@ -26,31 +26,25 @@ class FormattingService:
         Returns:
             Formatter response
         """
-        rows = payload.result_rows or []
+        raw_rows = payload.result_rows or []
+
+        def is_patient_id_field(key: str) -> bool:
+            lk = str(key or "").lower()
+            return lk == "patientid" or lk == "patients_id" or "patient_id" in lk
+
+        rows: List[Dict[str, Any]] = []
+        for row in raw_rows:
+            if isinstance(row, dict):
+                rows.append({k: v for k, v in row.items() if not is_patient_id_field(k)})
         count = len(rows)
         
         # Ordered columns for UI rendering
         columns = list(rows[0].keys()) if count > 0 else None
         
-        # Check if this is a patient list query that used default date filter
-        user_intent_lower = (payload.user_intent or "").lower()
-        is_patient_list_query = any(phrase in user_intent_lower for phrase in [
-            "all patients", "every patient", "all patient", "list of patients", 
-            "give me a list of patients", "show me all patients", "get all patients"
-        ])
-        has_explicit_date = any(keyword in user_intent_lower for keyword in [
-            "today", "yesterday", "this week", "this month", "last week", "last month",
-            "date", "between", "from", "to", "since", "after", "before",
-            "last 2 weeks", "past 2 weeks", "two weeks", "2 weeks"
-        ])
-        used_default_filter = is_patient_list_query and not has_explicit_date
-        
         # Human-facing summary
         if count == 0:
             # Generate a more specific error message based on the query type
             summary = self._generate_no_results_message(payload.user_intent)
-            if used_default_filter:
-                summary += " (Note: Showing results from the last 2 weeks. If you need a different date range, please specify it in your query.)"
             out_type = OutputType.SUMMARY
         else:
             # Check if this is a list query - generate brief summary but keep table view
@@ -63,10 +57,6 @@ class FormattingService:
                 summary = self._run_llm_summary(payload.user_intent, rows)
             else:
                 summary = f"{count} records found."
-            
-            # Add note about default date filter if it was used
-            if used_default_filter:
-                summary += " (Note: Showing patients from the last 2 weeks. If you need a different date range, please specify it in your query.)"
             
             out_type = OutputType.TABLE
         
@@ -154,7 +144,7 @@ For {row_count} record{'s' if row_count != 1 else ''}:
 Examples:
 - "Found 1 admitted patient: Emily Johnson, admitted on October 1, 2025, for observation."
 - "There are 3 currently admitted patients: John Doe (admitted Oct 1 for surgery), Jane Smith (admitted Oct 2 for treatment), and Bob Wilson (admitted Oct 3 for observation)."
-- "The list includes 2 patients: Patient 1001 (Emily Johnson, admitted Oct 1 for observation) and Patient 1002 (John Doe, admitted Oct 2 for surgery)."
+- "The list includes 2 patients: Emily Johnson (MRN P101) and John Doe (MRN P102)."
 
 Be descriptive and include actual data from the results. Write in natural, conversational language.
 """
@@ -164,8 +154,8 @@ Be descriptive and include actual data from the results. Write in natural, conve
 You are MedAI, a clinical assistant that provides clear answers about multiple patients.
 The user asked about multiple records (allergies, medications, etc.).
 IMPORTANT: You must mention ALL patients in your answer, not just one.
-Format: "Patient [ID] has [allergies/medications]: [list]. Patient [ID] has [list]."
-Or: "Found {count} patients: Patient [ID] has [X], Patient [ID] has [Y], etc."
+Format: "Patient (MRN [MRN]) has [allergies/medications]: [list]. Patient (MRN [MRN]) has [list]."
+Or: "Found {count} patients: MRN [MRN] has [X], MRN [MRN] has [Y], etc."
 Be direct and list all patients mentioned in the data.
 """
         elif concise_mode:
@@ -266,4 +256,3 @@ Write a single short and natural answer:
 
 # Global instance
 _formatting_service = FormattingService()
-

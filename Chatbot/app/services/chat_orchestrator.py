@@ -4,6 +4,7 @@ import time
 import logging
 import sys
 import os
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Tuple, Any
 from app.services.session_memory import SessionMemoryService
@@ -20,6 +21,8 @@ from app.infrastructure.http.clients import post_json_logged
 from app.infrastructure.llm.llm_client import get_llm_client
 from app.core.config import settings
 from app.services.entities import SYSTEM_PROMPT
+from app.services.advice import ClinicianAdviceService, is_advice_style_question
+from app.services.statistics import StatisticsService
 
 logger = logging.getLogger(__name__)
 # Ensure logger propagates to root logger (which has file handler)
@@ -30,6 +33,107 @@ logger.propagate = True  # Allow logs to propagate to root logger
 
 class ChatOrchestratorService:
     """Main orchestrator service for chat pipeline."""
+
+    def _is_patient_id_field(self, key: str) -> bool:
+        lk = str(key or "").lower()
+        return lk == "patientid" or lk == "patients_id" or "patient_id" in lk
+
+    def _strip_patient_id_fields_from_rows(self, rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not rows:
+            return rows
+        out: List[Dict[str, Any]] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            out.append({k: v for k, v in row.items() if not self._is_patient_id_field(k)})
+        return out
+
+    def _strip_patient_id_fields_from_columns(self, columns: List[str]) -> List[str]:
+        if not columns:
+            return columns
+        return [c for c in columns if not self._is_patient_id_field(c)]
+
+    def _extract_unique_mrns_from_rows(self, rows: List[Dict[str, Any]]) -> List[str]:
+        if not rows or not isinstance(rows, list) or not rows or not isinstance(rows[0], dict):
+            return []
+
+        def is_mrn_field(key: str) -> bool:
+            lk = str(key or "").lower()
+            return (
+                lk == "mrn"
+                or "medical_record_number" in lk
+                or "patient_mrn" in lk
+                or lk.endswith("_mrn")
+            )
+
+        mrn_cols = [k for k in rows[0].keys() if is_mrn_field(k)]
+        if not mrn_cols:
+            return []
+
+        col = mrn_cols[0]
+        seen = set()
+        unique: List[str] = []
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            val = r.get(col)
+            if val is None or val == "":
+                continue
+            s = str(val).strip()
+            if not s or s in seen:
+                continue
+            seen.add(s)
+            unique.append(s)
+        return unique
+
+    def _inject_known_values_into_sql(
+        self,
+        sql: str,
+        *,
+        session: Dict[str, Any],
+        entities: Dict[str, Any],
+        is_specific: bool,
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Replace common LLM placeholder tokens with known values.
+
+        Safety net for cases where SQL generation emits `%s` / `?` placeholders.
+        """
+        if not sql:
+            return sql, None
+
+        sql_out = sql
+
+        mrn = entities.get("medical_record_number") or session.get("last_patient_mrn")
+        mrn_str = str(mrn).strip() if mrn is not None else ""
+        mrn_safe = mrn_str.replace("'", "''")
+
+        if is_specific and mrn_str:
+            targeted_patterns = [
+                r"(\bcast\s*\(\s*p\.medical_record_number\s+as\s+text\s*\)\s*=\s*)(%s|\?)",
+                r"(\bcast\s*\(\s*patients\.medical_record_number\s+as\s+text\s*\)\s*=\s*)(%s|\?)",
+                r"(\bp\.medical_record_number\s*=\s*)(%s|\?)",
+                r"(\bmedical_record_number\s*=\s*)(%s|\?)",
+            ]
+            for pat in targeted_patterns:
+                sql_out = re.sub(pat, rf"\g<1>'{mrn_safe}'", sql_out, flags=re.IGNORECASE)
+
+            # Conservative fallback: only replace raw placeholders if the SQL is clearly MRN-filtered.
+            if re.search(r"medical_record_number", sql_out, flags=re.IGNORECASE) and (
+                re.search(r"%s", sql_out, flags=re.IGNORECASE) or re.search(r"=\s*\?", sql_out)
+            ):
+                sql_out = re.sub(r"%s", f"'{mrn_safe}'", sql_out, flags=re.IGNORECASE)
+                sql_out = re.sub(r"\?", f"'{mrn_safe}'", sql_out)
+
+        # If placeholders remain, return a clear error instead of executing invalid SQL.
+        if re.search(r"%s", sql_out, flags=re.IGNORECASE) or re.search(r"=\s*\?", sql_out):
+            return (
+                sql,
+                 "The generated SQL contains unresolved parameter placeholders (%s or ?). "
+                 "Please rephrase your question with a medical record number (MRN).",
+             )
+
+        return sql_out, None
     
     def __init__(
         self,
@@ -39,6 +143,7 @@ class ChatOrchestratorService:
         scope_service: Optional[ScopeDetectionService] = None,
         entity_service: Optional[EntityExtractionService] = None,
         patient_details_service: Optional[PatientDetailsService] = None,
+        statistics_service: Optional[StatisticsService] = None,
         audit_repo: Optional[AuditRepository] = None,
         hospital_repo: Optional[HospitalRepository] = None,
         access_control_repo: Optional[AccessControlRepository] = None,
@@ -55,6 +160,8 @@ class ChatOrchestratorService:
         self.access_control_repo = access_control_repo or AccessControlRepository()
         self.llm_client = llm_client or get_llm_client()
         self.rules_service = get_rules_service()
+        self.advice_service = ClinicianAdviceService()
+        self.statistics_service = statistics_service or StatisticsService(self.hospital_repo)
     
     def process_chat(
         self,
@@ -63,6 +170,7 @@ class ChatOrchestratorService:
         session_id: str,
         role: Optional[str] = None,
         approved: bool = False,
+        correction_rejected: bool = False,
     ) -> Dict[str, Any]:
         """
         Main chat processing pipeline.
@@ -73,6 +181,7 @@ class ChatOrchestratorService:
             session_id: Session ID
             role: User role (optional, will be looked up if not provided)
             approved: Whether correction was approved
+            correction_rejected: Whether the user explicitly rejected the correction and wants to proceed with the original text
             
         Returns:
             Chat response dictionary
@@ -110,11 +219,17 @@ class ChatOrchestratorService:
         
         # Get or create session
         session = self.session_memory.get_session(session_id)
+        previous_data_question = session.get("last_data_question")
         
         # Step 1: Spelling/grammar correction
-        message, needs_approval = self.correction_service.correct_spelling_and_enhance_query(raw_message)
-        if message != raw_message:
-            logger.info(f"✏️ Correction: '{raw_message}' → '{message}' (needs_approval={needs_approval})")
+        if correction_rejected:
+            message = raw_message
+            needs_approval = False
+            logger.info("↩️ Correction rejected by user; proceeding with original message.")
+        else:
+            message, needs_approval = self.correction_service.correct_spelling_and_enhance_query(raw_message)
+            if message != raw_message:
+                logger.info(f"✏️ Correction: '{raw_message}' → '{message}' (needs_approval={needs_approval})")
         
         if needs_approval and not approved:
             interaction_id = self.audit_repo.insert_interaction(
@@ -135,21 +250,62 @@ class ChatOrchestratorService:
             }
         
         # Step 2: Detect intent
-        intent = self.intent_service.detect_intent(message, session)
+        if is_advice_style_question(message):
+            intent = "advice"
+        else:
+            intent = self.intent_service.detect_intent(message, session)
         logger.info(f"🎯 Detected intent: {intent}")
         session["last_intent"] = intent
+        if intent in ("data", "advice"):
+            # Lightweight conversational continuity for follow-ups like "what else?"
+            session["last_data_question"] = message
         self.session_memory.save_session(session_id, session)
+
+        is_advice = intent == "advice"
+        interaction_intent = intent
         
         # Create interaction record
         interaction_id = self.audit_repo.insert_interaction(
             user_id=user_id,
             session_id=session_id,
             role=role,
-            intent=intent,
-            approved=True,
+            intent=interaction_intent,
+            approved=not correction_rejected,
             raw_message=raw_message,
             final_message=message,
         )
+
+        if is_advice:
+            result = self.advice_service.handle_advice_request(user_id=user_id, message=message)
+            self.audit_repo.update_interaction(
+                interaction_id,
+                reply_text=result.get("text", ""),
+                row_count=0,
+                ok=True,
+                intent="advice",
+            )
+            return result
+
+        # STATISTICS PIPELINE (aggregate-only, no PHI)
+        if intent == "statistics":
+            result = self.statistics_service.handle(message)
+            row_count = 0
+            try:
+                table = (result.get("data_json") or {}).get("table") or {}
+                rows = table.get("rows") or []
+                row_count = len(rows) if isinstance(rows, list) else 0
+            except Exception:
+                row_count = 0
+            ok = not bool((result.get("meta") or {}).get("error"))
+            self.audit_repo.update_interaction(
+                interaction_id,
+                reply_text=result.get("text", ""),
+                row_count=row_count,
+                ok=ok,
+                error=(result.get("meta") or {}).get("error") if not ok else None,
+                intent="statistics",
+            )
+            return result
         
         # If not data: respond with LLM (no SQL pipeline)
         if intent in ("social", "chat"):
@@ -169,39 +325,21 @@ Reply naturally and concisely:
         
         # Cohort follow-up handling
         cohort_followup = False
-        if (not is_specific) and session.get("last_patient_ids") and self.scope_service.is_cohort_followup(message):
+        if (not is_specific) and (session.get("last_patient_mrns") or session.get("last_patient_ids")) and self.scope_service.is_cohort_followup(message):
             cohort_followup = True
         
         # Step 4: Extract entities
         entities = self.entity_service.extract_entities(message, session)
-        
-        # Auto-inject "last 2 weeks" date filter for patient list queries without date criteria
-        if not is_specific:
-            message_lower = message.lower()
-            # Check if this is a patient list query
-            is_patient_list_query = any(phrase in message_lower for phrase in [
-                "all patients", "every patient", "all patient", "list of patients", 
-                "give me a list of patients", "show me all patients", "get all patients"
-            ])
-            
-            # Check if query already has a date filter
-            has_date_filter = any(keyword in message_lower for keyword in [
-                "today", "yesterday", "this week", "this month", "last week", "last month",
-                "date", "admitted", "discharged", "between", "from", "to", "since", "after", "before",
-                "last 2 weeks", "past 2 weeks", "two weeks", "2 weeks", "january", "february", "march",
-                "april", "may", "june", "july", "august", "september", "october", "november", "december"
-            ])
-            
-            # If it's a patient list query without date filter, inject "last 2 weeks"
-            if is_patient_list_query and not has_date_filter:
-                # Add date filter to entities
-                entities["date"] = "last 2 weeks"
-                logger.info("📅 Auto-injecting 'last 2 weeks' date filter for patient list query without date criteria")
+        entities.pop("patient_id", None)
+        simple_mrn = self.entity_service.extract_medical_record_number_simple(message)
+        if simple_mrn and entities.get("medical_record_number") is None:
+            entities["medical_record_number"] = str(simple_mrn)
+            logger.info("MRN [MEMORY] Extracted medical_record_number='%s' directly from message", simple_mrn)
         
         # Inject memory ONLY if query is about a specific patient (not general queries)
-        # For general queries like "who was discharged", don't inject patient_id
-        # IMPORTANT: If a patient name is explicitly mentioned in the query, don't use cached patient_id
-        # Only use cached patient_id if no patient name is mentioned (e.g., "how old is he?")
+        # For general queries like "who was discharged", don't inject patient identifiers.
+        # IMPORTANT: If a patient name is explicitly mentioned in the query, don't use cached MRN.
+        # Only use cached MRN for pronouns like "he", "she", "this patient" when no name is mentioned.
         
         # Check if a patient name is explicitly mentioned in the message
         message_lower = message.lower()
@@ -218,17 +356,11 @@ Reply naturally and concisely:
         # If entity extraction found a patient_name, that takes precedence
         extracted_patient_name = entities.get("patient_name")
         if extracted_patient_name:
-            logger.info(f"💾 [MEMORY] Patient name '{extracted_patient_name}' extracted from query - will search by name, NOT using cached patient_id")
-            # Clear any cached patient_id to force name-based search
-            if "patient_id" in entities:
-                del entities["patient_id"]
+            logger.info(f"💾 [MEMORY] Patient name '{extracted_patient_name}' extracted from query - will search by name, NOT using cached MRN")
         elif has_explicit_name_pattern:
             # Explicit name pattern detected but entity extraction didn't extract it
             # Try to extract name from message directly
-            logger.info(f"💾 [MEMORY] Explicit patient name pattern detected in query, NOT using cached patient_id - will search by name")
-            # Clear cached patient_id to force name-based search
-            if "patient_id" in entities:
-                del entities["patient_id"]
+            logger.info(f"💾 [MEMORY] Explicit patient name pattern detected in query, NOT using cached MRN - will search by name")
             # Try to extract name from common patterns
             import re
             # Patterns: "how old is X", "is there a patient named X", "X's age", etc.
@@ -255,19 +387,23 @@ Reply naturally and concisely:
                 if name_match and len(name_match) > 1:  # Valid name
                     entities["patient_name"] = name_match
                     logger.info(f"💾 [MEMORY] Extracted patient_name='{name_match}' from message pattern")
-        elif is_specific and entities.get("patient_id") is None:
-            # No explicit name mentioned, safe to use cached patient_id for pronouns/context
-            if session.get("last_patient_id") is not None:
-                entities["patient_id"] = session["last_patient_id"]
-                logger.info(f"💾 [MEMORY] Retrieved patient_id={session['last_patient_id']} from Redis for SPECIFIC patient query (no explicit name)")
+        elif is_specific and entities.get("medical_record_number") is not None:
+            logger.info(
+                "MRN [MEMORY] Medical record number '%s' detected in query - using it",
+                entities.get("medical_record_number"),
+            )
+        elif is_specific and entities.get("medical_record_number") is None:
+            # No explicit identifier mentioned, safe to use cached MRN for pronouns/context.
+            if session.get("last_patient_mrn") is not None:
+                entities["medical_record_number"] = session["last_patient_mrn"]
+                logger.info(
+                    "MRN [MEMORY] Retrieved medical_record_number='%s' from Redis for SPECIFIC patient query (no explicit name)",
+                    session["last_patient_mrn"],
+                )
             elif session.get("last_patient"):
                 entities["patient_name"] = session["last_patient"]
                 logger.info(f"💾 [MEMORY] Retrieved patient_name={session['last_patient']} from Redis for SPECIFIC patient query (no explicit name)")
         elif not is_specific:
-            # For general queries, clear any patient_id from entities to avoid confusion
-            if "patient_id" in entities:
-                logger.info(f"💾 [MEMORY] Removing patient_id from entities for GENERAL query")
-                del entities["patient_id"]
             if "patient_name" in entities and not any(word in message.lower() for word in ["patient", "patients"]):
                 # Only remove patient_name if it's not explicitly mentioned in query
                 logger.info(f"💾 [MEMORY] Removing patient_name from entities for GENERAL query")
@@ -279,23 +415,19 @@ Reply naturally and concisely:
             session["last_patient"] = entities["patient_name"]
             memory_updated = True
             logger.info(f"💾 [MEMORY] Saving patient_name='{entities['patient_name']}' to Redis")
-        if entities.get("patient_id") is not None:
-            session["last_patient_id"] = str(entities["patient_id"])
+        if entities.get("medical_record_number"):
+            session["last_patient_mrn"] = str(entities["medical_record_number"])
             memory_updated = True
-            logger.info(f"💾 [MEMORY] Saving patient_id={entities['patient_id']} to Redis")
-        
-        # Auto-fetch missing ID from DB if only name is known
-        if session.get("last_patient") and not session.get("last_patient_id"):
-            pid = self.hospital_repo.fetch_patient_id_by_name(session["last_patient"])
-            if pid:
-                session["last_patient_id"] = str(pid)
-                memory_updated = True
-                logger.info(f"💾 [MEMORY] Auto-fetched patient_id={pid} from DB and saving to Redis")
+            logger.info("MRN [MEMORY] Saving medical_record_number='%s' to Redis", entities["medical_record_number"])
         
         # Save session to Redis if updated
         if memory_updated:
             self.session_memory.save_session(session_id, session)
-            logger.info(f"💾 [MEMORY] ✅ Session saved to Redis: last_patient_id={session.get('last_patient_id')}, last_patient={session.get('last_patient')}")
+            logger.info(
+                "💾 [MEMORY] ✅ Session saved to Redis: last_patient_mrn=%s, last_patient=%s",
+                session.get("last_patient_mrn"),
+                session.get("last_patient"),
+            )
         
         # Prepare entities_for_prompt (copy of entities, may be modified)
         entities_for_prompt = entities.copy()
@@ -309,57 +441,80 @@ Reply naturally and concisely:
         if is_specific:
             # Check if we have patient_name in entities (name-based search)
             patient_name = entities_for_prompt.get("patient_name")
-            patient_id = entities_for_prompt.get("patient_id") or session.get("last_patient_id")
+            patient_mrn = entities_for_prompt.get("medical_record_number") or session.get("last_patient_mrn")
             
-            if patient_name and not entities_for_prompt.get("patient_id"):
+            if patient_name and not patient_mrn:
                 # Name-based search - search by name, not by ID
                 rule_text = (
-                    f"⚠️ CRITICAL: Search for patient by NAME '{patient_name}' in p.full_name, p.first_name, or p.last_name. "
-                    f"Use WHERE p.full_name ILIKE '%{patient_name}%' OR p.first_name ILIKE '%{patient_name}%' OR p.last_name ILIKE '%{patient_name}%'. "
-                    f"Do NOT use patient_id. This is a name-based search. "
+                    f"⚠️ CRITICAL: Search for patient by NAME '{patient_name}' in the patients table. "
+                    f"Use WHERE TRIM(COALESCE(p.first_name, '') || ' ' || COALESCE(p.second_name, '') || ' ' || COALESCE(p.third_name, '') || ' ' || COALESCE(p.last_name, '')) ILIKE '%{patient_name}%' "
+                    f"OR p.first_name ILIKE '%{patient_name}%' OR p.last_name ILIKE '%{patient_name}%'. "
+                    "Prefer the `patients` table over `ap_patient` for patient details. "
+                    "Do NOT filter on patients.id (patient id) for name-based searches. "
                     f"If no patient is found with this name, return 0 rows."
                 )
-                logger.info(f"💾 [MEMORY] Using patient_name='{patient_name}' for name-based search, NOT using cached patient_id")
-            elif patient_id:
-                # ID-based search - use patient_id
-                patient_id_str = str(patient_id)
+                logger.info(f"💾 [MEMORY] Using patient_name='{patient_name}' for name-based search, NOT using cached MRN")
+            elif patient_mrn:
+                patient_mrn_str = str(patient_mrn)
                 rule_text = (
-                    f"⚠️ CRITICAL: The patient_id is {patient_id_str}. "
-                    f"ALWAYS use p.key = '{patient_id_str}' (or e.patient_key = '{patient_id_str}') in WHERE clauses. "
-                    "Do NOT use placeholders like %s or ?. Use the actual patient_id value directly. "
-                    "Do not use subqueries or name-based lookups. "
-                    "If the user refers to 'he', 'she', or 'this patient', use this patient_id directly."
+                    f"⚠️ CRITICAL: The medical_record_number is '{patient_mrn_str}'. "
+                    f"Use the `patients` table as the anchor and filter with CAST(p.medical_record_number AS TEXT) = '{patient_mrn_str}'. "
+                    "Join other tables as needed to answer the request (labs, orders, results, etc.). "
+                    "Do NOT compare this value against p.id because patients.id is numeric and record or MRN identifiers can be alphanumeric. "
+                    "Only fall back to legacy ap_* patient tables if the requested data truly exists only there. "
+                    "Do NOT use placeholders like %s or ?. Use the actual medical record number value directly. "
+                    "Do not use subqueries or name-based lookups when this record identifier is known."
                 )
-                logger.info(f"💾 [MEMORY] Using patient_id={patient_id_str} from Redis for SQL generation")
+                logger.info("MRN [MEMORY] Using medical_record_number='%s' for SQL generation", patient_mrn_str)
             else:
                 rule_text = (
-                    "⚠️ IMPORTANT: The patient_id is known. ALWAYS use patient_id in WHERE clauses. "
-                    "Do not use subqueries or name-based lookups if patient_id exists. "
-                    "Only use patient name if patient_id is completely missing. "
-                    "If the user refers to 'he', 'she', or 'this patient', use the saved patient_id directly."
+                    "⚠️ IMPORTANT: This is a specific-patient question, but no medical record number (MRN) is known. "
+                    "Do NOT filter by patients.id (patient id). Prefer using an MRN if provided, otherwise use a name-based search."
                 )
         elif cohort_followup:
+            cohort_mrns = session.get("last_patient_mrns") or []
+            safe_mrns = [
+                "'" + str(mrn).replace("'", "''") + "'"
+                for mrn in cohort_mrns
+                if mrn not in (None, "")
+            ]
+            cohort_in_list = ", ".join(safe_mrns) if safe_mrns else "''"
             rule_text = (
                 "⚠️ IMPORTANT: The user is referring to the SAME COHORT of patients that were returned "
                 "in the previous query. Restrict the query to ONLY those patients by using "
-                f"WHERE patient_id IN ({', '.join(str(pid) for pid in (session.get('last_patient_ids') or []))}) "
+                f"WHERE CAST(p.medical_record_number AS TEXT) IN ({cohort_in_list}) "
                 "or an equivalent IN filter. Do NOT include patients outside this list."
             )
         else:
             rule_text = (
                 "⚠️ IMPORTANT: This question is general (not about a specific patient). "
-                "Do NOT restrict by patient_id. Query all patients matching the date or criteria mentioned."
+                "Do NOT restrict by MRN unless explicitly requested. Query all patients matching the date or criteria mentioned."
             )
         
-        # Add note about default date filter if it was auto-injected
-        date_filter_note = ""
-        if not is_specific and entities_for_prompt.get("date") == "last 2 weeks":
-            date_filter_note = " ⚠️ IMPORTANT: The user asked for a list of patients without specifying a date range. Apply a default filter for the LAST 2 WEEKS (14 days) based on admission date (e.created_at) or encounter date. Use: TO_TIMESTAMP(e.created_at / 1000.0) >= CURRENT_DATE - INTERVAL '14 days' OR similar date filter. This is a default filter to prevent returning too many results."
-        
+        # If this looks like a follow-up question, include the prior data question inside "User said"
+        # so the SQL generator's table detection can pick up missing domain context (e.g., labs).
+        message_for_sql = message
+        tl = (message or "").lower()
+        if previous_data_question and any(
+            marker in tl
+            for marker in [
+                "what else",
+                "anything else",
+                "any other",
+                "also",
+                "and what",
+                "what about",
+                "what more",
+            ]
+        ):
+            prev = (previous_data_question or "").strip()
+            cur = (message or "").strip()
+            if prev and prev != cur:
+                message_for_sql = f"{message} (Follow-up to previous request: {previous_data_question})"
+
         enhanced_query = (
-            f"User said: {message}. "
+            f"User said: {message_for_sql}. "
             f"Entities (including memory): {json.dumps(entities_for_prompt, ensure_ascii=False)}. "
-            f"{date_filter_note} "
             f"{rule_text}"
         )
         
@@ -386,6 +541,17 @@ Reply naturally and concisely:
                 "text": rule_error or "This query is not allowed due to business rules.",
                 "data_json": {"count": 0, "table": []},
             }
+
+        if is_specific and self._is_patient_overview_request(message):
+            overview_result = self._handle_patient_overview_request(
+                user_id=user_id,
+                session_id=session_id,
+                interaction_id=interaction_id,
+                entities=entities_for_prompt,
+                session=session,
+            )
+            if overview_result is not None:
+                return overview_result
         
         # Use CrewAI for data queries (only if enabled in config)
         # Note: CrewAI is slower (30-60s) because it uses multiple sequential LLM calls
@@ -570,31 +736,37 @@ Reply naturally and concisely:
                         "data_json": {"count": row_count, "table": []},
                     }
                 
-                # Save patient_id to Redis memory if query results contain patient_id
-                if rows and isinstance(rows, list) and len(rows) > 0 and isinstance(rows[0], dict):
-                    pid_cols = [k for k in rows[0].keys() if "patient_id" in k.lower()]
-                    if pid_cols:
-                        col = pid_cols[0]
-                        try:
-                            patient_ids = [r.get(col) for r in rows if r.get(col) is not None]
-                            session["last_patient_ids"] = [int(pid) for pid in patient_ids if pid is not None]
-                            
-                            # If only one patient returned, also save as last_patient_id for pronoun resolution
-                            if len(patient_ids) == 1 and patient_ids[0] is not None:
-                                session["last_patient_id"] = str(patient_ids[0])
-                                # Also try to get patient name if available
-                                name_cols = [k for k in rows[0].keys() if "name" in k.lower() and ("full_name" in k.lower() or "patient" in k.lower())]
-                                if name_cols and rows[0].get(name_cols[0]):
-                                    session["last_patient"] = str(rows[0].get(name_cols[0]))
-                                self.session_memory.save_session(session_id, session)
-                                logger.info(f"💾 [MEMORY] ✅ Saved to Redis: patient_id={session['last_patient_id']}, patient_name={session.get('last_patient', 'N/A')}")
-                            else:
-                                # Multiple patients - save cohort
-                                self.session_memory.save_session(session_id, session)
-                                logger.info(f"💾 [MEMORY] ✅ Saved cohort to Redis: {len(patient_ids)} patient_ids")
-                        except Exception as e:
-                            logger.warning(f"⚠️ [MEMORY] Failed to extract patient_ids: {e}")
-                            session["last_patient_ids"] = None
+                if isinstance(data_json, dict) and isinstance(rows, list):
+                    sanitized_rows = self._strip_patient_id_fields_from_rows(rows)
+                    data_json["table"] = sanitized_rows
+                    if isinstance(data_json.get("columns"), list):
+                        data_json["columns"] = self._strip_patient_id_fields_from_columns(data_json.get("columns"))
+                    rows = sanitized_rows
+                    row_count = len(rows)
+
+                unique_mrns = self._extract_unique_mrns_from_rows(rows)
+                if unique_mrns:
+                    session["last_patient_mrns"] = unique_mrns
+                    session["last_patient_ids"] = None
+
+                    if len(unique_mrns) == 1:
+                        session["last_patient_mrn"] = unique_mrns[0]
+                        name_cols = [
+                            k
+                            for k in rows[0].keys()
+                            if "name" in k.lower() and ("full_name" in k.lower() or "patient" in k.lower())
+                        ]
+                        if name_cols and rows[0].get(name_cols[0]):
+                            session["last_patient"] = str(rows[0].get(name_cols[0]))
+                        self.session_memory.save_session(session_id, session)
+                        logger.info(
+                            "💾 [MEMORY] ✅ Saved to Redis: medical_record_number=%s, patient_name=%s",
+                            session["last_patient_mrn"],
+                            session.get("last_patient", "N/A"),
+                        )
+                    else:
+                        self.session_memory.save_session(session_id, session)
+                        logger.info("💾 [MEMORY] ✅ Saved cohort to Redis: %s MRNs", len(unique_mrns))
                 
                 if sql:
                     self.audit_repo.update_interaction(interaction_id, sql_query=sql)
@@ -636,7 +808,21 @@ Reply naturally and concisely:
             raise Exception(f"SQL generation failed: {err_sql}")
         
         sql = sql_body.get("sql_query") or sql_body.get("sql", "")
+        sql, placeholder_error = self._inject_known_values_into_sql(
+            sql,
+            session=session,
+            entities=entities_for_prompt,
+            is_specific=is_specific,
+        )
         self.audit_repo.update_interaction(interaction_id, sql_query=sql)
+        if placeholder_error:
+            logger.warning(f"🚫 SQL query blocked - unresolved placeholders: {placeholder_error}")
+            self.audit_repo.update_interaction(interaction_id, ok=False, error=placeholder_error, row_count=0)
+            return {
+                "intent": "data",
+                "text": placeholder_error,
+                "data_json": {"count": 0, "table": []},
+            }
         
         # Check business rules on generated SQL query
         is_allowed, rule_error = self.rules_service.check_query_restrictions(
@@ -654,19 +840,7 @@ Reply naturally and concisely:
                 "data_json": {"count": 0, "table": []},
             }
         
-        # Auto-inject patient_id if placeholder '?' or '%s' is used
-        if session.get("last_patient_id"):
-            pid = str(session["last_patient_id"])
-            original_sql = sql
-            if "?" in sql:
-                sql = sql.replace("?", pid)
-                logger.info(f"🧩 [MEMORY] Replaced '?' placeholder with patient_id={pid} from Redis")
-            if "%s" in sql:
-                sql = sql.replace("%s", pid)
-                logger.info(f"🧩 [MEMORY] Replaced '%s' placeholder with patient_id={pid} from Redis")
-            if sql != original_sql:
-                self.audit_repo.update_interaction(interaction_id, sql_query=sql)
-                logger.info(f"💾 [MEMORY] ✅ SQL updated with patient_id from Redis memory")
+        # Placeholder injection handled earlier by _inject_known_values_into_sql.
         
         logger.info(f"📜 Generated SQL: {sql[:200]}..." if len(sql) > 200 else f"📜 Generated SQL: {sql}")
         
@@ -675,11 +849,28 @@ Reply naturally and concisely:
         
         validation_msg = ""
         rows: List[Dict[str, Any]] = []
+        validation_valid = ok_val
         if isinstance(val_body, dict):
-            validation_msg = val_body.get("validation_result", {}).get("message", "")
-            rows = val_body.get("validation_result", {}).get("rows", [])
+            validation_result = val_body.get("validation_result", {})
+            validation_msg = validation_result.get("message", "")
+            rows = validation_result.get("rows", [])
+            validation_valid = validation_result.get("valid", ok_val)
         
-        if not ok_val or "❌" in (validation_msg or ""):
+        validation_msg_lower = (validation_msg or "").lower()
+        if (
+            not ok_val
+            or validation_valid is False
+            or any(
+                marker in validation_msg_lower
+                for marker in [
+                    "sql execution error",
+                    "database execution error",
+                    "validation failed",
+                    "forbidden",
+                    "not allowed",
+                ]
+            )
+        ):
             msg = validation_msg or err_val or "Validation failed."
             self.audit_repo.update_interaction(interaction_id, ok=False, error=msg, row_count=0)
             return {
@@ -706,31 +897,31 @@ Reply naturally and concisely:
             logger.warning(f"⚠️ No rows returned for query")
         self.audit_repo.update_interaction(interaction_id, row_count=row_count)
         
-        # Save patient_id to Redis memory if query results contain patient_id
-        if rows and isinstance(rows[0], dict):
-            pid_cols = [k for k in rows[0].keys() if "patient_id" in k.lower()]
-            if pid_cols:
-                col = pid_cols[0]
-                try:
-                    patient_ids = [r.get(col) for r in rows if r.get(col) is not None]
-                    session["last_patient_ids"] = [int(pid) for pid in patient_ids if pid is not None]
-                    
-                    # If only one patient returned, also save as last_patient_id for pronoun resolution
-                    if len(patient_ids) == 1 and patient_ids[0] is not None:
-                        session["last_patient_id"] = str(patient_ids[0])
-                        # Also try to get patient name if available
-                        name_cols = [k for k in rows[0].keys() if "name" in k.lower() and ("full_name" in k.lower() or "patient" in k.lower())]
-                        if name_cols and rows[0].get(name_cols[0]):
-                            session["last_patient"] = str(rows[0].get(name_cols[0]))
-                        self.session_memory.save_session(session_id, session)
-                        logger.info(f"💾 [MEMORY] ✅ Saved to Redis: patient_id={session['last_patient_id']}, patient_name={session.get('last_patient', 'N/A')}")
-                    else:
-                        # Multiple patients - save cohort
-                        self.session_memory.save_session(session_id, session)
-                        logger.info(f"💾 [MEMORY] ✅ Saved cohort to Redis: {len(patient_ids)} patient_ids")
-                except Exception as e:
-                    logger.warning(f"⚠️ [MEMORY] Failed to extract patient_ids: {e}")
-                    session["last_patient_ids"] = None
+        rows = self._strip_patient_id_fields_from_rows(rows)
+
+        unique_mrns = self._extract_unique_mrns_from_rows(rows)
+        if unique_mrns:
+            session["last_patient_mrns"] = unique_mrns
+            session["last_patient_ids"] = None
+
+            if len(unique_mrns) == 1:
+                session["last_patient_mrn"] = unique_mrns[0]
+                name_cols = [
+                    k
+                    for k in rows[0].keys()
+                    if "name" in k.lower() and ("full_name" in k.lower() or "patient" in k.lower())
+                ]
+                if name_cols and rows[0].get(name_cols[0]):
+                    session["last_patient"] = str(rows[0].get(name_cols[0]))
+                self.session_memory.save_session(session_id, session)
+                logger.info(
+                    "💾 [MEMORY] ✅ Saved to Redis: medical_record_number=%s, patient_name=%s",
+                    session["last_patient_mrn"],
+                    session.get("last_patient", "N/A"),
+                )
+            else:
+                self.session_memory.save_session(session_id, session)
+                logger.info("💾 [MEMORY] ✅ Saved cohort to Redis: %s MRNs", len(unique_mrns))
         
         # Stage 3: Formatter
         columns = list(rows[0].keys()) if rows else []
@@ -781,7 +972,8 @@ Reply naturally and concisely:
             )
             if ok and isinstance(body, dict):
                 rows = body.get("validation_result", {}).get("rows", [])
-                logger.info(f"📊 [Stage 2 Output] {json.dumps(rows, indent=2, ensure_ascii=False)}")
+                sanitized_rows = self._strip_patient_id_fields_from_rows(rows)
+                logger.info(f"📊 [Stage 2 Output] {json.dumps(sanitized_rows, indent=2, ensure_ascii=False)}")
                 return True, body, ""
         return False, {}, err
     
@@ -822,6 +1014,180 @@ Reply naturally and concisely:
         ]
         tl = (text or "").lower()
         return any(h in tl for h in _AUDIT_HINTS)
+
+    def _is_patient_overview_request(self, text: str) -> bool:
+        """Detect broad 'tell me everything about this patient' requests."""
+        tl = (text or "").lower()
+        identifier_terms = [
+            "patient",
+            "record",
+            "mrn",
+            "medical record",
+            "medical number",
+        ]
+        if not any(term in tl for term in identifier_terms):
+            return False
+
+        overview_hints = [
+            "what information can you give me",
+            "what info can you give me",
+            "what the info you can give me",
+            "what can you tell me about",
+            "tell me about the patient",
+            "everything about the patient",
+            "all information about the patient",
+            "all info about the patient",
+            "full details about the patient",
+            "patient profile",
+            "patient details",
+            "all info for record",
+            "all information for record",
+            "all details for record",
+            "full details for record",
+            "everything about record",
+            "all info for mrn",
+            "all information for mrn",
+        ]
+        if any(hint in tl for hint in overview_hints):
+            return True
+
+        return bool(
+            (
+                ("info" in tl or "information" in tl or "details" in tl)
+                and ("give me" in tl or "about" in tl or "show" in tl)
+            )
+            or ("tell me" in tl and "about" in tl)
+            or ("everything" in tl and any(term in tl for term in identifier_terms))
+            or (
+                "all" in tl
+                and ("info" in tl or "information" in tl or "details" in tl)
+                and any(term in tl for term in identifier_terms)
+            )
+        )
+
+    def _handle_patient_overview_request(
+        self,
+        user_id: str,
+        session_id: str,
+        interaction_id: int,
+        entities: Dict[str, Any],
+        session: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Return a comprehensive patient profile for broad patient-info questions."""
+        supported_sections = self.patient_details_service.get_supported_sections_for_user(user_id)
+        supported_text = ", ".join(supported_sections) if supported_sections else "basic patient details"
+
+        medical_record_number = entities.get("medical_record_number") or session.get("last_patient_mrn")
+        patient_name = entities.get("patient_name") or session.get("last_patient")
+
+        lookup_field = "medical_record_number"
+        lookup_value = str(medical_record_number) if medical_record_number else None
+        display_value = f"record {lookup_value}" if lookup_value else None
+
+        if not lookup_value:
+            return {
+                "intent": "data",
+                "text": (
+                    "I can provide patient information from these database areas: "
+                    f"{supported_text}. Please provide a medical record number (MRN) so I can load the full profile."
+                ),
+                "data_json": {
+                    "type": "summary",
+                    "count": 0,
+                    "available_sections": supported_sections,
+                },
+            }
+
+        logger.info(
+            "MRN Routing broad patient overview request through patient-details profile for %s using %s",
+            display_value,
+            lookup_field,
+        )
+
+        sql = self.patient_details_service.build_patient_details_sql(
+            user_id,
+            lookup_value,
+            lookup_field=lookup_field,
+        )
+        if not sql:
+            self.audit_repo.update_interaction(
+                interaction_id,
+                ok=False,
+                error="No patient details allowed for this user.",
+                row_count=0,
+            )
+            return {
+                "intent": "data",
+                "text": "⚠️ Patient details are not available for your current access level.",
+                "data_json": {"count": 0, "table": []},
+            }
+
+        ok_val, val_body, err_val = self._call_validator(sql, None, user_id, interaction_id)
+        validation_result = val_body.get("validation_result", {}) if isinstance(val_body, dict) else {}
+        validation_msg = validation_result.get("message", "")
+        validation_valid = validation_result.get("valid", ok_val)
+        rows = validation_result.get("rows", [])
+
+        if not ok_val or validation_valid is False:
+            msg = validation_msg or err_val or "Validation failed."
+            self.audit_repo.update_interaction(interaction_id, ok=False, error=msg, row_count=0)
+            return {
+                "intent": "data",
+                "text": f"⚠️ Unable to load the full patient profile: {msg}",
+                "data_json": {"count": 0, "table": []},
+            }
+
+        if not rows:
+            self.audit_repo.update_interaction(
+                interaction_id,
+                reply_text="No data found for this patient.",
+                sql_query=sql,
+                row_count=0,
+            )
+            return {
+                "intent": "data",
+                "text": (
+                    f"No data was found for {display_value}. "
+                    f"I can normally provide these patient details from the database: {supported_text}."
+                ),
+                "data_json": {
+                    "count": 0,
+                    "table": [],
+                    "available_sections": supported_sections,
+                },
+            }
+
+        patient = self.patient_details_service.transform_patient_data(rows[0])
+        available_sections = self.patient_details_service.get_available_sections(patient)
+        section_text = ", ".join(available_sections) if available_sections else "basic patient details"
+        summary = (
+            f"I can provide these patient details from the database for {display_value}: "
+            f"{section_text}. I pulled the currently available profile fields below."
+        )
+
+        if patient.get("medical_record_number"):
+            session["last_patient_mrn"] = str(patient["medical_record_number"])
+        if patient.get("full_name"):
+            session["last_patient"] = patient["full_name"]
+        self.session_memory.save_session(session_id, session)
+
+        self.audit_repo.update_interaction(
+            interaction_id,
+            reply_text=summary,
+            sql_query=sql,
+            row_count=1,
+        )
+        return {
+            "intent": "data",
+            "text": summary,
+            "data_json": {
+                "type": "record",
+                "count": 1,
+                "title": "Patient details",
+                "record": patient,
+                "columns": list(patient.keys()),
+            },
+        }
     
     def _require_admin(self, admin_user_id: str):
         """Require admin role for user."""
@@ -938,4 +1304,3 @@ Reply naturally and concisely:
 
 # Global instance
 _chat_orchestrator = ChatOrchestratorService()
-

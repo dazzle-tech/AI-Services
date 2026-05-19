@@ -1,0 +1,213 @@
+{
+    "patient_snapshot": {
+        "patient_id": "",
+        "name": "",
+        "age": 0,
+        "gender": "",
+        "weight_kg": 0,
+        "admission_reason": "",
+        "comorbidities": [],
+        "current_hour": 0,
+        "assessment_timestamp": ""
+    },
+    "status_summary": {
+        "overall_condition": "stable | guarded | critical",
+        "one_line": "",
+        "narrative": "",
+        "sirs_criteria_met": 0,
+        "qsofa_score": 0,
+        "sofa_score": 0,
+        "sepsis_3_criteria_met": true
+    },
+    "current_vitals": {
+        "HR": {
+            "value": 0,
+            "unit": "bpm",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "Resp": {
+            "value": 0,
+            "unit": "breaths/min",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "SBP": {
+            "value": 0,
+            "unit": "mmHg",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "DBP": {
+            "value": 0,
+            "unit": "mmHg",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "MAP": {
+            "value": 0,
+            "unit": "mmHg",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "O2Sat": {
+            "value": 0,
+            "unit": "%",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "Temp": {
+            "value": 0,
+            "unit": "°C",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "EtCO2": {
+            "value": 0,
+            "unit": "mmHg",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        }
+    },
+    "current_labs": {
+        "Lactate": {
+            "value": 0,
+            "unit": "mmol/L",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "WBC": {
+            "value": 0,
+            "unit": "10³/µL",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "Platelets": {
+            "value": 0,
+            "unit": "10³/µL",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "Creatinine": {
+            "value": 0,
+            "unit": "mg/dL",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "Bilirubin_total": {
+            "value": 0,
+            "unit": "mg/dL",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "HCO3": {
+            "value": 0,
+            "unit": "mmol/L",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "BUN": {
+            "value": 0,
+            "unit": "mg/dL",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        },
+        "Hct": {
+            "value": 0,
+            "unit": "%",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening"
+        }
+    },
+    "timeline_analysis": [
+        {
+            "time": "Hour N",
+            "event": "",
+            "affected_parameters": [],
+            "severity": "normal | warning | critical",
+            "clinical_significance": ""
+        }
+    ],
+    "organ_dysfunction": {
+        "cardiovascular": {
+            "status": "normal | impaired | failing",
+            "notes": ""
+        },
+        "respiratory": {
+            "status": "normal | impaired | failing",
+            "notes": ""
+        },
+        "renal": {
+            "status": "normal | impaired | failing",
+            "notes": ""
+        },
+        "hepatic": {
+            "status": "normal | impaired | failing",
+            "notes": ""
+        },
+        "hematologic": {
+            "status": "normal | impaired | failing",
+            "notes": ""
+        },
+        "metabolic": {
+            "status": "normal | impaired | failing",
+            "notes": ""
+        }
+    },
+    "watchlist": [
+        {
+            "parameter": "",
+            "current_value": "",
+            "unit": "",
+            "normal_range": "",
+            "status": "normal | warning | critical",
+            "trend": "improving | stable | worsening",
+            "rate_of_change": "",
+            "clinical_concern": "",
+            "recommended_action": ""
+        }
+    ],
+    "risk_factors": {
+        "infection_source_suspected": "",
+        "immunocompromised": true,
+        "age_risk": true,
+        "comorbidity_burden": "low | moderate | high",
+        "contributing_factors": []
+    },
+    "forecast_24h": {
+        "expected_trajectory": "improving | stable | deteriorating | critical",
+        "narrative": "",
+        "key_decision_points": [
+            {
+                "hour": "Hour N",
+                "trigger": "",
+                "recommended_response": ""
+            }
+        ],
+        "intervention_urgency": "routine | urgent | emergent"
+    },
+    "sepsis_probability_24h": {
+        "probability": 0,
+        "risk_level": "low | moderate | high | critical",
+        "confidence": "low | moderate | high",
+        "primary_drivers": [],
+        "mitigating_factors": []
+    },
+    "recommended_actions": [
+        {
+            "priority": "immediate | within_1h | within_4h | routine",
+            "action": "",
+            "rationale": ""
+        }
+    ],
+    "flags": {
+        "escalate_care": true,
+        "repeat_labs_needed": true,
+        "imaging_recommended": true,
+        "culture_recommended": true,
+        "antibiotic_consideration": true,
+        "fluid_resuscitation_needed": true,
+        "vasopressor_consideration": true,
+        "icu_transfer_recommended": true
+    }
+}

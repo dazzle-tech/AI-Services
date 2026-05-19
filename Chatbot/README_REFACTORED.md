@@ -94,7 +94,7 @@ chatbot/
   - `intent.py`: Intent detection (data/social/chat)
   - `correction.py`: Spelling/grammar correction
   - `scope.py`: Query scope detection (specific vs general)
-  - `entities.py`: Entity extraction (patient_id, patient_name, etc.)
+  - `entities.py`: Entity extraction (medical_record_number/MRN, patient_name, etc.)
   - `patient_details.py`: Role-based patient details SQL builder
   - `sql_generation.py`: SQL generation from natural language
   - `validation.py`: SQL validation and execution

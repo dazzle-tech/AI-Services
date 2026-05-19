@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Environment (secrets)
+.env
+.env.local
+.env.*.local
+apikeys.txt
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode/
+.idea/
+.gemini/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+tests/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# Analysis outputs (generated at runtime)
+proper_output/
+
+# Documentation (keep README.md)
+*.md
+!README.md
+docs/
+
+# SummarizationService (separate project)
+SummarizationService/

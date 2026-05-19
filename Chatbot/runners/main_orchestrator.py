@@ -9,6 +9,7 @@ chatbot_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(chatbot_dir))
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
 from app.api.routes import chat, admin, patient_details, interaction_details
@@ -16,6 +17,18 @@ from app.api.routes import chat, admin, patient_details, interaction_details
 # Configure logging - use both console and file
 log_format = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
 log_file = chatbot_dir / "orchestrator.log"
+
+# Start each run with a fresh log file (truncate/remove old log).
+try:
+    if log_file.exists():
+        log_file.unlink()
+except Exception:
+    # If the file is locked (e.g., running service), fall back to truncation.
+    try:
+        with open(log_file, "w", encoding="utf-8"):
+            pass
+    except Exception:
+        pass
 
 # Clear existing handlers
 root_logger = logging.getLogger()
@@ -28,7 +41,7 @@ console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(logging.Formatter(log_format))
 
 # File handler
-file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+file_handler = logging.FileHandler(log_file, mode="w", encoding="utf-8")
 file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(logging.Formatter(log_format))
 
@@ -48,6 +61,27 @@ app = FastAPI(
     description="Multi-service hospital assistant orchestrator"
 )
 
+def _load_allowed_origins() -> list[str]:
+    raw = os.environ.get("CORS_ALLOWED_ORIGINS", "").strip()
+    if not raw:
+        return [
+            "http://localhost:8080",
+            "http://127.0.0.1:8080",
+        ]
+    if raw == "*":
+        return ["*"]
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+allowed_origins = _load_allowed_origins()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+logger.info("CORS enabled for origins: %s", allowed_origins)
 # Add request logging middleware - MUST be first to catch all requests
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -109,9 +143,9 @@ def root():
 
 if __name__ == "__main__":
     import uvicorn
-    
-    logger.info("🚀 Starting Orchestrator on port 8000")
+
     port = int(os.environ.get("PORT", settings.orchestrator_port))
+    logger.info("🚀 Starting Orchestrator on port %s", port)
     
     uvicorn.run(
         "runners.main_orchestrator:app",
@@ -125,5 +159,6 @@ if __name__ == "__main__":
         timeout_keep_alive=120,  # Keep connections alive for 120 seconds (for long CrewAI requests)
         timeout_graceful_shutdown=30,  # Graceful shutdown timeout
     )
+
 
 

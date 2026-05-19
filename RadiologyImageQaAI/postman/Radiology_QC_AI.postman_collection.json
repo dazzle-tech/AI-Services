@@ -1,0 +1,80 @@
+{
+  "info": {
+    "_postman_id": "b6ed1c1b-8d9b-4c3a-a23c-3b3c2a0b9a2d",
+    "name": "Radiology QC AI",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "MVP backend for radiology technical QC (CT Abdomen/Pelvis anatomical coverage). Research/MVP only. Not for clinical use without validation and regulatory approval."
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8016",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health"
+      }
+    },
+    {
+      "name": "Generate Explanation",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"qc_result\": {\n    \"study_instance_uid\": \"1.2.840.test\",\n    \"exam_type\": \"CT_ABDOMEN_PELVIS\",\n    \"qc_status\": \"FAIL\",\n    \"issue_type\": \"INCOMPLETE_ANATOMICAL_COVERAGE\",\n    \"missing_region\": \"LOWER_PELVIS\",\n    \"required_landmark_not_seen\": \"PUBIC_SYMPHYSIS\",\n    \"confidence\": 0.95,\n    \"recommended_action\": \"Acquire additional lower pelvis images through the pubic symphysis before the patient leaves.\",\n    \"human_review_required\": true,\n    \"explanation\": \"\",\n    \"disclaimer\": \"Research/MVP only. Not for clinical use without validation and regulatory approval.\"\n  },\n  \"style\": \"technologist_alert\"\n}"
+        },
+        "url": "{{base_url}}/api/v1/report/explain"
+      }
+    },
+    {
+      "name": "Upload CT DICOM (zip or .dcm)",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "sample_data/sample.zip"
+            },
+            {
+              "key": "use_gpt_report",
+              "type": "text",
+              "value": "false"
+            }
+          ]
+        },
+        "url": "{{base_url}}/api/v1/qc/ct/dicom"
+      }
+    },
+    {
+      "name": "Upload X-ray DICOM (zip or .dcm)",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "sample_data/sample.zip"
+            }
+          ]
+        },
+        "url": "{{base_url}}/api/v1/qc/xray/dicom"
+      }
+    }
+  ]
+}

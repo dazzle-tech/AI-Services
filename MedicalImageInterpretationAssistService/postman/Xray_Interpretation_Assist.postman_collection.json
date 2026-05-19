@@ -1,0 +1,102 @@
+{
+  "info": {
+    "name": "Radiology Interpretation Assist Service (X-ray + CT)",
+    "_postman_id": "3f1f09ca-0ed3-4f3f-8f62-c2230b30fd2a",
+    "description": "X-ray interpretation (CR/DX) plus CT interpretation (CT) endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/radiology/xray-interpretation/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "radiology", "xray-interpretation", "health"]
+        }
+      }
+    },
+    {
+      "name": "DICOM X-ray Upload (any body part)",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "" },
+            { "key": "clinical_indication", "type": "text", "value": "Shortness of breath" }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/radiology/xray-interpretation/dicom",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "radiology", "xray-interpretation", "dicom"]
+        }
+      }
+    },
+    {
+      "name": "Image X-ray Upload (png/jpg/etc; any body part)",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "" },
+            { "key": "clinical_indication", "type": "text", "value": "Shortness of breath" }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/radiology/xray-interpretation/dicom",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "radiology", "xray-interpretation", "dicom"]
+        }
+      }
+    },
+    {
+      "name": "CT uploaded to X-ray endpoint (expected UNSUPPORTED_MODALITY)",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [{ "key": "file", "type": "file", "src": "" }]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/radiology/xray-interpretation/dicom",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "radiology", "xray-interpretation", "dicom"]
+        }
+      }
+    },
+    {
+      "name": "CT Health",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/v1/radiology/ct-interpretation/health",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "radiology", "ct-interpretation", "health"]
+        }
+      }
+    },
+    {
+      "name": "CT DICOM Upload (zip recommended)",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file", "type": "file", "src": "" },
+            { "key": "clinical_indication", "type": "text", "value": "Abdominal pain" }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/api/v1/radiology/ct-interpretation/dicom",
+          "host": ["{{base_url}}"],
+          "path": ["api", "v1", "radiology", "ct-interpretation", "dicom"]
+        }
+      }
+    }
+  ],
+  "variable": [{ "key": "base_url", "value": "http://localhost:8015" }]
+}

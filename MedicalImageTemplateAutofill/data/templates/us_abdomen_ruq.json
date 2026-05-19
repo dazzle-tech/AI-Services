@@ -1,0 +1,58 @@
+{
+  "template_id": "us_abdomen_ruq",
+  "name": "Ultrasound Abdomen — RUQ / Biliary",
+  "modality": "US",
+  "body_region": "Abdomen",
+  "description": "Right upper quadrant ultrasound template focused on gallbladder, bile ducts, liver, and relevant abdominal findings. Useful for RUQ pain/cholecystitis evaluation.",
+  "keywords": ["ultrasound", "RUQ pain", "gallstones", "cholecystitis", "Murphy sign", "biliary", "CBD", "gallbladder"],
+  "fields": [
+    {
+      "name": "exam",
+      "label": "Exam",
+      "description": "Exam name and target anatomy.",
+      "required": true
+    },
+    {
+      "name": "clinical_history",
+      "label": "Clinical History",
+      "description": "Indication (e.g., RUQ pain, fever, suspected gallstones).",
+      "required": true
+    },
+    {
+      "name": "technique",
+      "label": "Technique",
+      "description": "Ultrasound technique and whether Doppler was used if stated.",
+      "required": true
+    },
+    {
+      "name": "comparison",
+      "label": "Comparison",
+      "description": "Prior imaging if mentioned.",
+      "required": false
+    },
+    {
+      "name": "findings_gallbladder",
+      "label": "Findings — Gallbladder",
+      "description": "Stones, sludge, wall thickening, pericholecystic fluid, sonographic Murphy sign if addressed.",
+      "required": true
+    },
+    {
+      "name": "findings_bile_ducts",
+      "label": "Findings — Bile Ducts",
+      "description": "CBD size, intrahepatic ductal dilation if mentioned.",
+      "required": false
+    },
+    {
+      "name": "findings_liver",
+      "label": "Findings — Liver",
+      "description": "Echotexture, focal lesions if mentioned.",
+      "required": false
+    },
+    {
+      "name": "impression",
+      "label": "Impression",
+      "description": "Concise summary of key biliary findings.",
+      "required": true
+    }
+  ]
+}

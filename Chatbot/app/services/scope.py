@@ -1,6 +1,6 @@
 """Query scope detection service."""
 import logging
-from typing import Dict, Any, Optional, Any
+from typing import Any, Dict, Optional
 from app.infrastructure.llm.llm_client import get_llm_client
 
 logger = logging.getLogger(__name__)
@@ -42,6 +42,24 @@ class ScopeDetectionService:
             if re.search(pattern, text_lower):
                 logger.info(f"🧠 Heuristic: detected general query pattern '{pattern}' → GENERAL")
                 return False
+
+        # Heuristic: If there is an active patient context in session memory and the
+        # user didn't explicitly ask about multiple patients, default to SPECIFIC.
+        # This avoids treating ambiguous queries (e.g., "give list of allergies") as
+        # cross-patient queries when a clinician is working on a selected patient.
+        if session and (session.get("last_patient_mrn") or session.get("last_patient")):
+            asks_multiple = any(
+                phrase in text_lower
+                for phrase in (
+                    "all patients",
+                    "which patients",
+                    "how many patients",
+                    "list of patients",
+                )
+            ) or re.search(r"\bpatients\b", text_lower)
+            if not asks_multiple:
+                logger.info("🧠 Heuristic: session has active patient context → SPECIFIC")
+                return True
         
         # Heuristic: Check for specific patient patterns
         # Pattern: "patient 1003", "patient #1003", "patient ID 1003", etc.

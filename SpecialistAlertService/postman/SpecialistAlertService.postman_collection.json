@@ -1,0 +1,173 @@
+{
+  "info": {
+    "_postman_id": "specialist-alert-service",
+    "name": "SpecialistAlertService",
+    "description": "Postman collection for the REST API-first SpecialistAlertService microservice.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Alerts (Minimal)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response has alerts array\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('alerts');",
+              "    pm.expect(body.alerts).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-alert-001\",\n  \"patient_record\": {\n    \"patient_id\": \"P-1001\",\n    \"demographics\": {\n      \"age\": 58,\n      \"sex\": \"male\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/generate-alerts",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "generate-alerts"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Alerts (Full Example)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test(\"Response has alerts array\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body).to.have.property('alerts');",
+              "    pm.expect(body.alerts).to.be.an('array');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"req-alert-001\",\n  \"patient_record\": {\n    \"patient_id\": \"P-1001\",\n    \"demographics\": {\n      \"age\": 58,\n      \"sex\": \"male\"\n    },\n    \"diagnoses\": [\n      {\n        \"name\": \"Type 2 Diabetes\",\n        \"date\": \"2022-05-01\"\n      },\n      {\n        \"name\": \"Hypertension\",\n        \"date\": \"2021-03-10\"\n      }\n    ],\n    \"medications\": [\n      {\n        \"name\": \"Lisinopril\",\n        \"start_date\": \"2025-01-01\",\n        \"end_date\": null,\n        \"status\": \"active\"\n      },\n      {\n        \"name\": \"Ibuprofen\",\n        \"start_date\": \"2026-03-14\",\n        \"end_date\": null,\n        \"status\": \"active\"\n      }\n    ],\n    \"allergies\": [\n      {\n        \"name\": \"Penicillin\",\n        \"date\": \"2020-01-01\"\n      }\n    ],\n    \"lab_results\": [\n      {\n        \"name\": \"Troponin\",\n        \"value\": \"0.8\",\n        \"unit\": \"ng/mL\",\n        \"reference_range\": \"0.0-0.04\",\n        \"flag\": \"high\",\n        \"date\": \"2026-03-13\"\n      },\n      {\n        \"name\": \"Creatinine\",\n        \"value\": \"1.8\",\n        \"unit\": \"mg/dL\",\n        \"reference_range\": \"0.7-1.3\",\n        \"flag\": \"high\",\n        \"date\": \"2026-03-16\"\n      },\n      {\n        \"name\": \"WBC\",\n        \"value\": \"18.2\",\n        \"unit\": \"10^9/L\",\n        \"reference_range\": \"4.0-11.0\",\n        \"flag\": \"high\",\n        \"date\": \"2026-03-16\"\n      },\n      {\n        \"name\": \"CRP\",\n        \"value\": \"145\",\n        \"unit\": \"mg/L\",\n        \"reference_range\": \"0-5\",\n        \"flag\": \"high\",\n        \"date\": \"2026-03-16\"\n      }\n    ],\n    \"historical_lab_results\": [\n      {\n        \"name\": \"Creatinine\",\n        \"value\": \"1.0\",\n        \"unit\": \"mg/dL\",\n        \"reference_range\": \"0.7-1.3\",\n        \"flag\": \"normal\",\n        \"date\": \"2026-03-14\"\n      }\n    ],\n    \"vitals\": [\n      {\n        \"name\": \"blood_pressure\",\n        \"value\": \"92/60\",\n        \"unit\": \"mmHg\",\n        \"date\": \"2026-03-16\"\n      },\n      {\n        \"name\": \"temperature\",\n        \"value\": \"39.1\",\n        \"unit\": \"C\",\n        \"date\": \"2026-03-16\"\n      },\n      {\n        \"name\": \"oxygen_saturation\",\n        \"value\": \"89\",\n        \"unit\": \"%\",\n        \"date\": \"2026-03-16\"\n      }\n    ],\n    \"imaging_reports\": [\n      {\n        \"type\": \"CT Head\",\n        \"date\": \"2026-03-15\",\n        \"text\": \"Small hyperdense area concerning for possible intracranial hemorrhage.\"\n      },\n      {\n        \"type\": \"Chest X-Ray\",\n        \"date\": \"2026-03-16\",\n        \"text\": \"Right lower lobe infiltrate with possible small pleural effusion.\"\n      }\n    ],\n    \"procedures\": [\n      {\n        \"name\": \"Coronary angiography\",\n        \"date\": \"2020-02-15\",\n        \"status\": \"completed\"\n      }\n    ],\n    \"encounters\": [\n      {\n        \"type\": \"admission\",\n        \"date\": \"2026-03-12\",\n        \"reason\": \"Chest pain and shortness of breath\"\n      }\n    ],\n    \"notes\": [\n      {\n        \"date\": \"2026-03-12\",\n        \"author\": \"Dr. Smith\",\n        \"type\": \"admission_note\",\n        \"text\": \"Patient admitted with chest pain and shortness of breath.\"\n      },\n      {\n        \"date\": \"2026-03-16\",\n        \"author\": \"Nurse A\",\n        \"type\": \"nurse_note\",\n        \"text\": \"Patient febrile and appears more confused.\"\n      },\n      {\n        \"date\": \"2026-03-16\",\n        \"author\": \"Dr. Lee\",\n        \"type\": \"progress_note\",\n        \"text\": \"Renal function worsened since admission. Monitoring closely.\"\n      }\n    ],\n    \"existing_consults\": [\n      {\n        \"specialty\": \"Cardiology\",\n        \"date\": \"2026-03-12\",\n        \"status\": \"completed\"\n      }\n    ],\n    \"problem_list\": [\n      \"Acute kidney injury\",\n      \"Chest pain\",\n      \"Shortness of breath\"\n    ],\n    \"discharge_follow_up\": [\n      {\n        \"specialty\": \"Nephrology\",\n        \"scheduled\": false\n      }\n    ]\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/generate-alerts",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "generate-alerts"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Alerts (Invalid Payload)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 or 422\", function () {",
+              "    pm.expect([400, 422]).to.include(pm.response.code);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_record\": {\n    \"patient_id\": \"\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/generate-alerts",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "generate-alerts"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8014",
+      "type": "string"
+    }
+  ]
+}

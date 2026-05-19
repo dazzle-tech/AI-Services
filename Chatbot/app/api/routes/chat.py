@@ -63,6 +63,7 @@ def chat(req: ChatRequest) -> ChatResponse:
             session_id=session_id,
             role=role,
             approved=req.approved,
+            correction_rejected=req.correction_rejected,
         )
         logger.info(f"✅ [ROUTE] /chat completed: intent={result.get('intent')}, text_length={len(result.get('text', ''))}")
         print(f"[CHAT ROUTE] Completed: intent={result.get('intent')}")
@@ -136,4 +137,3 @@ def test_logging():
     sys.stderr.flush()
     print("=" * 50, flush=True)
     return {"ok": True, "message": "Check terminal for logs"}
-

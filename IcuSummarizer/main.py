@@ -24,8 +24,10 @@ from app.main import app
 if __name__ == "__main__":
     import uvicorn
     logger.info("Starting ICU Summarizer API Server...")
-    logger.info("Server will be available at: http://127.0.0.1:8000")
-    logger.info("API Documentation: http://127.0.0.1:8000/docs")
+    default_port = int(os.environ.get("API_PORT", "8013"))
+    fallback_port = int(os.environ.get("API_FALLBACK_PORT", "8021"))
+    logger.info(f"Server will be available at: http://127.0.0.1:{default_port}")
+    logger.info(f"API Documentation: http://127.0.0.1:{default_port}/docs")
     
     # Use import string for reload to work properly
     # Try port 8000, fallback to 8001 if busy
@@ -39,12 +41,14 @@ if __name__ == "__main__":
             except OSError:
                 return False
     
-    port = 8000
+    port = default_port
     if not is_port_available(port):
-        logger.warning(f"Port {port} is in use, trying port 8001...")
-        port = 8001
+        logger.warning(f"Port {port} is in use, trying port {fallback_port}...")
+        port = fallback_port
         if not is_port_available(port):
-            logger.error("Both ports 8000 and 8001 are in use. Please free a port.")
+            logger.error(
+                f"Both ports {default_port} and {fallback_port} are in use. Please free a port."
+            )
             sys.exit(1)
     
     logger.info(f"Starting server on port {port}")

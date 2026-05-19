@@ -1,0 +1,143 @@
+MEDICAL IMAGING ASSIST -- DOMAIN GUIDE
+=======================================
+
+PURPOSE
+-------
+This service assists radiologists in two ways:
+
+1. /api/v1/report-correction
+   Cross-checks a doctor's clinical note against a radiologist's read,
+   fixes misspellings, expands shorthand, flags conflicting information
+   (most importantly LATERALITY conflicts: left vs right), and grounds
+   diagnoses in ICD-10-CM codes and RadLex terms via the local RAG store.
+
+2. /api/v1/analysis-matching
+   Takes a finalized clinical_report (authoritative) plus an AI image
+   analysis result (assistive). It RECONCILES the two using the Hierarchy
+   of Truth: the clinical report wins on every conflict. AI findings that
+   do not conflict are used to ENRICH (fill missing localization,
+   standardize nomenclature). AI findings that conflict are DROPPED and
+   surfaced as a warning so the radiologist can adjudicate.
+
+
+INPUT SHAPES
+------------
+
+Endpoint 1 (report-correction):
+{
+  "doctor_notes": "<free text>",
+  "radiologist_notes": "<free text>",
+  "exam_type": "<optional string>",
+  "extracted_dicom_metadata": { ... DICOM tags as key/value ... }
+}
+
+Endpoint 2 (analysis-matching):
+{
+  "clinical_report": "<free text -- AUTHORITATIVE>",
+  "ai_image_analysis": { ... JSON from upstream CV model ... },
+  "extracted_dicom_metadata": { ... DICOM tags as key/value ... }
+}
+
+
+CORE LOGIC CONSTRAINTS (DO NOT VIOLATE)
+---------------------------------------
+
+A. SIBLING ARCHITECTURE
+   - "raw_model_output" stores the GPT-4o JSON untouched.
+   - "safety_normalized_output" is what the radiologist actually consumes.
+   - The normalizer applies deterministic rules AFTER the model returns:
+       * Inject the standard disclaimer.
+       * Re-derive `confidence` from label alignment (count of agreed
+         labels between doctor and radiologist or between clinical_report
+         and AI) -- NEVER from a raw model probability.
+       * Strip lobe-level localization on single frontal-view studies
+         unless the source text already named it.
+       * Compute `critical_alert` from the deterministic critical taxonomy
+         below, not from the model.
+       * Enforce Hierarchy of Truth for endpoint 2.
+
+B. HIERARCHY OF TRUTH (Endpoint 2)
+   When clinical_report and ai_image_analysis disagree on a measurable
+   or categorical fact (size, laterality, presence/absence, location to
+   the granularity the doctor specified), the clinical_report wins.
+   The AI's value is recorded under `ai_variance` and a warning is added.
+
+C. RAG GROUNDING
+   Suggested ICD-10 codes and RadLex terms MUST come from the local RAG
+   store retrieval (icd10cm.json, radlex.json). The model is told to
+   prefer those candidates and never invent codes.
+
+
+CONFIDENCE LEVELS
+-----------------
+- High:   Doctor + radiologist (or report + AI) agree on all major findings,
+          DICOM metadata is consistent with described anatomy, no conflicts.
+- Medium: Minor discrepancies (spelling, shorthand, localization detail),
+          or one warning of severity <= "high" with no anatomy mismatch.
+- Low:    Laterality conflict, anatomy/metadata mismatch, single-view-only
+          study where lobe-level claims appear in either input, or any
+          "critical" severity warning.
+
+
+PRIORITY
+--------
+- Urgent:  critical_alert == true OR any "critical" severity warning OR any
+           finding in the CRITICAL TAXONOMY below.
+- Routine: otherwise.
+
+
+CRITICAL ALERT TAXONOMY (FOR REVIEW)
+------------------------------------
+The following findings trigger critical_alert=true and priority="Urgent".
+Flag any to add or remove:
+
+  1. Pneumothorax (any size; tension pneumothorax is always urgent)
+  2. Free intraperitoneal air (pneumoperitoneum)
+  3. Large pleural effusion with mediastinal shift
+  4. Aortic dissection / widened mediastinum suggestive of dissection
+  5. Misplaced support device:
+       - Endotracheal tube in right or left mainstem bronchus
+       - NG/OG tube in the airway or coiled in the esophagus
+       - Central venous line tip in artery or extravascular
+  6. Anatomy / metadata mismatch
+       (DICOM BodyPartExamined disagrees with described anatomy)
+  7. New large mass with mediastinal shift
+  8. Acute large vessel occlusion findings (if CT/CTA in scope)
+
+
+X-RAY VIEW HANDLING
+-------------------
+- PA vs AP is determined from ViewPosition tag first, then text evidence.
+- If only a single frontal view is available:
+    * Avoid lobe-specific localization the source text did not already give.
+    * Add a SINGLE_VIEW_LIMITATION warning when localization is requested.
+- Missing expected view (e.g., exam_type says "PA/Lateral" but only PA
+  metadata present) -> MISSING_VIEW warning.
+
+
+WARNING CODES (canonical)
+-------------------------
+  LATERALITY_CONFLICT       -- doctor vs radiologist disagree left/right
+  AI_SIZE_VARIANCE          -- AI measurement differs from clinical report
+  ANATOMY_METADATA_MISMATCH -- DICOM body part != described anatomy (CRITICAL)
+  SINGLE_VIEW_LIMITATION    -- only one view, lobe-level claims trimmed
+  MISSING_VIEW              -- expected view not present in metadata
+  SHORTHAND_EXPANDED        -- abbreviations expanded for the record
+  SPELLING_CORRECTED        -- misspellings corrected
+  AI_FINDING_DROPPED        -- AI finding contradicted clinical report
+  AI_ENRICHMENT_APPLIED     -- AI added non-conflicting detail to report
+
+
+ICD-10 / RADLEX USAGE
+---------------------
+- ICD-10 codes are populated only from retrieval results in the RAG store.
+- RadLex terms are populated only from retrieval results in the RAG store.
+- The "matched_phrase" field records which phrase in the input mapped to
+  the suggested code/term so the radiologist can audit.
+
+
+DISCLAIMER
+----------
+Every response must include, verbatim, the field:
+  "disclaimer": "This output is for assistive purposes only and is not a
+   final diagnosis. Review by a board-certified radiologist is required."

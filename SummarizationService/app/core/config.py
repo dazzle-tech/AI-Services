@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     
     # Server Configuration
     api_host: str = "0.0.0.0"  # Server host
-    api_port: int = 8004  # Server port
+    api_port: int = 8009  # Server port
     api_reload: bool = False  # Auto-reload on code changes (development)
 
 

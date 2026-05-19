@@ -1,0 +1,168 @@
+{
+  "info": {
+    "_postman_id": "smart-discharge-planner-service",
+    "name": "SmartDischargePlannerService",
+    "description": "Postman collection for Smart Discharge Planner Service REST API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8004",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "health"]
+        },
+        "description": "Check service health and OpenAI API status"
+      },
+      "response": []
+    },
+    {
+      "name": "Plan Discharge (Minimal)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has field discharge_plan', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('discharge_plan');",
+              "});",
+              "pm.test('discharge_plan has field readiness_status', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.discharge_plan).to.have.property('readiness_status');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"req-discharge-minimal\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"primary_diagnosis\": \"Pneumonia\"\n  },\n  \"clinical_data\": {},\n  \"operational_data\": {}\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/plan-discharge",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "plan-discharge"]
+        },
+        "description": "Plan discharge with minimal required data"
+      },
+      "response": []
+    },
+    {
+      "name": "Plan Discharge (Full Example)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has field discharge_plan', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('discharge_plan');",
+              "});",
+              "pm.test('discharge_plan has field readiness_status', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.discharge_plan).to.have.property('readiness_status');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"req-discharge-001\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"admission_date\": \"2026-03-10\",\n    \"primary_diagnosis\": \"Pneumonia\",\n    \"secondary_diagnoses\": [\"Type 2 Diabetes\", \"Hypertension\"],\n    \"current_status\": \"improving\"\n  },\n  \"clinical_data\": {\n    \"latest_vitals\": [\n      {\"name\": \"temperature\", \"value\": \"37.1\", \"unit\": \"C\", \"timestamp\": \"2026-03-16T08:00:00Z\"},\n      {\"name\": \"oxygen_saturation\", \"value\": \"95\", \"unit\": \"%\", \"timestamp\": \"2026-03-16T08:00:00Z\"}\n    ],\n    \"pending_tests\": [{\"name\": \"blood culture\", \"status\": \"pending\"}],\n    \"active_problems\": [\"Needs home oxygen assessment\"],\n    \"medications_current\": [\"Amoxicillin\", \"Metformin\"],\n    \"medications_planned_for_discharge\": [\"Amoxicillin\", \"Metformin\", \"Prednisone\"],\n    \"notes\": [{\"type\": \"progress_note\", \"timestamp\": \"2026-03-16T07:30:00Z\", \"text\": \"Patient clinically improved. May be ready for discharge if home oxygen not required.\"}]\n  },\n  \"operational_data\": {\n    \"follow_up_appointments\": [{\"service\": \"Pulmonology\", \"scheduled\": false}],\n    \"patient_education\": [\n      {\"topic\": \"antibiotic adherence\", \"completed\": true},\n      {\"topic\": \"warning signs and return precautions\", \"completed\": false}\n    ],\n    \"transport_status\": \"available\",\n    \"home_support\": \"family_available\",\n    \"equipment_needs\": [{\"name\": \"home oxygen\", \"confirmed\": false}]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/plan-discharge",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "plan-discharge"]
+        },
+        "description": "Plan discharge with full clinical and operational data"
+      },
+      "response": []
+    },
+    {
+      "name": "Plan Discharge (Invalid Payload)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 400 or 422', function() {",
+              "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/plan-discharge",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "plan-discharge"]
+        },
+        "description": "Test invalid payload - missing required fields (clinical_data, operational_data, primary_diagnosis)"
+      },
+      "response": []
+    }
+  ]
+}

@@ -1,0 +1,261 @@
+﻿Variable Selection and Architectural Paradigms for Machine Learning-Based Sepsis Early Warning Systems
+The identification of sepsis within the clinical environment constitutes a critical priority for health systems, given that the syndrome remains a leading cause of in-hospital mortality, long-term morbidity, and substantial healthcare expenditure.1 Sepsis is fundamentally defined as life-threatening organ dysfunction resulting from a dysregulated host response to infection.1 This definition, established under the Third International Consensus (Sepsis-3), moved the clinical focus away from the more sensitive but less specific Systemic Inflammatory Response Syndrome (SIRS) criteria toward objective measures of organ failure, primarily quantified through the Sequential Organ Failure Assessment (SOFA) score.1 For a system developer, building a robust early detection tool requires an expansive understanding of the variables that capture the transition from localized infection to systemic collapse. These variables must span across physiological vitals, biochemical markers, demographic risk profiles, treatment interventions, and even the qualitative observations of the bedside care team.7
+Physiological and Hemodynamic Variable Mapping
+The earliest indicators of sepsis-related deterioration are typically manifested through shifts in vital signs. These parameters represent the body’s immediate compensatory attempts to maintain homeostatic equilibrium in the face of systemic inflammatory insult. In the context of early detection systems, these variables are categorized by their high frequency of collection, particularly in intensive care and emergency department settings.10
+Central Vital Signs and Compensatory Mechanisms
+The heart rate (HR) and respiratory rate (RR) serve as primary markers of autonomic activation. Tachycardia, often defined as a heart rate exceeding 90 beats per minute in adults, is a classic marker of systemic distress, though its specificity is limited as it can also indicate pain, anxiety, or non-septic inflammation.1 Respiratory rate is perhaps the most sensitive indicator of impending failure; the Sepsis-3 task force included a respiratory rate of 22 breaths per minute or higher as a core component of the quick SOFA (qSOFA) score.5 The physiological rationale for tachypnea in sepsis is dual-fold: it reflects both the increased metabolic demand of the systemic inflammatory state and a compensatory response to metabolic acidosis, particularly as lactate levels begin to rise.3
+Blood pressure parameters provide the definitive measure of circulatory failure. While systolic blood pressure (SBP) is the most commonly used metric in screening tools—with a threshold of 100 mm Hg or less indicating high risk in qSOFA—mean arterial pressure (MAP) is increasingly recognized as the superior target for evaluating organ perfusion.1 MAP is calculated based on the relationship between systolic and diastolic blood pressure:
+  
+
+In septic shock, the inability to maintain a MAP of 65 mm Hg or greater without vasopressor support is a defining characteristic of the most severe subset of patients.1 Furthermore, temperature (Temp) exhibits a bimodal significance. While fever (Temp >38.0°C) is the most recognized sign of infection, hypothermia (Temp <36.0°C) is often associated with a higher risk of mortality and a more profound state of immune dysregulation.1
+Vital Sign Category
+	Variable Name
+	Metric/Units
+	Clinical Role
+	Cardiac
+	Heart Rate (HR)
+	bpm
+	Measures autonomic/circulatory stress
+	Respiratory
+	Respiration Rate (Resp)
+	breaths/min
+	Sensitive marker of failure/acidosis
+	Pressure
+	Systolic BP (SBP)
+	mm Hg
+	Key screening threshold in qSOFA
+	Pressure
+	Diastolic BP (DBP)
+	mm Hg
+	Indicator of vascular tone/vasoplegia
+	Pressure
+	Mean Arterial Pressure (MAP)
+	mm Hg
+	Primary target for perfusion monitoring
+	Oximetry
+	Pulse Oximetry (O2Sat)
+	%
+	Monitors respiratory/hypoxemic status
+	Thermal
+	Temperature (Temp)
+	°C
+	Identifies SIRS/immune response state
+	Metabolic
+	End-tidal CO2 (EtCO2)
+	mm Hg
+	Correlates with perfusion and acidosis
+	9
+Integrated Hemodynamic Indices
+Single-variable thresholds often fail to capture the nuances of patient-specific baselines. Consequently, automated systems frequently derive composite indices to enhance predictive power. The Shock Index (SI), defined as the ratio of heart rate to systolic blood pressure, provides a quick approximation of hemodynamic stability.13
+  
+
+A Shock Index value approaching 1.0 indicates significant circulatory compromise. Even more predictive is the Modified Shock Index (MSI), which replaces SBP with MAP to account for the diastolic contribution to cardiac output.14
+  
+
+Clinical evidence suggests that an MSI threshold of approximately 1.28 outperforms standard qSOFA scores in predicting mortality, as it more accurately reflects the presence of vasodilation and reduced organ perfusion.14 Systems utilizing these indices can identify "occult shock," where blood pressure remains within a normal range but is achieved only through extreme tachycardia.13
+Biochemical and Laboratory Variable Domains
+Laboratory values offer an objective, high-resolution view of the patient’s internal milieu and organ function. Unlike vital signs, which are captured continuously or hourly, laboratory measurements occur at discrete intervals, requiring the system to handle temporal gaps and varying measurement frequencies.7
+Hematologic Markers and Inflammatory Indicators
+The white blood cell count (WBC) remains the foundational laboratory test for infection. However, modern systems prioritize the presence of immature neutrophils, often referred to as "bands".1 A bandemia exceeding 10% is a critical indicator of a robust marrow response and is frequently used in both adult SIRS and pediatric sepsis models.1
+Platelet count is a primary variable in the SOFA score, representing the hematologic/coagulation system.5 Sepsis-induced thrombocytopenia (platelets <150 x 10³/µL) is a hallmark of systemic inflammation and microvascular thrombi formation, which can eventually progress to disseminated intravascular coagulation (DIC).10 In patients where coagulation is a concern, additional variables such as Partial Thromboplastin Time (PTT) and International Normalized Ratio (INR) are included to assess the risk of bleeding and coagulopathy.10
+Metabolic Acid-Base and Arterial Blood Gas Analysis
+The single most important biochemical marker in septic shock is lactate. Elevated lactate (>2.0 mmol/L) serves as a proxy for tissue hypoperfusion and cellular hypoxia.1 When lactate remains high despite fluid resuscitation, the risk of death increases dramatically.1 For predictive models, tracking the "lactate clearance"—the rate at which lactate levels decrease over time—is a vital temporal feature.26
+Arterial blood gas (ABG) panels provide several variables essential for modeling respiratory and metabolic failure. The partial pressure of oxygen (PaO2) and the fraction of inspired oxygen (FiO2) are used to calculate the Horowitz Index (PaO2/FiO2), which quantifies the severity of lung injury.10 Other ABG components, such as pH and Base Excess, allow the system to differentiate between respiratory and metabolic causes of acidosis.7
+Laboratory Value
+	Variable Code
+	Measurement Unit
+	Clinical Association
+	Lactate
+	Lactate
+	mmol/L
+	Hypoperfusion/anaerobic metabolism
+	White Blood Cell
+	WBC
+	count * 10³/µL
+	Infection/inflammatory response
+	Platelets
+	Platelets
+	count * 10³/µL
+	Sepsis-induced coagulopathy
+	Creatinine
+	Creatinine
+	mg/dL
+	Acute Kidney Injury (AKI)
+	Bilirubin
+	Bilirubin_total
+	mg/dL
+	Hepatic dysfunction
+	Bicarbonate
+	HCO3
+	mmol/L
+	Metabolic compensation/acidosis
+	Blood Urea Nitrogen
+	BUN
+	mg/dL
+	Renal failure/dehydration status
+	Hematocrit
+	Hct
+	%
+	Oxygen-carrying capacity/dilution
+	10
+Indicators of Renal and Hepatic Dysfunction
+The Sequential Organ Failure Assessment (SOFA) utilizes serum creatinine and urine output as the primary variables for the renal system.5 An increase in creatinine of 1.2 mg/dL or more from baseline, or a daily urine output of less than 500 mL, signals significant renal impairment.23 Hepatic failure is assessed through total bilirubin, where levels above 1.2 mg/dL contribute to the SOFA score.23 Modern models, especially in pediatrics, may also include Alanine Aminotransferase (ALT) as a marker of acute liver injury.18
+Demographic Risk and Chronic Comorbidity Profiling
+A robust detection system must contextualize acute physiological data within the patient’s chronic health landscape. Demographic variables and comorbidities significantly alter the probability of sepsis and the thresholds for what constitutes "normal" for a specific individual.25
+Demographic Variables and Risk Stratification
+Age is the most impactful demographic variable. Geriatric patients (typically >65 years) exhibit higher rates of sepsis due to immunosenescence and a higher burden of chronic disease.3 In these populations, sepsis often presents with subtle signs like altered mental status rather than a traditional fever.25 Gender also plays a role, with some studies showing higher sepsis prevalence or mortality in male patients, though the relationship is complex and may be influenced by age-related hormonal factors.10
+Race and ethnicity are included in many proprietary and academic models, such as the Epic Sepsis Model (ESM).27 While race itself is not a biological cause of sepsis, it often serves as a proxy for socioeconomic factors, disparities in healthcare access, or differing prevalence of underlying comorbidities like hypertension and diabetes.16
+Comorbidities and Diagnostic Complexity
+Chronic conditions can mimic or mask the signs of sepsis. For instance, a patient with chronic kidney disease (CKD) may have a baseline creatinine that is permanently elevated, making it difficult for a simple threshold-based system to detect acute sepsis-related kidney injury.19 Similarly, patients with chronic obstructive pulmonary disease (COPD) or heart failure (CHF) may have baseline abnormalities in respiratory rate or heart rate that could trigger false sepsis alerts.19
+The Charlson Comorbidity Index (CCI) is frequently used in machine learning models to synthesize the patient’s overall health burden into a single numerical feature.19 High-risk conditions that should be explicitly considered as variables include:
+* Diabetes Mellitus: Increases susceptibility to infection and complicates fluid management.27
+* Chronic Obstructive Pulmonary Disease (COPD): Masks tachypnea and alters baseline oxygenation.19
+* Immunosuppression and Malignancy: High risk for rapid progression to septic shock.3
+* Solid Organ Transplant History: Requires specific immunosuppressive medications that alter the inflammatory response.18
+* Peripheral Vascular Disease and Stroke: Impact the cardiovascular system’s ability to compensate for vasodilation.19
+Interventional and Treatment Variables
+The integration of treatment data into sepsis detection models represents a paradigm shift. Traditionally, detection focused on identification before treatment. However, modern systems recognize that the clinician's response to the patient's state—medication orders, fluid boluses, and ventilation—provides critical information about the severity of the condition and the patient’s "fluid responsiveness".22
+Vasopressor and Fluid Dynamics
+The transition from sepsis to septic shock is clinically defined by the requirement for vasopressors to maintain an adequate MAP.1 Therefore, the presence of orders for Norepinephrine, Vasopressin, or Epinephrine is a primary predictor of poor outcomes.17 Furthermore, the system must track fluid administration. The Surviving Sepsis Campaign (SSC) guidelines traditionally suggest a 30 mL/kg fluid bolus for patients with hypotension or high lactate.17 Tracking the volume, rate, and composition (crystalloids vs. colloids) of fluid given allows the model to assess whether the patient’s hemodynamics are improving or if they are "volume unresponsive," which is a key indicator of septic shock.17
+Intervention Variable
+	Categories/Examples
+	Role in Prediction
+	Vasopressors
+	Norepinephrine, Vasopressin, Epinephrine
+	Defines shock; dosage reflects severity
+	IV Fluids
+	Normal Saline, Lactated Ringer's
+	Measures fluid responsiveness/balance
+	Mechanical Ventilation
+	Invasive vs. Non-invasive
+	Proxy for respiratory failure/Horowitz Index
+	Antibiotics
+	Broad-spectrum (Vancomycin, Piperacillin)
+	Onset of therapy; reflects clinical suspicion
+	Blood Cultures
+	Aerobic/Anaerobic bottles
+	Primary marker of "suspected infection"
+	1
+Mechanical Ventilation and Support
+Variables describing respiratory support, such as the fraction of inspired oxygen (FiO2) and positive end-expiratory pressure (PEEP), are essential for calculating the respiratory component of the SOFA score.10 In systems like the MIMIC-Sepsis cohort, treatment variables were found to significantly improve the performance of Transformer-based architectures, as they allow the model to understand the physiological values in the context of active medical support (e.g., blood pressure rising because of a vasopressor rather than spontaneous recovery).22
+Qualitative Observations and Behavioral Indicators
+Quantitative data points are often lagging indicators. In contrast, nursing assessments and behavioral observations can provide earlier warnings of deterioration. For a system to be exhaustive, it must find ways to ingest these qualitative variables, often through structured nursing Flowsheets or Natural Language Processing (NLP) of clinical notes.18
+Mental Status and the Glasgow Coma Scale
+Altered mental status is a hallmark of sepsis-associated encephalopathy (SAE).25 Both qSOFA and the full SOFA score utilize the Glasgow Coma Scale (GCS) as a primary variable.5 A decline in GCS—manifesting as confusion, lethargy, or unresponsiveness—is often one of the earliest signs of systemic infection, especially in elderly and pediatric populations.5 Even mild alterations (GCS of 13 or 14) are associated with a significant increase in mortality.23
+Physical Examination and Behavioral Descriptors
+In pediatric populations, where physiological baselines vary wildly by age, systems rely heavily on behavioral cues. The Pediatric Early Warning Score (PEWS) behavior assessment, which includes "lethargy," is a strong predictor.18 Other examination-based variables include:
+* Capillary Refill Time: A refill time of >2 seconds indicates poor peripheral perfusion.18
+* Weak Pulse Exam: Reflects low stroke volume.18
+* Skin Condition: Descriptions of cool, cyanotic, pale, or mottled skin are indicators of peripheral vasoconstriction or microcirculatory failure.18
+* Urine Color and Output: Qualitative descriptions of dark or oliguric urine often precede quantitative creatinine increases.2
+Pediatric-Specific Variable Selection and Thresholds
+Building a system for a pediatric environment requires a complete re-calibration of the variable thresholds. Heart rate, respiratory rate, and blood pressure are highly dependent on the child’s age. A heart rate of 150 bpm may be normal for a neonate but indicates extreme distress for an adolescent.18
+Age Group
+	Tachycardia Threshold (bpm)
+	Tachypnea Threshold (breaths/min)
+	SBP Hypotension (mm Hg)
+	0–3 Months
+	>180
+	>60
+	<50
+	4–11 Months
+	>170
+	>60
+	<70
+	1–3 Years
+	>150
+	>40
+	<75
+	4–11 Years
+	>130
+	>30
+	<80
+	12–17 Years
+	>120
+	>24
+	<85
+	18
+Beyond vital signs, pediatric systems place higher weights on "medical complexity" variables. The history of solid organ transplant, dependence on medical technology (e.g., tracheostomy, gastrostomy tubes), and immunosuppression are integrated as binary diagnosis groupers that drastically lower the threshold for triggering a sepsis alert.18
+Computational Feature Engineering and Temporal Context
+Raw data alone is rarely sufficient for high-performance machine learning models. The most effective systems utilize feature engineering to transform static data points into dynamic temporal signals. This captures the trajectory of the patient, which is often more informative than a single snapshot.7
+Statistical Transformations of Time-Series Data
+For each raw variable (e.g., MAP, HR, Temp), a system should calculate several derived features over fixed windows (e.g., the last 6, 12, or 24 hours):
+* Minimum, Maximum, and Mean: To identify extreme physiological swings.26
+* Rate of Change (Slope): To distinguish between a gradual decline and a rapid collapse.26
+* Standard Deviation and Range: Measures of "physiological instability" or volatility.7
+* Measurement Frequency (Delta): The time gap since the last measurement. Interestingly, a shorter time gap for FiO2 or lactate measurements often indicates a rising clinician concern, which models can use as a high-importance predictor.7
+Handling Missing Data and Imputation Strategies
+In real-world EHR data, many variables are not recorded every hour. Effective systems employ "Last-Occurrence-Carry-Forward" (LOCF) or multi-level imputation strategies.7 The "missingness" of data is itself a variable; for instance, the lack of recent laboratory data in a patient who previously had regular draws may indicate a stable condition, whereas a sudden flurry of new lab orders indicates the opposite.7
+Environmental and Administrative Variables
+The context of the care environment can significantly influence the performance and response to sepsis alerts. Systems like the Targeted Real-time Early Warning System (TREWS) include administrative and environmental variables to adjust for the likelihood of clinician interaction.19
+Environmental Impact on Alert Sensitivity
+The "alert density" and "unit workload" are critical variables. If a nurse is managing a high volume of new admissions or if the unit is experiencing a "high alert level" (too many simultaneous sepsis warnings), the likelihood of a timely response to a new alert decreases.19 This is often accounted for by:
+* Shift Time: Dividing the day into 07:00–15:00, 15:00–23:00, and 23:00–07:00 shifts, as staffing levels and admission patterns vary across these windows.19
+* Unit Admit Volume: Tracking the number of new admissions in the past 3 hours.19
+* Provider Type: Whether the provider is an Emergency Department (ED) physician or an intensivist, as their experience and diagnostic threshold may differ.19
+Methodological Integrity: Avoiding Label Leakage
+For any developer, the most significant risk in selecting variables is "label leakage." This occurs when the model is trained on data that is only available after the sepsis diagnosis has been made, leading to an over-optimistic but clinically useless model.38
+The Danger of Post-Discharge Codes
+Many models erroneously use ICD-10 codes from the same hospital admission as features. However, these codes are finalized by billing departments only after discharge. Including codes for "Cardiac Arrest," "Brain Death," or "Encounter for Palliative Care" will allow a model to "predict" mortality with near-perfect accuracy, but it is effectively looking into the future.38
+Leaked Variable Type
+	Example Features
+	Reason for Exclusion
+	Terminal ICD-10
+	Brain death, Palliative care
+	Assigned post-mortem or after clinical failure
+	Sepsis-Specific ICD
+	Severe sepsis, Septic shock
+	Circular logic; assigned after diagnosis
+	Outcome Proxies
+	DNR (Do Not Resuscitate) status
+	Reflects prognosis, not early physiology
+	Treatment Proxies
+	Specific sepsis-only bundles
+	Mirror the clinician's already-formed suspicion
+	38
+Instead, models must be strictly "right-aligned" or "prospective," meaning they only use data available at the exact moment the prediction is being made. This ensures the system provides a true "lead time"—ideally 4 to 6 hours—before clinical recognition, allowing for life-saving intervention.35
+Synthesis and Architectural Recommendations
+To build a high-fidelity system, a developer must prioritize a diverse array of variables that capture the sepsis trajectory from multiple angles. The foundation rests on high-frequency vital signs and their derived shock indices (SI/MSI), which provide the earliest, albeit noisy, signals of autonomic stress.14 This must be augmented by the objective evidence of organ damage provided by laboratory variables like lactate, creatinine, and platelet counts, which form the core of the Sepsis-3/SOFA framework.1
+Furthermore, the system should move beyond raw data by incorporating "treatment-aware" features. By including vasopressor and fluid interventions, the model can differentiate between a patient who is stabilizing under care and one who is refractory to treatment.22 Contextualizing these variables with patient-specific demographics, comorbidity indices, and the qualitative behavioral cues of the nursing staff creates a multi-dimensional view that mirrors the diagnostic process of an expert clinician.18
+Finally, the inclusion of environmental variables ensures that the system is optimized for real-world deployment, accounting for shift dynamics and alert fatigue.19 By strictly avoiding leaked post-discharge data and focusing on temporal trends, a developer can create a system that is not only accurate in a retrospective study but also actionable and trustworthy at the patient’s bedside.7
+Works cited
+1. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3) - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC4968574/
+2. Computerized Clinical Decision Support Systems for the Early Detection of Sepsis Among Adult Inpatients: Scoping Review - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC8908200/
+3. Sepsis mortality prediction using machine learning and deep learning - a systematic review, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12802294/
+4. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3) - Association Tunisienne de Réanimation, accessed March 15, 2026, https://www.aturea.org/pdf_ppt_docs/bibliographie/1520943513.pdf
+5. qSOFA (Quick SOFA) Score for Sepsis - MDCalc, accessed March 15, 2026, https://www.mdcalc.com/calc/2654/qsofa-quick-sofa-score-sepsis
+6. Clinical implications of the Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3) - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC6131078/
+7. Real-Time Prediction of Sepsis in Critical Trauma Patients: Machine ..., accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC10131736/
+8. A Machine Learning Model Integrated with the Clinical Workflow Detects Sepsis Early with High Sensitivity and Specificity | medRxiv, accessed March 15, 2026, https://www.medrxiv.org/content/10.1101/2023.08.17.23294209v1.full-text
+9. Early Prediction of Sepsis From Clinical Data: The PhysioNet/Computing in Cardiology Challenge 2019 - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC6964870/
+10. Early Prediction of Sepsis from Clinical Data: the PhysioNet ..., accessed March 15, 2026, https://archive.physionet.org/challenge/2019/
+11. Early Prediction of Sepsis from Clinical Data: The PhysioNet/Computing in Cardiology Challenge 2019 v1.0.0, accessed March 15, 2026, https://physionet.org/content/challenge-2019/
+12. Early Sepsis Prediction Using Publicly Available Data: High-Performance AI/ML Models with First-Hour Clinical Information - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12609143/
+13. Shock index for prehospital sepsis recognition | Published in Academic Medicine & Surgery, accessed March 15, 2026, https://academic-med-surg.scholasticahq.com/article/94556-shock-index-for-prehospital-sepsis-recognition
+14. Prognostic value of modified shock index in sepsis - PMC - NIH, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12236548/
+15. A Comparative Study on Predictive Validity of Modified Shock Index, Shock Index, and Age Shock Index in Predicting the Need for Mechanical Ventilation among Sepsis Patients in a Tertiary Care Hospital - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC10167827/
+16. Modified Shock Index as a Predictor of Admission and In-hospital Mortality in Emergency Departments; an Analysis of a US National Database - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC10197905/
+17. Fluids and Early Vasopressors in the Management of Septic Shock: Do We Have the Right Answers Yet? - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC10425929/
+18. Sepsis Prediction in Hospitalized Children: Model Development and ..., accessed March 15, 2026, https://publications.aap.org/hospitalpediatrics/article/13/9/760/193713/Sepsis-Prediction-in-Hospitalized-Children-Model
+19. Factors driving provider adoption of the TREWS machine learning-based early warning system and its effects on sepsis treatment timing - The Nemati Lab, accessed March 15, 2026, https://www.nematilab.info/bmijc/assets/012425.pdf
+20. The Signature-Based Model for Early Detection of Sepsis From Electronic Health Records in the Intensive Care Unit - PhysioNet, accessed March 15, 2026, https://physionet.org/files/challenge-2019/1.0.0/papers/CinC2019-014.pdf?download
+21. Evaluating machine learning models for sepsis prediction: A systematic review of methodologies - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC8741489/
+22. MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU | OpenReview, accessed March 15, 2026, https://openreview.net/forum?id=iWvvpiA5ej
+23. Sequential Organ Failure Assessment (SOFA) Score - MDCalc, accessed March 15, 2026, https://www.mdcalc.com/calc/691/sequential-organ-failure-assessment-sofa-score
+24. Sepsis assessment and management in critically Ill adults: A systematic review - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC9249173/
+25. Early prediction of sepsis associated encephalopathy in elderly ICU ..., accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12043699/
+26. A Machine Learning Algorithm to Predict Severe Sepsis and Septic ..., accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC8635476/
+27. External validation of the Epic sepsis predictive model in 2 county emergency departments | JAMIA Open | Oxford Academic, accessed March 15, 2026, https://academic.oup.com/jamiaopen/article/7/4/ooae133/7900014
+28. Accuracy of the Epic Sepsis Prediction Model in a Regional Health System - arXiv, accessed March 15, 2026, https://arxiv.org/abs/1902.07276
+29. Epic Sepsis Model Inpatient Predictive Analytic Tool: A Validation ..., accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC10317482/
+30. MIMIC-Sepsis: A Curated Benchmark for Modeling and Learning from Sepsis Trajectories in the ICU - arXiv.org, accessed March 15, 2026, https://arxiv.org/html/2510.24500v1
+31. Intravenous Fluid Therapy in Sepsis - PMC - NIH, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC9463107/
+32. Vasopressin in Sepsis and Other Shock States: State of the Art - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC10672256/
+33. Survival Prediction in Septic ICU Patients: Integrating Lactate and Vasopressor Use with Established Severity Scores - MDPI, accessed March 15, 2026, https://www.mdpi.com/2079-9721/14/1/11
+34. MIMIC-IV-Ext-BHC: Labeled Clinical Notes Dataset for Hospital Course Summarization v1.2.0 - PhysioNet, accessed March 15, 2026, https://physionet.org/content/labelled-notes-hospital-course/
+35. Advances in Data-Driven Early Warning Systems for Sepsis Recognition and Intervention in Emergency Care: A Systematic Review of Diagnostic Performance and Clinical Outcomes - PMC, accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12424518/
+36. Advanced Meta-Ensemble Machine Learning Models for Early and Accurate Sepsis Prediction to Improve Patient Outcomes - arXiv.org, accessed March 15, 2026, https://arxiv.org/pdf/2407.08107
+37. Prospective, multi-site study of patient outcomes after implementation of the TREWS machine learning-based early warning system for sepsis - Johns Hopkins University, accessed March 15, 2026, https://pure.johnshopkins.edu/en/publications/prospective-multi-site-study-of-patient-outcomes-after-implementa/
+38. Diagnostic Codes in AI Prediction Models and Label Leakage of ..., accessed March 15, 2026, https://pmc.ncbi.nlm.nih.gov/articles/PMC12743287/
+39. Machine Learning Model for Sepsis Prediction in Prolonged and Chronic Critical Illness: Development and Validation Using Retrospective Real-World ICU Data - MDPI, accessed March 15, 2026, https://www.mdpi.com/2077-0383/15/2/777
+40. Machine Learning–Based Early Warning Systems vs Standard Clinical Scoring for Sepsis Prediction: A Systematic Review and Meta-Analysis of Implementation Trials | European Journal of Cardiovascular Medicine, accessed March 15, 2026, https://healthcare-bulletin.co.uk/article/machine-learning-based-early-warning-systems-vs-standard-clinical-scoring-for-sepsis-prediction-a-systematic-review-and-meta-analysis-of-implementation-trials-4724/

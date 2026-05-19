@@ -1,0 +1,12 @@
+{
+  "doctor_notes": "Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+  "radiologist_notes": "PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.",
+  "exam_type": "Chest X-ray 2 Views",
+  "extracted_dicom_metadata": {
+    "PatientID": "12345",
+    "Modality": "CR",
+    "BodyPartExamined": "CHEST",
+    "ViewPosition": "PA",
+    "StudyDate": "20260513"
+  }
+}

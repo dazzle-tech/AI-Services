@@ -168,9 +168,18 @@ class HospitalRepository:
             Patient key (ID) or None if not found
         """
         try:
+            full_name_expr = (
+                "trim(coalesce(first_name, '') || ' ' || coalesce(second_name, '') || ' ' || "
+                "coalesce(third_name, '') || ' ' || coalesce(last_name, ''))"
+            )
+            simple_name_expr = (
+                "trim(coalesce(first_name, '') || ' ' || coalesce(last_name, ''))"
+            )
             if self.db_type == "postgresql":
-                # PostgreSQL uses TRUE/FALSE for booleans
-                sql = "SELECT key FROM ap_patient WHERE (lower(full_name) = lower(%s) OR lower(first_name || ' ' || last_name) = lower(%s)) AND is_valid = TRUE LIMIT 1"
+                sql = (
+                    f"SELECT id FROM patients WHERE (lower({full_name_expr}) = lower(%s) "
+                    f"OR lower({simple_name_expr}) = lower(%s)) LIMIT 1"
+                )
                 conn = self._get_postgresql_connection()
                 cur = conn.cursor()
                 cur.execute(sql, (name, name))
@@ -178,8 +187,10 @@ class HospitalRepository:
                 conn.close()
                 return row[0] if row else None
             else:
-                # SQLite uses 1/0 for booleans
-                sql = "SELECT key FROM ap_patient WHERE (lower(full_name) = lower(?) OR lower(first_name || ' ' || last_name) = lower(?)) AND is_valid = 1 LIMIT 1"
+                sql = (
+                    f"SELECT id FROM patients WHERE (lower({full_name_expr}) = lower(?) "
+                    f"OR lower({simple_name_expr}) = lower(?)) LIMIT 1"
+                )
                 conn = self._get_sqlite_connection()
                 cur = conn.cursor()
                 cur.execute(sql, (name, name))
@@ -188,6 +199,33 @@ class HospitalRepository:
                 return row[0] if row else None
         except Exception as e:
             logger.warning(f"⚠️ Failed to fetch patient ID by name '{name}': {e}")
+            return None
+
+
+    def fetch_patient_id_by_medical_record_number(self, medical_record_number: str) -> Optional[str]:
+        """
+        Lookup patient ID by medical record number.
+        """
+        try:
+            identifier = str(medical_record_number)
+            if self.db_type == "postgresql":
+                sql = "SELECT id FROM patients WHERE CAST(medical_record_number AS TEXT) = %s LIMIT 1"
+                conn = self._get_postgresql_connection()
+                cur = conn.cursor()
+                cur.execute(sql, (identifier,))
+                row = cur.fetchone()
+                conn.close()
+                return str(row[0]) if row else None
+            else:
+                sql = "SELECT id FROM patients WHERE CAST(medical_record_number AS TEXT) = ? LIMIT 1"
+                conn = self._get_sqlite_connection()
+                cur = conn.cursor()
+                cur.execute(sql, (identifier,))
+                row = cur.fetchone()
+                conn.close()
+                return str(row[0]) if row else None
+        except Exception as e:
+            logger.warning(f"Failed to fetch patient ID by medical record number '{medical_record_number}': {e}")
             return None
 
 
@@ -200,4 +238,6 @@ def fetch_patient_id_by_name(name: str) -> Optional[str]:
     return _hospital_repo.fetch_patient_id_by_name(name)
 
 
-
+def fetch_patient_id_by_medical_record_number(medical_record_number: str) -> Optional[str]:
+    """Legacy function for backward compatibility."""
+    return _hospital_repo.fetch_patient_id_by_medical_record_number(medical_record_number)

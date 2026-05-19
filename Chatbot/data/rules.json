@@ -18,11 +18,6 @@
         "message": "I cannot return all patients in the hospital as this would be too many results. Please specify a date range, patient name, or other criteria to narrow down your query."
       },
       {
-        "pattern": "\\blist\\s+(all\\s+)?(patient|patients)\\b",
-        "case_sensitive": false,
-        "message": "I cannot return all patients in the hospital as this would be too many results. Please specify a date range, patient name, or other criteria to narrow down your query."
-      },
-      {
         "pattern": "\\bget\\s+(all|every)\\s+(patient|patients)\\b",
         "case_sensitive": false,
         "message": "I cannot return all patients in the hospital as this would be too many results. Please specify a date range, patient name, or other criteria to narrow down your query."
@@ -93,16 +88,16 @@
     ]
   },
   "date_range_limits": {
-    "enabled": true,
+    "enabled": false,
     "max_days": 365,
     "message": "The requested date range is too large. Please limit your query to a maximum of 365 days."
   },
   "future_date_restrictions": {
-    "enabled": true,
+    "enabled": false,
     "message": "I cannot query data for future dates. Please specify a date in the past or present."
   },
   "historical_data_limits": {
-    "enabled": true,
+    "enabled": false,
     "max_years_back": 10,
     "message": "I cannot query data older than 10 years. Please specify a more recent date range."
   },
@@ -182,8 +177,8 @@
   "text_search_restrictions": {
     "enabled": true,
     "max_text_search_length": 100,
-    "require_limit": true,
-    "message": "Text search queries must include LIMIT clauses and reasonable search terms to prevent performance issues."
+    "require_limit": false,
+    "message": "Text search queries may be large. Consider adding LIMIT clauses and reasonable search terms to prevent performance issues."
   },
   "bulk_operations": {
     "enabled": true,

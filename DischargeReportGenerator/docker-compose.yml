@@ -7,12 +7,12 @@ services:
       dockerfile: Dockerfile
     container_name: discharge-report-generator-service
     ports:
-      - "8002:8002"
+      - "8005:8005"
     env_file:
       - .env
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/health')"]
       interval: 30s
       timeout: 10s
       retries: 3

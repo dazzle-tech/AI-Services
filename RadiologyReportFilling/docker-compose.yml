@@ -1,0 +1,12 @@
+version: "3.8"
+services:
+  medical-imaging-assist:
+    build: .
+    container_name: medical-imaging-assist
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./output:/app/output
+    restart: unless-stopped

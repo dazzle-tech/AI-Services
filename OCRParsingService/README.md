@@ -34,10 +34,15 @@ FastAPI service that combines:
 
 ## Run locally
 
-1. Copy `.env.example` to `.env`
-2. Ensure Ollama is installed and model is available:
+1. (Recommended) Create and activate a virtual environment
+   - `py -m venv .venv`
+   - `./.venv/Scripts/Activate.ps1`
+2. Install dependencies
+   - `py -m pip install -r requirements.txt`
+3. Copy `.env.example` to `.env`
+4. Ensure Ollama is installed and model is available:
    - `ollama pull gemma3:4b`
-3. Start service:
+5. Start service:
    - `uvicorn main:app --host 0.0.0.0 --port 8012 --reload`
 
 ## Run with Docker
