@@ -1189,6 +1189,61 @@ def test_body_part_uppercase_in_response(monkeypatch: pytest.MonkeyPatch) -> Non
     )
 
 
+def test_xray_endpoint_accepts_output_language_and_localizes_human_text(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.interpretation.interpretation_service as svc
+    from app.interpretation.models import Finding
+
+    def fake_metadata(_folder):
+        return {
+            "modality": "CR",
+            "study_description": "CHEST XRAY",
+            "series_description": "PA",
+            "protocol_name": "CHEST",
+            "body_part_examined": "CHEST",
+            "study_instance_uid": "1.2.4",
+        }
+
+    class DummyDataset:
+        @property
+        def pixel_array(self):
+            import numpy as np
+            return np.zeros((16, 16), dtype=np.uint8)
+
+    stub_finding = Finding(
+        finding_code="PULMONARY_NODULE",
+        finding_text="Possible pulmonary nodule. Radiologist review required.",
+        location="right upper lobe",
+        confidence=0.72,
+        priority="ROUTINE",
+        radiologist_review_required=True,
+    )
+
+    monkeypatch.setattr(svc, "extract_dicom_metadata", fake_metadata)
+    monkeypatch.setattr(svc.pydicom, "dcmread", lambda *args, **kwargs: DummyDataset())
+    monkeypatch.setattr(svc, "run_xray_model", lambda *args, **kwargs: (
+        [stub_finding],
+        {},
+        {"name": "stub-model", "strong_threshold": 0.60, "weak_threshold": 0.35, "not_for_medical_use": True},
+    ))
+    from app.config import get_settings
+    settings = get_settings()
+    monkeypatch.setattr(settings, "openai_api_key", None)
+
+    client = _client()
+    zip_bytes = _make_zip_bytes({"study/1.dcm": b"ANY"})
+    response = client.post(
+        "/api/v1/radiology/xray-interpretation/dicom",
+        files={"file": ("study.zip", zip_bytes, "application/zip")},
+        data={"OutputLanguage": "el"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "OutputLanguage" not in body
+    assert body["findings"][0]["finding_code"] == "PULMONARY_NODULE"
+    assert "Απαιτείται αξιολόγηση" in body["findings"][0]["finding_text"]
+    assert "Απαιτείται αξιολόγηση" in body["summary"]
+
+
 def test_default_model_is_pinned_version() -> None:
     """Default openai_model must be a pinned dated version, not floating alias."""
     from app.config import Settings

@@ -40,10 +40,10 @@ cp .env.example .env
 python main.py
 
 # 4. Test the API
-curl http://localhost:8003/api/v1/health
+curl http://localhost:8009/api/v1/health
 ```
 
-**API Documentation:** http://localhost:8003/docs
+**API Documentation:** http://localhost:8009/docs
 
 ## 📦 Installation
 
@@ -71,7 +71,7 @@ Edit `.env` and set:
 - `OPENAI_API_KEY`: Your OpenAI API key (required)
 - `OPENAI_MODEL`: Model name (default: `gpt-4o`)
 - `OPENAI_TEMPERATURE`: Temperature for generation (default: `0.2`)
-- `API_PORT`: Server port (default: `8003`)
+- `API_PORT`: Server port (default: `8009`)
 
 ## ⚙️ Configuration
 
@@ -83,7 +83,7 @@ Edit `.env` and set:
 | `OPENAI_MODEL`       | OpenAI model name                      | `gpt-4o`  |
 | `OPENAI_TEMPERATURE` | Temperature for generation             | `0.2`     |
 | `API_HOST`           | Server host                            | `0.0.0.0` |
-| `API_PORT`           | Server port                            | `8003`    |
+| `API_PORT`           | Server port                            | `8009`    |
 | `API_RELOAD`         | Auto-reload on code changes            | `False`   |
 
 ## 🎮 Usage
@@ -99,7 +99,7 @@ Expected output:
 ```
 INFO:     Starting Clinical Summary Service v1.2.0
 INFO:     Using OpenAI model: gpt-4o
-INFO:     Uvicorn running on http://0.0.0.0:8003
+INFO:     Uvicorn running on http://0.0.0.0:8009
 INFO:     Application startup complete.
 ```
 
@@ -108,7 +108,7 @@ INFO:     Application startup complete.
 **Using cURL:**
 
 ```bash
-curl -X POST "http://localhost:8003/api/v1/summarize" \
+curl -X POST "http://localhost:8009/api/v1/summarize" \
   -H "Content-Type: application/json" \
   -d '{
     "patient_data": {
@@ -138,7 +138,7 @@ data = {
     }
 }
 
-response = requests.post("http://localhost:8003/api/v1/summarize", json=data)
+response = requests.post("http://localhost:8009/api/v1/summarize", json=data)
 print(response.json()["ClinicalSummary"])
 ```
 
@@ -218,7 +218,7 @@ Generate clinical summary from patient data.
 }
 ```
 
-**Interactive API Docs:** Visit http://localhost:8003/docs
+**Interactive API Docs:** Visit http://localhost:8009/docs
 
 ## 🧪 Testing
 
@@ -226,10 +226,10 @@ Generate clinical summary from patient data.
 
 ```bash
 # Health check
-curl http://localhost:8003/api/v1/health
+curl http://localhost:8009/api/v1/health
 
 # Generate summary
-curl -X POST http://localhost:8003/api/v1/summarize \
+curl -X POST http://localhost:8009/api/v1/summarize \
   -H "Content-Type: application/json" \
   -d @test_request.json
 ```

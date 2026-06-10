@@ -34,7 +34,7 @@
       }
     },
     {
-      "name": "Report Correction",
+      "name": "Report Filling - Greek Abdominal Ultrasound",
       "request": {
         "method": "POST",
         "header": [
@@ -45,18 +45,18 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"doctor_notes\": \"Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.\",\n  \"radiologist_notes\": \"PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.\",\n  \"exam_type\": \"Chest X-ray 2 Views\",\n  \"extracted_dicom_metadata\": {\n    \"PatientID\": \"12345\",\n    \"Modality\": \"CR\",\n    \"BodyPartExamined\": \"CHEST\",\n    \"ViewPosition\": \"PA\",\n    \"StudyDate\": \"20260513\"\n  }\n}\n",
+          "raw": "{\n  \"PatientID\": \"P12345\",\n  \"PatientName\": \"John Doe\",\n  \"OrderID\": \"ORD-001\",\n  \"OrderDate\": \"2026-06-04T00:00:00\",\n  \"DateOfBirth\": \"1980-01-15T00:00:00\",\n  \"NationalID\": \"123456789\",\n  \"Gender\": \"Male\",\n  \"AccessionNumber\": \"ACC-10008\",\n  \"OutputLanguage\": \"el\",\n  \"ExamType\": \"ΥΠΕΡΗΧΟΓΡΑΦΗΜΑ ΑΝΩ ΚΑΙ ΚΑΤΩ ΚΟΙΛΙΑΣ\",\n  \"DoctorNotes\": \"\",\n  \"RadiologistNotes\": \"\",\n  \"DICOM\": {\n    \"Modality\": \"US\",\n    \"BodyPartExamined\": \"ABDOMEN\",\n    \"StudyDate\": \"20260604\"\n  }\n}\n",
           "options": {
             "raw": {
               "language": "json"
             }
           }
         },
-        "url": "{{baseUrl}}/api/v1/report-correction"
+        "url": "{{baseUrl}}/api/v1/report-filling"
       }
     },
     {
-      "name": "Analysis Matching",
+      "name": "Report Filling - Portuguese Abdominal Ultrasound",
       "request": {
         "method": "POST",
         "header": [
@@ -67,14 +67,14 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"clinical_report\": \"Follow-up of pulmonary nodule. A stable 1.2cm nodule is noted in the left upper lobe.\",\n  \"ai_image_analysis\": {\n    \"findings\": [\n      {\n        \"label\": \"Nodule\",\n        \"location\": \"Left Upper Lobe\",\n        \"size_mm\": 18,\n        \"confidence\": 0.92\n      }\n    ]\n  },\n  \"extracted_dicom_metadata\": {\n    \"Modality\": \"DX\",\n    \"ViewPosition\": \"PA\",\n    \"StudyDescription\": \"CHEST SINGLE VIEW\"\n  }\n}\n",
+          "raw": "{\n  \"PatientID\": \"P12345\",\n  \"PatientName\": \"John Doe\",\n  \"OrderID\": \"ORD-001\",\n  \"OrderDate\": \"2026-06-04T00:00:00\",\n  \"DateOfBirth\": \"1980-01-15T00:00:00\",\n  \"NationalID\": \"123456789\",\n  \"Gender\": \"Male\",\n  \"AccessionNumber\": \"ACC-10008\",\n  \"OutputLanguage\": \"pt\",\n  \"ExamType\": \"Ecografia abdominal\",\n  \"DoctorNotes\": \"\",\n  \"RadiologistNotes\": \"\",\n  \"DICOM\": {\n    \"Modality\": \"US\",\n    \"BodyPartExamined\": \"ABDOMEN\",\n    \"StudyDate\": \"20260604\"\n  }\n}\n",
           "options": {
             "raw": {
               "language": "json"
             }
           }
         },
-        "url": "{{baseUrl}}/api/v1/analysis-matching"
+        "url": "{{baseUrl}}/api/v1/report-filling"
       }
     }
   ]

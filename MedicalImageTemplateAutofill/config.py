@@ -38,7 +38,7 @@ VECTOR_STORE_PATH = _resolve_path(os.environ.get("VECTOR_STORE_PATH", "vector_st
 
 # API
 API_HOST = os.environ.get("API_HOST", "0.0.0.0")
-API_PORT = int(os.environ.get("API_PORT", "8013"))
+API_PORT = int(os.environ.get("API_PORT", "8022"))
 API_RELOAD = os.environ.get("API_RELOAD", "False").lower() == "true"
 
 # CORS

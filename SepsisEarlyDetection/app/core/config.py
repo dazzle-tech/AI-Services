@@ -31,7 +31,7 @@ class Settings(BaseSettings):
 
     # Server Configuration
     api_host: str = "0.0.0.0"
-    api_port: int = 8016
+    api_port: int = 8023
     api_reload: bool = False
 
     # Project paths (resolved at import time)

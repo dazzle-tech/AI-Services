@@ -9,7 +9,7 @@ cd C:\Users\User\Desktop\AI-Services\icu-summarizer
 python main.py
 ```
 
-That's it! The server will start on `http://127.0.0.1:8000`
+That's it! The server will start on `http://127.0.0.1:8013`
 
 ## Alternative Methods
 
@@ -27,7 +27,7 @@ uvicorn main:app --reload
 
 When the server starts, you'll see:
 ```
-INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+INFO:     Uvicorn running on http://127.0.0.1:8013 (Press CTRL+C to quit)
 INFO:     Started reloader process
 INFO:     Started server process
 INFO:     Waiting for application startup.
@@ -36,9 +36,9 @@ INFO:     Application startup complete.
 
 ## Server URLs
 
-- **API Base**: `http://127.0.0.1:8000`
-- **API Documentation**: `http://127.0.0.1:8000/docs`
-- **ReDoc**: `http://127.0.0.1:8000/redoc`
+- **API Base**: `http://127.0.0.1:8013`
+- **API Documentation**: `http://127.0.0.1:8013/docs`
+- **ReDoc**: `http://127.0.0.1:8013/redoc`
 
 ## To Stop the Server
 

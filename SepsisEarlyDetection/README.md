@@ -64,7 +64,7 @@ Then edit `.env` and replace `sk-your-key-here` with your actual key.
 python main.py
 ```
 
-The server starts at **http://localhost:8016**.
+The server starts at **http://localhost:8023**.
 
 ---
 
@@ -73,7 +73,7 @@ The server starts at **http://localhost:8016**.
 ### Root -- Service Info
 
 ```
-GET http://localhost:8016/
+GET http://localhost:8023/
 ```
 
 Returns service name, version, and docs URL.
@@ -83,7 +83,7 @@ Returns service name, version, and docs URL.
 ### Health Check
 
 ```
-GET http://localhost:8016/api/v1/health
+GET http://localhost:8023/api/v1/health
 ```
 
 Returns service health status and OpenAI configuration info.
@@ -93,7 +93,7 @@ Returns service health status and OpenAI configuration info.
 ### List Available Patients
 
 ```
-GET http://localhost:8016/api/v1/patients
+GET http://localhost:8023/api/v1/patients
 ```
 
 Returns the 3 built-in sample patient resources with summary metadata.
@@ -103,7 +103,7 @@ Returns the 3 built-in sample patient resources with summary metadata.
 ### Get One Sample Patient
 
 ```
-GET http://localhost:8016/api/v1/patients/1
+GET http://localhost:8023/api/v1/patients/1
 ```
 
 Returns the full sample patient JSON payload, including `patient_info`
@@ -114,7 +114,7 @@ and `hourly_data`.
 ### Create an Analysis for a Sample Patient
 
 ```
-POST http://localhost:8016/api/v1/patients/1/analyses
+POST http://localhost:8023/api/v1/patients/1/analyses
 ```
 
 Runs the model against one of the built-in sample patients and returns a
@@ -125,7 +125,7 @@ full sepsis risk assessment.
 ### Create an Analysis from Custom Patient Data
 
 ```
-POST http://localhost:8016/api/v1/analyses
+POST http://localhost:8023/api/v1/analyses
 Content-Type: application/json
 ```
 
@@ -168,7 +168,7 @@ Content-Type: application/json
 ### Legacy Compatibility Endpoint
 
 ```
-POST http://localhost:8016/api/v1/analyze
+POST http://localhost:8023/api/v1/analyze
 ```
 
 This route still works for older clients, but new integrations should
@@ -182,7 +182,7 @@ prefer the REST-style `POST /patients/{patient_id}/analyses` and
 Once the server is running, open your browser to:
 
 ```
-http://localhost:8016/docs
+http://localhost:8023/docs
 ```
 
 This provides an interactive Swagger UI where you can test all endpoints
@@ -197,7 +197,7 @@ directly in the browser without Postman.
    `postman/SepsisSentinel.postman_collection.json`
 3. Import the local environment:
    `postman/SepsisSentinel.local.postman_environment.json`
-4. Confirm the `baseUrl` variable is set to `http://localhost:8016`
+4. Confirm the `baseUrl` variable is set to `http://localhost:8023`
 5. Run any of the included requests:
    - `Root`
    - `Health`
@@ -227,5 +227,5 @@ pytest tests/ -v
 | OPENAI_TEMPERATURE   | No       | 0.2       | Model temperature (0.0 - 1.0)     |
 | OPENAI_TIMEOUT       | No       | 120       | API call timeout in seconds        |
 | API_HOST             | No       | 0.0.0.0   | Server bind host                   |
-| API_PORT             | No       | 8016      | Server bind port                   |
+| API_PORT             | No       | 8023      | Server bind port                   |
 | API_RELOAD           | No       | false     | Auto-reload on code changes        |

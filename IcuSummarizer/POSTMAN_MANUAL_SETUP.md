@@ -6,7 +6,7 @@ Make sure your server is running:
 ```powershell
 cd C:\Users\User\Desktop\AI-Services\icu-summarizer
 $env:PYTHONPATH = (Get-Location).Path
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8013 --reload
 ```
 
 ---
@@ -17,7 +17,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 1. **Click "New"** → **"HTTP Request"**
 2. **Method:** Select `POST`
-3. **URL:** `http://127.0.0.1:8000/v1/summaries`
+3. **URL:** `http://127.0.0.1:8013/v1/summaries`
 4. **Headers Tab:**
    - Click "Add Header"
    - Key: `Content-Type`
@@ -149,7 +149,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 1. **Click "New"** → **"HTTP Request"**
 2. **Method:** Select `POST`
-3. **URL:** `http://127.0.0.1:8000/v1/presentations`
+3. **URL:** `http://127.0.0.1:8013/v1/presentations`
 4. **Headers Tab:**
    - `Content-Type`: `application/json`
    - (Optional) `X-Request-ID`: `test-123`
@@ -170,7 +170,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 1. **Click "New"** → **"HTTP Request"**
 2. **Method:** Select `POST`
-3. **URL:** `http://127.0.0.1:8000/v1/summaries`
+3. **URL:** `http://127.0.0.1:8013/v1/summaries`
 4. **Headers:**
    - `Content-Type`: `application/json`
 5. **Body (raw JSON):**
@@ -206,7 +206,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 1. **Click "New"** → **"HTTP Request"**
 2. **Method:** Select `POST`
-3. **URL:** `http://127.0.0.1:8000/v1/summaries`
+3. **URL:** `http://127.0.0.1:8013/v1/summaries`
 4. **Headers:**
    - `Content-Type`: `application/json`
 5. **Body (raw JSON):**
@@ -242,7 +242,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 ### Generate Summary
 - **Method:** POST
-- **URL:** `http://127.0.0.1:8000/v1/summaries`
+- **URL:** `http://127.0.0.1:8013/v1/summaries`
 - **Headers:** 
   - `Content-Type: application/json`
   - `X-Request-ID: test-123` (optional)
@@ -250,7 +250,7 @@ uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 ### Generate Presentation
 - **Method:** POST
-- **URL:** `http://127.0.0.1:8000/v1/presentations`
+- **URL:** `http://127.0.0.1:8013/v1/presentations`
 - **Headers:** Same as Generate Summary
 - **Body:** Same JSON as Generate Summary
 

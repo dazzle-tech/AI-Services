@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from models.schemas import Template, TemplateCandidate
 from services.template_repository import TemplateRepository
+from services.modality_filter import allowed_modalities_for_context
 
 logger = logging.getLogger(__name__)
 
@@ -115,14 +116,26 @@ class RAGTemplateSelector:
         snippet = input_data.strip().replace("\n", " ")
         return snippet[:512]
 
-    def select(self, input_data: str, top_k: int = 3) -> list[TemplateCandidate]:
+    def select(
+        self,
+        input_data: str,
+        top_k: int = 3,
+        patient_context: dict | None = None,
+        output_language: str = "el",
+    ) -> list[TemplateCandidate]:
         if not self.initialized:
             self.initialize()
         if self._collection is None:
             return []
 
         query = self.derive_intent_profile(input_data)
-        results = self._collection.query(query_texts=[query], n_results=top_k)
+        ctx = patient_context or {}
+        mod = ctx.get("modality_filter") or ctx.get("Modality") or ctx.get("modality")
+        allowed = allowed_modalities_for_context(mod)
+
+        # Query a larger pool so modality filtering doesn't return an empty list.
+        n_results = max(top_k, top_k * 8)
+        results = self._collection.query(query_texts=[query], n_results=n_results)
 
         candidates: list[TemplateCandidate] = []
         ids = results.get("ids", [[]])[0]
@@ -132,14 +145,39 @@ class RAGTemplateSelector:
         for template_id, distance, metadata in zip(ids, distances, metadatas):
             # Cosine distance in [0, 2] → similarity in [-1, 1]; clamp for display.
             similarity = max(0.0, 1.0 - float(distance))
+            cand_mod = (metadata.get("modality", "") or "").strip().upper()
+            if allowed and cand_mod not in allowed:
+                continue
+            template = self.repository.get(template_id)
+            localized_name = (
+                self.repository.get_localized_template_name(template, output_language)
+                if template is not None
+                else metadata.get("name", template_id)
+            )
             candidates.append(
                 TemplateCandidate(
                     template_id=template_id,
-                    name=metadata.get("name", template_id),
+                    name=localized_name,
                     modality=metadata.get("modality", ""),
                     body_region=metadata.get("body_region") or None,
                     score=round(similarity, 4),
                 )
             )
+
+        # Ensure we return at most top_k after filtering.
+        candidates = candidates[:top_k]
+
+        if allowed and not candidates:
+            xr = self.repository.get("xr_chest_2views")
+            if xr is not None:
+                candidates = [
+                    TemplateCandidate(
+                        template_id=xr.template_id,
+                        name=self.repository.get_localized_template_name(xr, output_language),
+                        modality=xr.modality,
+                        body_region=xr.body_region,
+                        score=1.0,
+                    )
+                ]
 
         return candidates

@@ -30,7 +30,7 @@ if __name__ == "__main__":
     logger.info(f"API Documentation: http://127.0.0.1:{default_port}/docs")
     
     # Use import string for reload to work properly
-    # Try port 8000, fallback to 8001 if busy
+    # Try the default service port first, then a separate fallback port if needed.
     import socket
     
     def is_port_available(port):

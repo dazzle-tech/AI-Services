@@ -4,7 +4,7 @@ from slowapi.util import get_remote_address
 
 from ..config import Settings, get_settings
 from ..storage import temp_workdir
-from .interpretation_service import build_dicom_response
+from .interpretation_service import build_dicom_response, localize_response
 from .models import AIInfo, InterpretationResponse, StudyInfo
 from .xray_model import model_status
 
@@ -24,6 +24,7 @@ async def interpretation_dicom(
     request: Request,
     file: UploadFile = File(...),
     clinical_indication: str | None = Form(None),
+    OutputLanguage: str = Form("el"),
     settings: Settings = Depends(get_settings),
 ) -> InterpretationResponse:
     max_bytes = settings.max_upload_mb * 1024 * 1024
@@ -58,10 +59,11 @@ async def interpretation_dicom(
                 upload_input_path=upload_path,
                 workdir=workdir,
                 clinical_indication=clinical_indication,
+                output_language=OutputLanguage,
                 settings=settings,
             )
         except Exception as e:
-            return InterpretationResponse(
+            return localize_response(InterpretationResponse(
                 exam_type="XR_UNKNOWN",
                 status="REVIEW_REQUIRED",
                 findings=[],
@@ -71,4 +73,4 @@ async def interpretation_dicom(
                 ai=AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True),
                 warnings=[f"Pipeline error: {e}"],
                 disclaimer=settings.disclaimer_text,
-            )
+            ), OutputLanguage)

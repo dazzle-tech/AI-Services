@@ -15,9 +15,9 @@ class Settings(BaseSettings):
     )
     
     # Service URLs
-    sql_gen_url: str = os.getenv("SQL_GEN_URL", "http://localhost:8013")
-    validator_url: str = os.getenv("VALIDATOR_URL", "http://localhost:8014")
-    formatter_url: str = os.getenv("FORMATTER_URL", "http://localhost:8015")
+    sql_gen_url: str = os.getenv("SQL_GEN_URL", "http://localhost:8018")
+    validator_url: str = os.getenv("VALIDATOR_URL", "http://localhost:8019")
+    formatter_url: str = os.getenv("FORMATTER_URL", "http://localhost:8020")
     http_timeout_secs: int = int(os.getenv("HTTP_TIMEOUT_SECS", "90"))  # Increased for CrewAI processing
     
     # CrewAI Configuration
@@ -69,10 +69,10 @@ class Settings(BaseSettings):
     
     # Server Configuration
     api_host: str = os.getenv("API_HOST", "0.0.0.0")
-    orchestrator_port: int = int(os.getenv("ORCHESTRATOR_PORT", "8011"))
-    sql_generator_port: int = int(os.getenv("SQL_GENERATOR_PORT", "8013"))
-    validator_port: int = int(os.getenv("VALIDATOR_PORT", "8014"))
-    formatter_port: int = int(os.getenv("FORMATTER_PORT", "8015"))
+    orchestrator_port: int = int(os.getenv("ORCHESTRATOR_PORT", "8017"))
+    sql_generator_port: int = int(os.getenv("SQL_GENERATOR_PORT", "8018"))
+    validator_port: int = int(os.getenv("VALIDATOR_PORT", "8019"))
+    formatter_port: int = int(os.getenv("FORMATTER_PORT", "8020"))
     api_reload: bool = os.getenv("API_RELOAD", "true").lower() == "true"  # Default to True for development
     
     # Logging

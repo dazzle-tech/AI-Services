@@ -10,7 +10,7 @@ The ICU Summarizer API has 2 main endpoints. Each endpoint serves a specific pur
 
 ### Endpoint
 ```
-POST http://127.0.0.1:8000/v1/summaries
+POST http://127.0.0.1:8013/v1/summaries
 ```
 
 ### What It Does
@@ -138,7 +138,7 @@ Input JSON → Normalization → Trend Analysis → Clinical Summary → LLM Gen
 
 ### Endpoint
 ```
-POST http://127.0.0.1:8000/v1/presentations
+POST http://127.0.0.1:8013/v1/presentations
 ```
 
 ### What It Does
@@ -353,12 +353,12 @@ You can use both - they process the same data but output different formats!
 
 ```bash
 # Generate Summary
-POST http://127.0.0.1:8000/v1/summaries
+POST http://127.0.0.1:8013/v1/summaries
 Body: test_sample_request.json
 → JSON with note_markdown and note_json
 
 # Generate Presentation  
-POST http://127.0.0.1:8000/v1/presentations
+POST http://127.0.0.1:8013/v1/presentations
 Body: test_sample_request.json
 → PPTX file download
 ```

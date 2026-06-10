@@ -11,7 +11,11 @@ from pydicom.misc import is_dicom
 from ..config import Settings
 from ..audit import log_interpretation
 from ..interpretation.models import AIInfo, Finding, InterpretationResponse, StudyInfo
-from ..interpretation.interpretation_service import build_summary, has_critical
+from ..interpretation.interpretation_service import (
+    build_summary,
+    has_critical,
+    localize_response,
+)
 from ..storage import temp_workdir
 from .ct_dicom_utils import (
     build_series_index,
@@ -154,6 +158,7 @@ def build_ct_response(
     upload_input_path: Path,
     workdir: Path,
     clinical_indication: str | None,
+    output_language: str = "el",
     settings: Settings,
     max_slices: int = MAX_SLICES,
 ) -> InterpretationResponse:
@@ -162,7 +167,7 @@ def build_ct_response(
     if not settings.openai_api_key:
         study = StudyInfo(modality="CT", body_part=None, view="AXIAL")
         ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type="CT_UNKNOWN",
             status="REVIEW_REQUIRED",
             findings=[],
@@ -172,7 +177,7 @@ def build_ct_response(
             ai=ai,
             warnings=["OPENAI_API_KEY not set."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     # Unpack zip or single DICOM
     dicom_dir = workdir / "dicom"
@@ -184,7 +189,7 @@ def build_ct_response(
         except ValueError as e:
             study = StudyInfo(modality="CT", body_part=None, view="AXIAL")
             ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-            return _audit(InterpretationResponse(
+            return _audit(localize_response(InterpretationResponse(
                 exam_type="CT_UNKNOWN",
                 status="REVIEW_REQUIRED",
                 findings=[],
@@ -194,14 +199,14 @@ def build_ct_response(
                 ai=ai,
                 warnings=[str(e)],
                 disclaimer=settings.disclaimer_text,
-            ), clinical_indication)
+            ), output_language), clinical_indication)
     elif is_dicom(str(upload_input_path)):
         single = dicom_dir / "upload.dcm"
         single.write_bytes(upload_input_path.read_bytes())
     else:
         study = StudyInfo(modality="CT", body_part=None, view="AXIAL")
         ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type="CT_UNKNOWN",
             status="REVIEW_REQUIRED",
             findings=[],
@@ -211,13 +216,13 @@ def build_ct_response(
             ai=ai,
             warnings=["Not DICOM or zip."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     dicom_files = find_dicom_files(dicom_dir)
     if not dicom_files:
         study = StudyInfo(modality="CT", body_part=None, view="AXIAL")
         ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type="CT_UNKNOWN",
             status="REVIEW_REQUIRED",
             findings=[],
@@ -227,7 +232,7 @@ def build_ct_response(
             ai=ai,
             warnings=["No DICOM files found."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     metadata = extract_ct_metadata(dicom_files)
     metadata["slice_count"] = len(dicom_files)
@@ -248,7 +253,7 @@ def build_ct_response(
             series_description=metadata.get("series_description"),
         )
         ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type="UNSUPPORTED_MODALITY",
             status="UNSUPPORTED_MODALITY",
             findings=[],
@@ -258,7 +263,7 @@ def build_ct_response(
             ai=ai,
             warnings=[f"Modality {modality} rejected by CT endpoint."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     # Series selection + representative slices
     series_index = build_series_index(dicom_files)
@@ -293,7 +298,7 @@ def build_ct_response(
             series_description=metadata.get("series_description"),
         )
         ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type="CT_UNKNOWN",
             status="REVIEW_REQUIRED",
             findings=[],
@@ -303,7 +308,7 @@ def build_ct_response(
             ai=ai,
             warnings=["All slice conversions failed."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     exam_type = requested_exam_type
     metadata["selected_series_meta"] = selected_series_meta
@@ -314,6 +319,7 @@ def build_ct_response(
             slice_png_paths=slice_png_paths,
             exam_type=exam_type,
             metadata=metadata,
+            output_language=output_language,
             openai_api_key=settings.openai_api_key,
             openai_model=settings.openai_model,
             openai_timeout=settings.openai_timeout_seconds,
@@ -329,7 +335,7 @@ def build_ct_response(
             series_description=metadata.get("series_description"),
         )
         ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type=exam_type,
             status="REVIEW_REQUIRED",
             findings=[],
@@ -339,7 +345,7 @@ def build_ct_response(
             ai=ai,
             warnings=[str(e)],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     # Reconcile body part + suppress out-of-scope finding families for abdomen
     model_body_part = str(gpt_output.get("body_part", "UNKNOWN") or "UNKNOWN").upper()
@@ -397,14 +403,14 @@ def build_ct_response(
     if incidental:
         warnings.append("Out-of-scope chest candidate findings suppressed from main findings.")
 
-    return _audit(InterpretationResponse(
+    return _audit(localize_response(InterpretationResponse(
         exam_type=exam_type,
         status=status,
         findings=final_findings,
         critical_alert=has_critical(final_findings),
-        summary=build_summary(final_findings),
+        summary=build_summary(final_findings, output_language),
         study=study,
         ai=ai,
         warnings=warnings,
         disclaimer=settings.disclaimer_text,
-    ), clinical_indication)
+    ), output_language), clinical_indication)

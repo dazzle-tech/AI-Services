@@ -6,7 +6,7 @@ Open PowerShell and run:
 ```powershell
 cd C:\Users\User\Desktop\AI-Services\icu-summarizer
 $env:PYTHONPATH = (Get-Location).Path
-uvicorn app.main:app --host 127.0.0.1 --port 8000
+uvicorn app.main:app --host 127.0.0.1 --port 8013
 ```
 
 Keep this terminal open - the server must be running!
@@ -61,7 +61,7 @@ You should now see "ICU Summarizer API" collection with 4 pre-configured request
 
 ### "Could not get response"
 - **Check:** Is the server running? (Step 1)
-- **Check:** Is the URL correct? Should be `http://127.0.0.1:8000`
+- **Check:** Is the URL correct? Should be `http://127.0.0.1:8013`
 
 ### "500 Internal Server Error" on summaries/presentations
 - **Check:** Is `OPENAI_API_KEY` set?

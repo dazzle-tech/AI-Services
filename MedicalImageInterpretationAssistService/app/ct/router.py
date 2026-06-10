@@ -6,6 +6,7 @@ from .. import config
 from ..config import Settings
 from ..storage import temp_workdir
 from ..interpretation.models import AIInfo, InterpretationResponse, StudyInfo
+from ..interpretation.interpretation_service import localize_response
 from .ct_service import build_ct_response
 
 ct_router = APIRouter()
@@ -27,6 +28,7 @@ async def ct_dicom(
     request: Request,
     file: UploadFile = File(...),
     clinical_indication: str | None = Form(None),
+    OutputLanguage: str = Form("el"),
     settings: Settings = Depends(_get_settings),
 ) -> InterpretationResponse:
     max_bytes = settings.max_upload_mb * 1024 * 1024
@@ -61,11 +63,12 @@ async def ct_dicom(
                 upload_input_path=upload_path,
                 workdir=workdir,
                 clinical_indication=clinical_indication,
+                output_language=OutputLanguage,
                 settings=settings,
                 max_slices=settings.ct_max_slices,
             )
         except Exception as e:
-            return InterpretationResponse(
+            return localize_response(InterpretationResponse(
                 exam_type="CT_UNKNOWN",
                 status="REVIEW_REQUIRED",
                 findings=[],
@@ -75,4 +78,4 @@ async def ct_dicom(
                 ai=AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True),
                 warnings=[str(e)],
                 disclaimer=settings.disclaimer_text,
-            )
+            ), OutputLanguage)

@@ -82,6 +82,7 @@ def run_gpt_ct_model(
     openai_api_key: str,
     openai_model: str = "gpt-4o",
     openai_timeout: float = 30.0,
+    output_language: str = "el",
 ) -> tuple[list[Finding], dict[str, Any], dict[str, Any]]:
     """
     Send representative CT slice PNGs to GPT-4o and return structured findings.
@@ -103,6 +104,7 @@ def run_gpt_ct_model(
     selected_series_meta = metadata.get("selected_series_meta") or {}
     context_text = (
         f"Requested exam type (context only): {exam_type}. "
+        f"Requested output language: {output_language}. "
         f"Selected series class (context only): {metadata.get('selected_series_class', 'UNKNOWN')}. "
         f"Study metadata: body_part={metadata.get('body_part_examined', 'UNKNOWN')}, "
         f"study_description={metadata.get('study_description', 'unknown')}, "
@@ -115,6 +117,10 @@ def run_gpt_ct_model(
         f"total_slices_in_series={metadata.get('slice_count', 'unknown')}, "
         f"slices_shown_to_you={len(slice_png_paths)}. "
         "Analyze all slices together and return the JSON response."
+    )
+    context_text += (
+        " Write finding_text and summary in the requested output language. "
+        "Keep machine-readable fields such as finding_code, priority, body_part, and contrast unchanged in English."
     )
 
     messages = [

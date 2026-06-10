@@ -1,0 +1,39 @@
+{
+  "template_id": "xr_chest_2views",
+  "name": "Chest X-ray 2 Views (PA and Lateral)",
+  "modality": "CR",
+  "body_region": "Chest",
+  "description": "Standard two-view chest X-ray report template for PA and lateral projections. Used for CR and DX modality studies of the chest including pneumonia, consolidation, pleural effusion, pneumothorax, and cardiac silhouette assessment.",
+  "keywords": [
+    "chest x-ray",
+    "CR",
+    "DX",
+    "PA",
+    "lateral",
+    "consolidation",
+    "opacity",
+    "pneumonia",
+    "pneumothorax",
+    "pleural effusion",
+    "cardiac silhouette",
+    "2 views",
+    "XR chest"
+  ],
+  "fields": [
+    { "name": "exam", "label": "Exam", "required": true },
+    { "name": "clinical_history", "label": "Clinical History", "required": true },
+    { "name": "technique", "label": "Technique", "required": true },
+    { "name": "comparison", "label": "Comparison", "required": false },
+    { "name": "findings_lungs", "label": "Findings — Lungs/Airways", "required": true },
+    { "name": "findings_pleura", "label": "Findings — Pleura", "required": false },
+    {
+      "name": "findings_cardiac_silhouette",
+      "label": "Findings — Cardiac Silhouette",
+      "required": false
+    },
+    { "name": "findings_mediastinum", "label": "Findings — Mediastinum", "required": false },
+    { "name": "findings_bones", "label": "Findings — Osseous Structures", "required": false },
+    { "name": "impression", "label": "Impression", "required": true }
+  ]
+}
+

@@ -316,6 +316,7 @@ def run_gpt_xray_model(
     series_description: str | None = None,
     laterality: str | None = None,
     view: str | None = None,
+    output_language: str = "el",
 ) -> tuple[list[Finding], dict[str, Any], dict[str, Any]]:
     """
     Run GPT-4o vision on an X-ray image and return structured findings.
@@ -334,6 +335,7 @@ def run_gpt_xray_model(
 
     context_text = (
         f"Exam type: {exam_type}. "
+        f"Requested output language: {output_language}. "
         f"Study description: {study_description or 'not provided'}. "
         f"Series description: {series_description or 'not provided'}. "
         f"Laterality from DICOM metadata: "
@@ -346,6 +348,10 @@ def run_gpt_xray_model(
         "Before finalising findings, check the mandatory hardware "
         "checklist (rules 5) and image frame boundaries (rule 7). "
         "Analyze this X-ray and return the JSON response."
+    )
+    context_text += (
+        " Write finding_text and summary in the requested output language. "
+        "Keep machine-readable fields such as finding_code, priority, body_part, and view unchanged in English."
     )
 
     if any(

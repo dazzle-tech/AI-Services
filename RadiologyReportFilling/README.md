@@ -9,15 +9,16 @@ radiologist review.**
 
 | Endpoint | Purpose |
 |---|---|
-| `POST /api/v1/report-correction` | Fixes misspellings, expands shorthand, cross-checks doctor vs. radiologist notes for laterality conflicts, grounds findings in ICD-10 / RadLex. |
-| `POST /api/v1/analysis-matching` | Reconciles a finalized clinical report (authoritative) with an AI image analysis result. Drops AI findings that contradict the report; uses non-conflicting AI detail to enrich. |
+| `POST /api/v1/report-correction` | Compatibility route for the workflow. Uses `radiologist_notes` as the base report, flags obvious contradictions against `doctor_notes`, and returns `clinical_report_text`. |
+| `POST /api/v1/analysis-matching` | Compatibility route for the workflow. Compares AI findings against the clinical report, returns `reconciled_findings`, and suggests ICD-10 codes from local RAG data. |
+| `POST /api/v1/report-filling` | Existing template-generation endpoint driven by patient/order/DICOM metadata. |
 | `GET /api/v1/health` | Liveness / config check. |
 | `GET /api/v1/terms/summary` | Loaded ICD-10 and RadLex counts (no AI call). |
 
-The response envelope follows a **sibling architecture**:
-- `raw_model_output` -- untouched GPT-4o JSON for auditability.
-- `safety_normalized_output` -- deterministic-rule-corrected output for clinicians.
-- `disclaimer` -- standard assistive-AI text.
+`report-correction` and `analysis-matching` both return a deterministic compatibility response that includes
+top-level workflow fields plus a nested `safety_normalized_output` object.
+
+`report-filling` returns the newer template-only contract documented elsewhere in this README.
 
 ## Setup
 
@@ -91,6 +92,7 @@ Tests mock the OpenAI API call, so they do not require a working key.
 | `GET` | `http://localhost:8000/api/v1/terms/summary` | -- | -- |
 | `POST` | `http://localhost:8000/api/v1/report-correction` | `Content-Type: application/json` | see body below |
 | `POST` | `http://localhost:8000/api/v1/analysis-matching` | `Content-Type: application/json` | see body below |
+| `POST` | `http://localhost:8000/api/v1/report-filling` | `Content-Type: application/json` | metadata template request |
 
 ### Setting up a POST request
 
@@ -117,10 +119,36 @@ Tests mock the OpenAI API call, so they do not require a working key.
 }
 ```
 
+### Greek output (`output_language: "el"`)
+
+Set `output_language` to `"el"` (or `"en"` for English) to control the language of user-facing
+fields (`corrected_*_notes`, `structured_report`, `findings`, `warnings.message`, and matching
+reconciliation text). JSON keys, ICD-10 codes, RadLex IDs, DICOM tags, and warning `code` values
+stay in English.
+
+```json
+{
+  "doctor_notes": "Ο ασθενής παραπέμπεται για ακτινογραφία θώρακος.",
+  "radiologist_notes": "Χωρίς ενεργό νόσο από το πνευμονικό παρέγχυμα, με ορατές τις πλευροδιαφραγματικές γωνίες. ΚΘΔ ΚΦ. Μεσοθωράκιο, μαλακά μόρια, οστά χωρίς ιδιαίτερα ευρήματα. Μόλις υποσημαινόμενη επίταση βρογχοαγγειακού δικτύου παρατηρείται άμφω. Αποτιτάνωση Αορτής. Ελίκωση Αορτής.",
+  "exam_type": "Ακτινογραφία θώρακος",
+  "output_language": "el",
+  "extracted_dicom_metadata": {
+    "Modality": "DX",
+    "BodyPartExamined": "CHEST",
+    "ViewPosition": "PA"
+  }
+}
+```
+
 Expected behavior:
-- `safety_normalized_output.warnings` contains `LATERALITY_CONFLICT` (severity `high`).
-- `safety_normalized_output.confidence` is `Low`.
-- `safety_normalized_output.rag_grounding.icd10_codes` contains `J18.9`.
+- `structured_report`, `findings.label` / `location`, and corrected notes are in Greek.
+- `warnings[].code` (e.g. `SPELLING_CORRECTED`) and DICOM values such as `CHEST` remain unchanged.
+- Omit `output_language` to keep the default English prompt behavior.
+
+Expected behavior (English example):
+- `clinical_report_text` uses `radiologist_notes` as the base report text.
+- `warnings` contains `LATERALITY_CONFLICT` when the doctor and radiologist notes disagree on left vs right.
+- `safety_normalized_output.rag_grounding.icd10_codes` contains local ICD-10 suggestions based on the report text.
 
 ### Example body for `/api/v1/analysis-matching`
 
@@ -145,10 +173,12 @@ Expected behavior:
 }
 ```
 
+For Greek reconciliation output, add `"output_language": "el"` to the same request shape.
+
 Expected behavior:
-- `safety_normalized_output.findings` keeps the doctor's `1.2cm` size, NOT the AI's `1.8cm`.
-- `safety_normalized_output.reconciled_findings[0].ai_variance` records the AI delta.
-- `safety_normalized_output.warnings` contains `AI_SIZE_VARIANCE` (severity `high`).
+- `reconciled_findings` marks each AI item as `matched`, `partial`, or `unmatched` against the clinical report text.
+- Findings negated by the report text are returned as `unmatched`.
+- `suggested_icd10_codes` contains local ICD-10 candidates based on the report and matched findings.
 
 ### Loading sample bodies from disk
 
@@ -160,6 +190,7 @@ filenames are self-describing:
 - `correction_TC_001_Laterality_Conflict.json`
 - `correction_TC_002_Shorthand_ICD10.json`
 - `correction_TC_003_Misspelling_Formatting.json`
+- `correction_DX_CHEST_T3_Greek_Output.json` (Greek CXR, `output_language: "el"`)
 - `matching_TC_004_Hierarchy_Of_Truth.json`
 - `matching_TC_005_AI_Enrichment.json`
 - `matching_TC_006_Metadata_Mismatch.json`

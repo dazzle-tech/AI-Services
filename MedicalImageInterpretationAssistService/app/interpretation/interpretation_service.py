@@ -33,6 +33,123 @@ BILATERAL_BODY_PARTS = {
     "KIDNEY",
 }
 
+_SUPPORTED_OUTPUT_LANGUAGES = {"el", "en", "ar"}
+
+_DISCLAIMER_BY_LANGUAGE = {
+    "el": "Βοηθητικό σύστημα AI μόνο. Απαιτείται έλεγχος από ακτινολόγο. Δεν προορίζεται για τελική διάγνωση.",
+    "en": "Assistive AI only. Radiologist review required. Not for final diagnosis.",
+    "ar": "هذا النظام للذكاء الاصطناعي المساعد فقط. يلزم مراجعة اختصاصي الأشعة. غير مخصص للتشخيص النهائي.",
+}
+
+_TEXT_TRANSLATIONS = {
+    "el": {
+        "No AI candidate acute finding identified above configured thresholds. Radiologist review required.": (
+            "Δεν εντοπίστηκε οξύ εύρημα υποψήφιο από το AI πάνω από τα καθορισμένα όρια. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "Low-confidence AI candidate finding detected. Radiologist review required.": (
+            "Εντοπίστηκε εύρημα χαμηλής βεβαιότητας από το AI. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "One AI candidate finding detected. Radiologist review required.": (
+            "Εντοπίστηκε ένα πιθανό εύρημα από το AI. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "Unsupported or unreadable image file. Radiologist review required.": (
+            "Μη υποστηριζόμενο ή μη αναγνώσιμο αρχείο εικόνας. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "X-ray interpretation model inference failed. Radiologist review required.": (
+            "Η εκτέλεση του μοντέλου ερμηνείας ακτινογραφίας απέτυχε. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "Unsupported modality for this service. Radiologist review required.": (
+            "Μη υποστηριζόμενη modality για αυτή την υπηρεσία. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "Unsupported exam type for X-ray MVP interpretation.": (
+            "Μη υποστηριζόμενος τύπος εξέτασης για την MVP ερμηνεία ακτινογραφίας."
+        ),
+        "Single frontal image reviewed; lateral view not available.": (
+            "Ανασκοπήθηκε μία μόνο μετωπιαία εικόνα· δεν ήταν διαθέσιμη πλάγια λήψη."
+        ),
+        "Image quality limitations reported by model; interpret findings cautiously.": (
+            "Το μοντέλο ανέφερε περιορισμούς στην ποιότητα εικόνας· ερμηνεύστε τα ευρήματα με προσοχή."
+        ),
+        "Out-of-scope chest candidate findings suppressed from main findings.": (
+            "Υποψήφια ευρήματα θώρακος εκτός πεδίου καταστάλθηκαν από τα κύρια ευρήματα."
+        ),
+        "Body part mismatch: selected series not appropriate for abdominal-organ interpretation.": (
+            "Ασυμφωνία ανατομικής περιοχής: η επιλεγμένη σειρά δεν είναι κατάλληλη για ερμηνεία κοιλιακών οργάνων."
+        ),
+        "CT interpretation requires OPENAI_API_KEY to be configured. Radiologist review required.": (
+            "Η ερμηνεία CT απαιτεί ρυθμισμένο OPENAI_API_KEY. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "Zip file rejected for security reasons. Radiologist review required.": (
+            "Το αρχείο zip απορρίφθηκε για λόγους ασφαλείας. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "Uploaded file is not a DICOM file or zip archive. Radiologist review required.": (
+            "Το μεταφορτωμένο αρχείο δεν είναι DICOM ή συμπιεσμένο αρχείο zip. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "No DICOM files found in upload. Radiologist review required.": (
+            "Δεν βρέθηκαν αρχεία DICOM στη μεταφόρτωση. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "No CT slices could be decoded from the uploaded DICOM. Radiologist review required.": (
+            "Δεν ήταν δυνατή η αποκωδικοποίηση τομών CT από το μεταφορτωμένο DICOM. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+        "CT interpretation model inference failed. Radiologist review required.": (
+            "Η εκτέλεση του μοντέλου ερμηνείας CT απέτυχε. Απαιτείται αξιολόγηση από ακτινολόγο."
+        ),
+    },
+    "ar": {
+        "No AI candidate acute finding identified above configured thresholds. Radiologist review required.": (
+            "لم يتم تحديد أي نتيجة حادة مرشحة من الذكاء الاصطناعي فوق الحدود المضبوطة. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "Low-confidence AI candidate finding detected. Radiologist review required.": (
+            "تم اكتشاف نتيجة مرشحة منخفضة الثقة من الذكاء الاصطناعي. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "One AI candidate finding detected. Radiologist review required.": (
+            "تم اكتشاف نتيجة مرشحة واحدة من الذكاء الاصطناعي. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "Unsupported or unreadable image file. Radiologist review required.": (
+            "ملف الصورة غير مدعوم أو غير قابل للقراءة. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "X-ray interpretation model inference failed. Radiologist review required.": (
+            "فشل استنتاج نموذج تفسير الأشعة السينية. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "Unsupported modality for this service. Radiologist review required.": (
+            "نوع التصوير غير مدعوم لهذه الخدمة. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "Unsupported exam type for X-ray MVP interpretation.": (
+            "نوع الفحص غير مدعوم لتفسير الأشعة السينية في هذه النسخة."
+        ),
+        "Single frontal image reviewed; lateral view not available.": (
+            "تمت مراجعة صورة أمامية واحدة فقط؛ العرض الجانبي غير متاح."
+        ),
+        "Image quality limitations reported by model; interpret findings cautiously.": (
+            "أبلغ النموذج عن محدودية في جودة الصورة؛ يجب تفسير النتائج بحذر."
+        ),
+        "Out-of-scope chest candidate findings suppressed from main findings.": (
+            "تمت إزالة نتائج الصدر خارج النطاق من النتائج الرئيسية."
+        ),
+        "Body part mismatch: selected series not appropriate for abdominal-organ interpretation.": (
+            "عدم تطابق في الجزء التشريحي: السلسلة المختارة غير مناسبة لتفسير أعضاء البطن."
+        ),
+        "CT interpretation requires OPENAI_API_KEY to be configured. Radiologist review required.": (
+            "يتطلب تفسير CT ضبط OPENAI_API_KEY. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "Zip file rejected for security reasons. Radiologist review required.": (
+            "تم رفض ملف zip لأسباب أمنية. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "Uploaded file is not a DICOM file or zip archive. Radiologist review required.": (
+            "الملف المرفوع ليس ملف DICOM أو أرشيف zip. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "No DICOM files found in upload. Radiologist review required.": (
+            "لم يتم العثور على ملفات DICOM في الرفع. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "No CT slices could be decoded from the uploaded DICOM. Radiologist review required.": (
+            "تعذر فك ترميز مقاطع CT من ملف DICOM المرفوع. يلزم مراجعة اختصاصي الأشعة."
+        ),
+        "CT interpretation model inference failed. Radiologist review required.": (
+            "فشل استنتاج نموذج تفسير CT. يلزم مراجعة اختصاصي الأشعة."
+        ),
+    },
+}
+
 
 def _audit(response: InterpretationResponse, clinical_indication: str | None) -> InterpretationResponse:
     from ..audit import log_interpretation
@@ -49,6 +166,98 @@ def _audit(response: InterpretationResponse, clinical_indication: str | None) ->
         warnings=response.warnings,
     )
     return response
+
+
+def normalize_output_language(output_language: str | None) -> str:
+    language = (output_language or "el").strip().lower()
+    return language if language in _SUPPORTED_OUTPUT_LANGUAGES else "el"
+
+
+def _translate_text(text: str | None, output_language: str) -> str:
+    value = str(text or "").strip()
+    language = normalize_output_language(output_language)
+    if not value or language == "en":
+        return value
+    translated = _TEXT_TRANSLATIONS.get(language, {}).get(value)
+    if translated:
+        return translated
+    return value
+
+
+def _human_label_from_code(code: str, output_language: str) -> str:
+    language = normalize_output_language(output_language)
+    base = (code or "OTHER_FINDING").strip().upper()
+    if language == "el":
+        mapping = {
+            "PULMONARY_NODULE": "πιθανό πνευμονικό οζίδιο",
+            "PNEUMOTHORAX": "πιθανός πνευμοθώρακας",
+            "PLEURAL_EFFUSION": "πιθανή υπεζωκοτική συλλογή",
+            "CONSOLIDATION": "πιθανή πύκνωση",
+            "LOWER_ZONE_OPACITY": "πιθανή σκίαση στη χαμηλή πνευμονική ζώνη",
+            "CARDIOMEGALY": "πιθανή ήπια διεύρυνση της καρδιακής σκιάς",
+            "PULMONARY_OPACITY": "πιθανή πνευμονική σκίαση",
+        }
+        return mapping.get(base, base.replace("_", " ").lower())
+    if language == "ar":
+        mapping = {
+            "PULMONARY_NODULE": "عقدة رئوية محتملة",
+            "PNEUMOTHORAX": "استرواح صدر محتمل",
+            "PLEURAL_EFFUSION": "انصباب جنبي محتمل",
+            "CONSOLIDATION": "تكثف محتمل",
+            "LOWER_ZONE_OPACITY": "عتامة محتملة في المنطقة الرئوية السفلية",
+            "CARDIOMEGALY": "تضخم محتمل وخفيف في ظل القلب",
+            "PULMONARY_OPACITY": "عتامة رئوية محتملة",
+        }
+        return mapping.get(base, base.replace("_", " ").lower())
+    return base.replace("_", " ").lower()
+
+
+def _localize_finding(finding: Finding, output_language: str) -> Finding:
+    language = normalize_output_language(output_language)
+    if language == "en":
+        return finding
+    label = _human_label_from_code(finding.finding_code, language)
+    if language == "ar":
+        location = f" في {finding.location}" if finding.location else ""
+        text = f"{label}{location}. يلزم مراجعة اختصاصي الأشعة."
+    else:
+        location = f" στη θέση {finding.location}" if finding.location else ""
+        text = f"{label.capitalize()}{location}. Απαιτείται αξιολόγηση από ακτινολόγο."
+    return finding.model_copy(update={"finding_text": text})
+
+
+def _localize_warning_text(text: str, output_language: str) -> str:
+    translated = _translate_text(text, output_language)
+    if translated != text:
+        return translated
+    language = normalize_output_language(output_language)
+    if language == "el":
+        return f"Προειδοποίηση: {text}"
+    if language == "ar":
+        return f"تحذير: {text}"
+    return text
+
+
+def localize_disclaimer_text(output_language: str) -> str:
+    return _DISCLAIMER_BY_LANGUAGE[normalize_output_language(output_language)]
+
+
+def localize_response(response: InterpretationResponse, output_language: str) -> InterpretationResponse:
+    language = normalize_output_language(output_language)
+    if language == "en":
+        return response
+    localized_findings = [_localize_finding(finding, language) for finding in response.findings]
+    localized_warnings = [_localize_warning_text(text, language) for text in response.warnings]
+    localized_summary = _translate_text(response.summary, language)
+    localized_disclaimer = localize_disclaimer_text(language)
+    return response.model_copy(
+        update={
+            "findings": localized_findings,
+            "summary": localized_summary,
+            "warnings": localized_warnings,
+            "disclaimer": localized_disclaimer,
+        }
+    )
 
 
 def _expected_views_from_study_description(study_description: str | None) -> int | None:
@@ -187,19 +396,28 @@ def _normalize_model_laterality(raw: Any) -> str | None:
         return "RIGHT"
     return None
 
-def build_summary(findings: list[Finding]) -> str:
+def build_summary(findings: list[Finding], output_language: str = "en") -> str:
+    language = normalize_output_language(output_language)
     if not findings:
-        return (
+        text = (
             "No AI candidate acute finding identified above configured thresholds. "
             "Radiologist review required."
         )
+        return _translate_text(text, language)
 
     has_standard = any((f.confidence or 0.0) >= STRONG_THRESHOLD for f in findings)
     if not has_standard:
-        return "Low-confidence AI candidate finding detected. Radiologist review required."
+        return _translate_text(
+            "Low-confidence AI candidate finding detected. Radiologist review required.",
+            language,
+        )
 
     if len(findings) == 1:
-        return "One AI candidate finding detected. Radiologist review required."
+        return _translate_text("One AI candidate finding detected. Radiologist review required.", language)
+    if language == "el":
+        return f"Εντοπίστηκαν {len(findings)} πιθανά ευρήματα από το AI. Απαιτείται αξιολόγηση από ακτινολόγο."
+    if language == "ar":
+        return f"تم اكتشاف {len(findings)} نتائج مرشحة من الذكاء الاصطناعي. يلزم مراجعة اختصاصي الأشعة."
     return f"{len(findings)} AI candidate findings detected. Radiologist review required."
 
 
@@ -253,6 +471,7 @@ def build_image_response(
     workdir: Path,
     clinical_indication: str | None,
     settings: Settings,
+    output_language: str = "el",
     exam_type: str = "XR_CHEST",
 ) -> InterpretationResponse:
     image_path = workdir / "xray_input.png"
@@ -270,7 +489,7 @@ def build_image_response(
         reason = str(e) or e.__class__.__name__
         study = StudyInfo(image_quality="UNREADABLE")
         ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type=exam_type,
             status="REVIEW_REQUIRED",
             critical_alert=False,
@@ -280,7 +499,7 @@ def build_image_response(
             ai=ai,
             warnings=[*warnings, reason],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     try:
         if _should_use_gpt(settings):
@@ -289,6 +508,7 @@ def build_image_response(
             findings, _gpt_output, model_meta = run_gpt_xray_model(
                 image_path=str(image_path),
                 exam_type=exam_type,
+                output_language=output_language,
                 openai_api_key=(settings.openai_api_key or "").strip(),
                 openai_model=settings.openai_model,
                 openai_timeout=settings.openai_timeout_seconds,
@@ -310,18 +530,18 @@ def build_image_response(
         study = StudyInfo(image_quality="UNREADABLE")
         ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
         if reason == "No local model available for this body part; configure OPENAI_API_KEY to enable full X-ray coverage.":
-            return _audit(InterpretationResponse(
+            return _audit(localize_response(InterpretationResponse(
                 exam_type=exam_type,
                 status="REVIEW_REQUIRED",
                 findings=[],
                 critical_alert=False,
-                summary=build_summary([]),
+                summary=build_summary([], output_language),
                 study=study,
                 ai=ai,
                 warnings=[*warnings, reason],
                 disclaimer=settings.disclaimer_text,
-            ), clinical_indication)
-        return _audit(InterpretationResponse(
+            ), output_language), clinical_indication)
+        return _audit(localize_response(InterpretationResponse(
             exam_type=exam_type,
             status="REVIEW_REQUIRED",
             critical_alert=False,
@@ -331,7 +551,7 @@ def build_image_response(
             ai=ai,
             warnings=[*warnings, reason],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     study = StudyInfo(image_quality=str(model_meta.get("image_quality") or "UNKNOWN"))
     model_lat = _normalize_model_laterality(model_meta.get("laterality_from_image"))
@@ -343,17 +563,17 @@ def build_image_response(
         slices_reviewed=1,
         not_for_medical_use=True,
     )
-    return _audit(InterpretationResponse(
+    return _audit(localize_response(InterpretationResponse(
         exam_type=exam_type,
         status="COMPLETED",
         findings=findings,
         critical_alert=has_critical(findings),
-        summary=build_summary(findings),
+        summary=build_summary(findings, output_language),
         study=study,
         ai=ai,
         warnings=warnings,
         disclaimer=settings.disclaimer_text,
-    ), clinical_indication)
+    ), output_language), clinical_indication)
 
 
 def _dicom_to_png(dicom_path: Path, png_path: Path) -> None:
@@ -411,6 +631,7 @@ def build_dicom_response(
     upload_input_path: Path,
     workdir: Path,
     clinical_indication: str | None,
+    output_language: str = "el",
     settings: Settings,
 ) -> InterpretationResponse:
     # Support non-DICOM image uploads (png/jpg/jpeg/...) in the same endpoint.
@@ -423,6 +644,7 @@ def build_dicom_response(
             upload_input_path=upload_input_path,
             workdir=workdir,
             clinical_indication=clinical_indication,
+            output_language=output_language,
             settings=settings,
             exam_type="XR_CHEST",
         )
@@ -440,17 +662,17 @@ def build_dicom_response(
     if not dicom_files:
         ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
         study = StudyInfo()
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type="UNKNOWN",
             status="REVIEW_REQUIRED",
             findings=[],
             critical_alert=False,
-            summary=build_summary([]),
+            summary=build_summary([], output_language),
             study=study,
             ai=ai,
             warnings=["No DICOM files found in uploaded zip."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     metadata = extract_dicom_metadata(str(dicom_dir))
     classification = classify_exam_type(
@@ -498,7 +720,7 @@ def build_dicom_response(
             image_quality=None,
         )
         ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type="UNSUPPORTED_MODALITY",
             status="UNSUPPORTED_MODALITY",
             findings=[],
@@ -508,7 +730,7 @@ def build_dicom_response(
             ai=ai,
             warnings=[*warnings, "Only CR/DX X-ray modality is supported."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     if not exam_type.startswith(SUPPORTED_EXAMS):
         study = StudyInfo(
@@ -524,17 +746,17 @@ def build_dicom_response(
             image_quality=None,
         )
         ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type=exam_type,
             status="REVIEW_REQUIRED",
             findings=[],
             critical_alert=False,
-            summary=build_summary([]),
+            summary=build_summary([], output_language),
             study=study,
             ai=ai,
             warnings=[*warnings, "Unsupported exam type for X-ray MVP interpretation."],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     try:
         image_path = workdir / "xray.png"
@@ -549,6 +771,7 @@ def build_dicom_response(
             findings, _gpt_output, model_meta = run_gpt_xray_model(
                 image_path=str(image_path),
                 exam_type=exam_type,
+                output_language=output_language,
                 openai_api_key=(settings.openai_api_key or "").strip(),
                 openai_model=settings.openai_model,
                 openai_timeout=settings.openai_timeout_seconds,
@@ -583,17 +806,17 @@ def build_dicom_response(
                 image_quality=None,
             )
             ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
-            return _audit(InterpretationResponse(
+            return _audit(localize_response(InterpretationResponse(
                 exam_type=exam_type,
                 status="REVIEW_REQUIRED",
                 findings=[],
                 critical_alert=False,
-                summary=build_summary([]),
+                summary=build_summary([], output_language),
                 study=study,
                 ai=ai,
                 warnings=[*warnings, reason],
                 disclaimer=settings.disclaimer_text,
-            ), clinical_indication)
+            ), output_language), clinical_indication)
         summary = "X-ray interpretation model inference failed. Radiologist review required."
         study = StudyInfo(
             study_instance_uid=study_uid,
@@ -608,7 +831,7 @@ def build_dicom_response(
             image_quality=None,
         )
         ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
-        return _audit(InterpretationResponse(
+        return _audit(localize_response(InterpretationResponse(
             exam_type=exam_type,
             status="REVIEW_REQUIRED",
             findings=[],
@@ -618,7 +841,7 @@ def build_dicom_response(
             ai=ai,
             warnings=[*warnings, reason],
             disclaimer=settings.disclaimer_text,
-        ), clinical_indication)
+        ), output_language), clinical_indication)
 
     # Keep any pre-model warnings (e.g., clinical indication mismatch, missing views).
     expected_views = _expected_views_from_study_description(metadata.get("study_description"))
@@ -767,14 +990,14 @@ def build_dicom_response(
         slices_reviewed=1,
         not_for_medical_use=True,
     )
-    return _audit(InterpretationResponse(
+    return _audit(localize_response(InterpretationResponse(
         exam_type=exam_type,
         status="COMPLETED",
         findings=findings,
         critical_alert=has_critical(findings),
-        summary=build_summary(findings),
+        summary=build_summary(findings, output_language),
         study=study,
         ai=ai,
         warnings=warnings,
         disclaimer=settings.disclaimer_text,
-    ), clinical_indication)
+    ), output_language), clinical_indication)

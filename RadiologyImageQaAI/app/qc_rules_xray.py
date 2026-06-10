@@ -7,7 +7,7 @@ import numpy as np
 
 from .models import ExamType, IssueType, MissingRegion, QCStatus
 from .protocol_classifier import classify_exam_type
-from .report_generator import generate_explanation
+from .report_generator import generate_explanation, localize_disclaimer, localize_text
 from .config import get_settings
 
 
@@ -81,7 +81,11 @@ def _basic_exposure_warning(pixel_array: np.ndarray) -> tuple[bool, dict[str, fl
     return bool(is_bad_mean or is_low_contrast), {"mean_norm": mean_norm, "std_norm": std_norm}
 
 
-def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[str, Any]:
+def evaluate_xray_qc(
+    metadata: dict[str, Any],
+    dicom_files: list[Path],
+    output_language: str = "el",
+) -> dict[str, Any]:
     """
     X-ray chest QC (metadata + simple pixel heuristics only).
     NOT diagnostic. Image-quality-only checks.
@@ -116,13 +120,21 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
             "missing_region": None,
             "required_landmark_not_seen": None,
             "confidence": 0.9,
-            "recommended_action": "No DICOM images found. Verify the study upload and retry.",
+            "recommended_action": localize_text(
+                "No DICOM images found. Verify the study upload and retry.",
+                output_language,
+            ),
             "human_review_required": True,
             "explanation": "",
-            "disclaimer": settings.disclaimer_text,
+            "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
             "details": details,
         }
-        qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+        qc_result["explanation"] = generate_explanation(
+            qc_result,
+            style="technologist_alert",
+            settings=settings,
+            output_language=output_language,
+        )
         return qc_result
 
     # Read per-image ViewPosition and BodyPartExamined for completeness checks.
@@ -137,13 +149,21 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
             "missing_region": None,
             "required_landmark_not_seen": None,
             "confidence": 0.0,
-            "recommended_action": "Verify DICOM metadata (pydicom not available in this runtime).",
+            "recommended_action": localize_text(
+                "Verify DICOM metadata (pydicom not available in this runtime).",
+                output_language,
+            ),
             "human_review_required": True,
             "explanation": "",
-            "disclaimer": settings.disclaimer_text,
+            "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
             "details": {**details, "error": str(e)},
         }
-        qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+        qc_result["explanation"] = generate_explanation(
+            qc_result,
+            style="technologist_alert",
+            settings=settings,
+            output_language=output_language,
+        )
         return qc_result
 
     view_positions: list[str | None] = []
@@ -176,13 +196,21 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
             "missing_region": None,
             "required_landmark_not_seen": None,
             "confidence": 0.6,
-            "recommended_action": "Verify DICOM metadata (ViewPosition missing).",
+            "recommended_action": localize_text(
+                "Verify DICOM metadata (ViewPosition missing).",
+                output_language,
+            ),
             "human_review_required": True,
             "explanation": "",
-            "disclaimer": settings.disclaimer_text,
+            "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
             "details": details,
         }
-        qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+        qc_result["explanation"] = generate_explanation(
+            qc_result,
+            style="technologist_alert",
+            settings=settings,
+            output_language=output_language,
+        )
         return qc_result
 
     # Rule 3: BodyPartExamined check
@@ -195,13 +223,21 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
             "missing_region": None,
             "required_landmark_not_seen": None,
             "confidence": 0.8,
-            "recommended_action": "Verify BodyPartExamined and route for human review.",
+            "recommended_action": localize_text(
+                "Verify BodyPartExamined and route for human review.",
+                output_language,
+            ),
             "human_review_required": True,
             "explanation": "",
-            "disclaimer": settings.disclaimer_text,
+            "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
             "details": details,
         }
-        qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+        qc_result["explanation"] = generate_explanation(
+            qc_result,
+            style="technologist_alert",
+            settings=settings,
+            output_language=output_language,
+        )
         return qc_result
 
     if any_non_chest:
@@ -213,13 +249,21 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
             "missing_region": None,
             "required_landmark_not_seen": None,
             "confidence": 0.7,
-            "recommended_action": "Verify BodyPartExamined and route for human review.",
+            "recommended_action": localize_text(
+                "Verify BodyPartExamined and route for human review.",
+                output_language,
+            ),
             "human_review_required": True,
             "explanation": "",
-            "disclaimer": settings.disclaimer_text,
+            "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
             "details": details,
         }
-        qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+        qc_result["explanation"] = generate_explanation(
+            qc_result,
+            style="technologist_alert",
+            settings=settings,
+            output_language=output_language,
+        )
         return qc_result
 
     # Rule 1: View completeness (2 views)
@@ -235,13 +279,18 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
                 "missing_region": MissingRegion.LATERAL_VIEW,
                 "required_landmark_not_seen": None,
                 "confidence": 0.85,
-                "recommended_action": "Repeat lateral chest X-ray.",
+                "recommended_action": localize_text("Repeat lateral chest X-ray.", output_language),
                 "human_review_required": True,
                 "explanation": "",
-                "disclaimer": settings.disclaimer_text,
+                "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
                 "details": details,
             }
-            qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+            qc_result["explanation"] = generate_explanation(
+                qc_result,
+                style="technologist_alert",
+                settings=settings,
+                output_language=output_language,
+            )
             return qc_result
         if not has_pa_ap:
             qc_result = {
@@ -252,13 +301,21 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
                 "missing_region": None,
                 "required_landmark_not_seen": None,
                 "confidence": 0.85,
-                "recommended_action": "Repeat PA/AP chest X-ray (2-view study requires PA/AP and lateral).",
+                "recommended_action": localize_text(
+                    "Repeat PA/AP chest X-ray (2-view study requires PA/AP and lateral).",
+                    output_language,
+                ),
                 "human_review_required": True,
                 "explanation": "",
-                "disclaimer": settings.disclaimer_text,
+                "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
                 "details": details,
             }
-            qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+            qc_result["explanation"] = generate_explanation(
+                qc_result,
+                style="technologist_alert",
+                settings=settings,
+                output_language=output_language,
+            )
             return qc_result
 
     # Rule 5: Basic exposure heuristic (warning only)
@@ -280,7 +337,7 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
     # Rule 6: Portable AP note
     notes: list[str] = []
     if any(v == "AP" for v in view_positions if v):
-        notes.append("Portable AP chest X-ray may have limited quality.")
+        notes.append(localize_text("Portable AP chest X-ray may have limited quality.", output_language))
     if notes:
         details["notes"] = "; ".join(notes)
 
@@ -293,13 +350,21 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
             "missing_region": None,
             "required_landmark_not_seen": None,
             "confidence": 0.8,
-            "recommended_action": "Review exposure/contrast; consider repeat image if clinically indicated.",
+            "recommended_action": localize_text(
+                "Review exposure/contrast; consider repeat image if clinically indicated.",
+                output_language,
+            ),
             "human_review_required": True,
             "explanation": "",
-            "disclaimer": settings.disclaimer_text,
+            "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
             "details": details,
         }
-        qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+        qc_result["explanation"] = generate_explanation(
+            qc_result,
+            style="technologist_alert",
+            settings=settings,
+            output_language=output_language,
+        )
         return qc_result
 
     qc_result = {
@@ -310,11 +375,16 @@ def evaluate_xray_qc(metadata: dict[str, Any], dicom_files: list[Path]) -> dict[
         "missing_region": None,
         "required_landmark_not_seen": None,
         "confidence": 0.8,
-        "recommended_action": "No action required.",
+        "recommended_action": localize_text("No action required.", output_language),
         "human_review_required": False,
         "explanation": "",
-        "disclaimer": settings.disclaimer_text,
+        "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
         "details": details,
     }
-    qc_result["explanation"] = generate_explanation(qc_result, style="technologist_alert", settings=settings)
+    qc_result["explanation"] = generate_explanation(
+        qc_result,
+        style="technologist_alert",
+        settings=settings,
+        output_language=output_language,
+    )
     return qc_result

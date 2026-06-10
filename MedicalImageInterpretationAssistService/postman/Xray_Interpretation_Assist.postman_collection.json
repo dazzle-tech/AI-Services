@@ -25,7 +25,8 @@
           "mode": "formdata",
           "formdata": [
             { "key": "file", "type": "file", "src": "" },
-            { "key": "clinical_indication", "type": "text", "value": "Shortness of breath" }
+            { "key": "clinical_indication", "type": "text", "value": "Shortness of breath" },
+            { "key": "OutputLanguage", "type": "text", "value": "el" }
           ]
         },
         "url": {
@@ -43,7 +44,8 @@
           "mode": "formdata",
           "formdata": [
             { "key": "file", "type": "file", "src": "" },
-            { "key": "clinical_indication", "type": "text", "value": "Shortness of breath" }
+            { "key": "clinical_indication", "type": "text", "value": "Shortness of breath" },
+            { "key": "OutputLanguage", "type": "text", "value": "el" }
           ]
         },
         "url": {
@@ -59,7 +61,10 @@
         "method": "POST",
         "body": {
           "mode": "formdata",
-          "formdata": [{ "key": "file", "type": "file", "src": "" }]
+          "formdata": [
+            { "key": "file", "type": "file", "src": "" },
+            { "key": "OutputLanguage", "type": "text", "value": "el" }
+          ]
         },
         "url": {
           "raw": "{{base_url}}/api/v1/radiology/xray-interpretation/dicom",
@@ -87,7 +92,8 @@
           "mode": "formdata",
           "formdata": [
             { "key": "file", "type": "file", "src": "" },
-            { "key": "clinical_indication", "type": "text", "value": "Abdominal pain" }
+            { "key": "clinical_indication", "type": "text", "value": "Abdominal pain" },
+            { "key": "OutputLanguage", "type": "text", "value": "el" }
           ]
         },
         "url": {

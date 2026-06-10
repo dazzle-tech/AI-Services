@@ -6,7 +6,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+_SUPPORTED_OUTPUT_LANGUAGES = {"el", "pt", "en", "ar"}
 
 
 class SelectionMethod(str, Enum):
@@ -49,9 +51,27 @@ class TemplateCandidate(BaseModel):
     score: float = Field(..., description="Higher = better match (cosine similarity).")
 
 
+class OutputLanguageRequestMixin(BaseModel):
+    OutputLanguage: Optional[str] = Field(
+        "el",
+        description="Language code for the generated report text. Examples: el, pt, en, ar.",
+    )
+
+    @field_validator("OutputLanguage", mode="before")
+    @classmethod
+    def validate_output_language(cls, value: Optional[str]) -> str:
+        if value in (None, ""):
+            return "el"
+        normalized = str(value).strip().lower()
+        if normalized not in _SUPPORTED_OUTPUT_LANGUAGES:
+            supported = ", ".join(sorted(_SUPPORTED_OUTPUT_LANGUAGES))
+            raise ValueError(f"OutputLanguage must be one of: {supported}")
+        return normalized
+
+
 # --- Selection ----------------------------------------------------------------
 
-class SelectTemplateRequest(BaseModel):
+class SelectTemplateRequest(OutputLanguageRequestMixin):
     request_id: Optional[str] = None
     input_data: str = Field(..., min_length=1, description="Raw clinician input / dictation.")
     use_static_template: bool = Field(
@@ -61,6 +81,9 @@ class SelectTemplateRequest(BaseModel):
         None, description="Required when use_static_template=true."
     )
     top_k: int = Field(3, ge=1, le=10, description="Number of RAG candidates to consider.")
+    patient_context: Optional[dict[str, Any]] = Field(
+        None, description="Optional patient metadata to constrain selection."
+    )
 
 
 class SelectTemplateResponse(BaseModel):
@@ -77,7 +100,7 @@ class SelectTemplateResponse(BaseModel):
 
 # --- Autofill -----------------------------------------------------------------
 
-class AutofillRequest(BaseModel):
+class AutofillRequest(OutputLanguageRequestMixin):
     request_id: Optional[str] = None
     template_id: str = Field(..., description="ID of the template to populate.")
     input_data: str = Field(..., min_length=1, description="Raw input to map into the template.")
@@ -92,24 +115,27 @@ class FieldValidation(BaseModel):
     severity: str = Field("warning", description="info | warning | error")
 
 
-class AutofillResponse(BaseModel):
-    request_id: Optional[str] = None
-    template_id: str
-    template_name: str
-    populated_fields: dict[str, Any] = Field(
-        default_factory=dict,
-        description="Map of field_name -> generated value (string or list).",
-    )
-    rendered_report: str = Field(..., description="Final report as plain text.")
-    missing_required_fields: list[str] = Field(default_factory=list)
-    warnings: list[FieldValidation] = Field(default_factory=list)
-    confidence_score: float = Field(0.0, ge=0.0, le=1.0)
-    generation_timestamp: datetime = Field(default_factory=datetime.utcnow)
+class RadiologyTemplateResponse(BaseModel):
+    ID: int
+    TEMPLATE_NAME: str
+    TEMPLATE_TEXT: str
+    STATUS_ID: Optional[int] = None
+    CREATED_BY: Optional[str] = None
+    CREATION_DATETIME: Optional[datetime] = None
+    DELETED_BY: Optional[str] = None
+    DELETE_DATETIME: Optional[datetime] = None
+    UPDATED_BY: Optional[str] = None
+    UPDATE_DATETIME: Optional[datetime] = None
+    Physician: Optional[str] = None
+
+
+class AutofillResponse(RadiologyTemplateResponse):
+    pass
 
 
 # --- Combined select + fill ---------------------------------------------------
 
-class SelectAndFillRequest(BaseModel):
+class SelectAndFillRequest(OutputLanguageRequestMixin):
     request_id: Optional[str] = None
     input_data: str = Field(..., min_length=1)
     use_static_template: bool = False
@@ -118,7 +144,5 @@ class SelectAndFillRequest(BaseModel):
     patient_context: Optional[dict[str, Any]] = None
 
 
-class SelectAndFillResponse(BaseModel):
-    request_id: Optional[str] = None
-    selection: SelectTemplateResponse
-    autofill: AutofillResponse
+class SelectAndFillResponse(RadiologyTemplateResponse):
+    pass

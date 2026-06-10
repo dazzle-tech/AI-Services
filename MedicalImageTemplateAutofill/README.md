@@ -31,8 +31,8 @@ On first run, sentence-transformers will download the embedding model (`all-Mini
 python main.py
 ```
 
-- Service: `http://localhost:8013`
-- Interactive docs: `http://localhost:8013/docs`
+- Service: `http://localhost:8022`
+- Interactive docs: `http://localhost:8022/docs`
 
 ## Endpoints
 
@@ -70,13 +70,13 @@ Add a new template by dropping a JSON file into `data/templates/` matching the e
 | `EMBEDDING_MODEL`    | `all-MiniLM-L6-v2`          | sentence-transformer model |
 | `TEMPLATES_DIR`      | `data/templates`            | Where template JSONs live (resolved relative to project) |
 | `VECTOR_STORE_PATH`  | `vector_store_templates`    | ChromaDB persistence directory (resolved relative to project) |
-| `API_PORT`           | `8013`                      | Listening port |
+| `API_PORT`           | `8022`                      | Listening port |
 | `CORS_ORIGINS`       | `*`                         | Comma-separated origins, or `*` |
 | `MOCK_LLM`           | `false`                     | If `true`, skip OpenAI and use deterministic stub (for tests / offline) |
 
 ## Postman
 
-Import `radiology_template_autofill.postman_collection.json`. Default `base_url` is `http://localhost:8013` — override via the collection variable if needed.
+Import `radiology_template_autofill.postman_collection.json`. Default `base_url` is `http://localhost:8022` — override via the collection variable if needed.
 
 ## Tests
 

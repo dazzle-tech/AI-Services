@@ -1,113 +1,121 @@
-"""Pydantic request and response schemas for Medical Imaging Assist."""
-from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
+"""Pydantic request and response schemas for the radiology report filling API."""
+from datetime import datetime
+from typing import Any, Dict, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+_SUPPORTED_OUTPUT_LANGUAGES = {"el", "pt", "en", "ar"}
 
 
-# ---------- Request models ----------
+class RadiologyReportRequest(BaseModel):
+    """Public request body for the report filling endpoint."""
 
-
-class ReportCorrectionRequest(BaseModel):
-    """Request body for /api/v1/report-correction."""
-
-    doctor_notes: str = Field(..., min_length=1, description="Free-text clinical notes from the ordering physician.")
-    radiologist_notes: str = Field(..., min_length=1, description="Free-text read from the radiologist.")
-    exam_type: Optional[str] = Field(None, description="Optional exam type, e.g. 'Chest X-ray PA/Lateral'.")
-    extracted_dicom_metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="DICOM metadata key/value pairs (PatientID, Modality, BodyPartExamined, ViewPosition, ...).",
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "PatientID": "LIDC-IDRI-0001",
+                    "PatientName": "",
+                    "OrderID": "",
+                    "OrderDate": "2000-01-01T00:00:00",
+                    "DateOfBirth": None,
+                    "NationalID": "",
+                    "Gender": "",
+                    "AccessionNumber": "ACC-10008",
+                    "OutputLanguage": "el",
+                    "DICOM": {
+                        "0008,0050": {
+                            "Name": "AccessionNumber",
+                            "Type": "String",
+                            "Value": "ACC-10008",
+                        },
+                        "0010,0020": {
+                            "Name": "PatientID",
+                            "Type": "String",
+                            "Value": "LIDC-IDRI-0001",
+                        },
+                        "0008,0060": {
+                            "Name": "Modality",
+                            "Type": "String",
+                            "Value": "US",
+                        },
+                        "0018,0015": {
+                            "Name": "BodyPartExamined",
+                            "Type": "String",
+                            "Value": "ABDOMEN",
+                        },
+                    },
+                }
+            ]
+        }
     )
 
-
-class AnalysisMatchingRequest(BaseModel):
-    """Request body for /api/v1/analysis-matching."""
-
-    clinical_report: str = Field(..., min_length=1, description="Finalized clinical report (authoritative).")
-    ai_image_analysis: Dict[str, Any] = Field(
-        ..., description="JSON output from the upstream AI image analysis model."
+    PatientID: Optional[str] = None
+    PatientName: Optional[str] = None
+    OrderID: Optional[str] = None
+    OrderDate: Optional[datetime] = None
+    DateOfBirth: Optional[datetime] = None
+    NationalID: Optional[str] = None
+    Gender: Optional[str] = None
+    AccessionNumber: str = Field(..., min_length=1)
+    OutputLanguage: Optional[str] = Field(
+        "el",
+        description="Language code for the generated report text. Examples: el, pt, en, ar.",
     )
-    extracted_dicom_metadata: Dict[str, Any] = Field(
-        default_factory=dict, description="DICOM metadata key/value pairs."
+    ExamType: Optional[str] = None
+    DoctorNotes: Optional[str] = None
+    RadiologistNotes: Optional[str] = None
+    SigningPhysician: Optional[str] = None
+    SigningPhysicianCode: Optional[str] = None
+    AIInterpretation: Optional[Dict[str, Any]] = None
+    QCResult: Optional[Dict[str, Any]] = None
+    DICOM: Optional[Dict[str, Any]] = None
+
+    @field_validator("OutputLanguage", mode="before")
+    @classmethod
+    def validate_output_language(cls, value: Optional[str]) -> str:
+        """Normalize the requested report language or reject unsupported values."""
+        if value in (None, ""):
+            return "el"
+        normalized = str(value).strip().lower()
+        if normalized not in _SUPPORTED_OUTPUT_LANGUAGES:
+            supported = ", ".join(sorted(_SUPPORTED_OUTPUT_LANGUAGES))
+            raise ValueError(f"OutputLanguage must be one of: {supported}")
+        return normalized
+
+
+class RadiologyTemplateResponse(BaseModel):
+    """Public response body for the report filling endpoint."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "ID": 0,
+                "TEMPLATE_NAME": "Radiology Report Template",
+                "TEMPLATE_TEXT": "Radiology report template text.",
+                "STATUS_ID": None,
+                "CREATED_BY": None,
+                "CREATION_DATETIME": None,
+                "DELETED_BY": None,
+                "DELETE_DATETIME": None,
+                "UPDATED_BY": None,
+                "UPDATE_DATETIME": None,
+                "Physician": None,
+            }
+        }
     )
 
-
-# ---------- Response sub-models ----------
-
-
-class Finding(BaseModel):
-    """A single reconciled finding."""
-
-    label: str
-    location: Optional[str] = None
-    status: Optional[str] = None
-    size_cm: Optional[float] = None
-    source: Literal["doctor", "radiologist", "clinical_report", "ai", "reconciled"]
-
-
-class Warning_(BaseModel):
-    """A normalization-stage warning surfaced to the radiologist."""
-
-    severity: Literal["info", "high", "critical"]
-    code: str
-    message: str
-
-
-class Icd10Match(BaseModel):
-    """An ICD-10 code suggestion grounded in the local RAG store."""
-
-    code: str
-    term: str
-    matched_phrase: str
-
-
-class RadLexMatch(BaseModel):
-    """A RadLex term suggestion grounded in the local RAG store."""
-
-    id: str
-    term: str
-    matched_phrase: str
-
-
-class RagGrounding(BaseModel):
-    """Container for retrieval-grounded code and term suggestions."""
-
-    icd10_codes: List[Icd10Match] = Field(default_factory=list)
-    radlex_terms: List[RadLexMatch] = Field(default_factory=list)
-
-
-class SafetyNormalizedOutput(BaseModel):
-    """Safety-normalized response payload consumed by the radiologist."""
-
-    study_metadata: Dict[str, Any] = Field(default_factory=dict)
-    exam_type: str
-    findings: List[Finding] = Field(default_factory=list)
-    confidence: Literal["High", "Medium", "Low"]
-    priority: Literal["Urgent", "Routine"]
-    warnings: List[Warning_] = Field(default_factory=list)
-    critical_alert: bool = False
-    rag_grounding: RagGrounding = Field(default_factory=RagGrounding)
-
-    # Endpoint 1 (report-correction) extra fields
-    corrected_doctor_notes: Optional[str] = None
-    corrected_radiologist_notes: Optional[str] = None
-    structured_report: Optional[Dict[str, Any]] = None
-    spelling_corrections: Optional[Dict[str, str]] = None
-
-    # Endpoint 2 (analysis-matching) extra fields
-    reconciled_findings: Optional[List[Dict[str, Any]]] = None
-    ai_findings_dropped: Optional[List[Dict[str, Any]]] = None
-    ai_findings_used_for_enrichment: Optional[List[Dict[str, Any]]] = None
-
-
-class AssistiveResponse(BaseModel):
-    """Top-level response envelope with sibling architecture."""
-
-    raw_model_output: Dict[str, Any]
-    safety_normalized_output: SafetyNormalizedOutput
-    disclaimer: str
-    output_file: Optional[str] = None
-
-
-# ---------- Health / summary ----------
+    ID: int
+    TEMPLATE_NAME: str
+    TEMPLATE_TEXT: str
+    STATUS_ID: Optional[int] = None
+    CREATED_BY: Optional[str] = None
+    CREATION_DATETIME: Optional[datetime] = None
+    DELETED_BY: Optional[str] = None
+    DELETE_DATETIME: Optional[datetime] = None
+    UPDATED_BY: Optional[str] = None
+    UPDATE_DATETIME: Optional[datetime] = None
+    Physician: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -128,3 +136,84 @@ class TermsSummaryResponse(BaseModel):
     icd10_count: int
     radlex_count: int
     embeddings_present: bool
+
+
+class WorkflowWarning(BaseModel):
+    """Deterministic workflow warning for restored compatibility endpoints."""
+
+    code: str
+    message: str
+    severity: Literal["low", "medium", "high"] = "medium"
+
+
+class ReportCorrectionRequest(BaseModel):
+    """Workflow request body for report correction."""
+
+    doctor_notes: str = ""
+    radiologist_notes: str = ""
+    exam_type: str = ""
+    extracted_dicom_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class Icd10Suggestion(BaseModel):
+    """Suggested ICD-10 code from local RAG lookup."""
+
+    code: str
+    term: str
+    matched_phrase: Optional[str] = None
+
+
+class ReportCorrectionSafetyOutput(BaseModel):
+    """Workflow-friendly normalized output for report correction."""
+
+    clinical_report: str
+    corrected_radiologist_notes: str
+    corrected_doctor_notes: str
+    warnings: list[WorkflowWarning] = Field(default_factory=list)
+    rag_grounding: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ReportCorrectionResponse(BaseModel):
+    """Compatibility response for the legacy report-correction route."""
+
+    clinical_report_text: str
+    confirmed: bool
+    warnings: list[WorkflowWarning] = Field(default_factory=list)
+    safety_normalized_output: ReportCorrectionSafetyOutput
+
+
+class AnalysisMatchingRequest(BaseModel):
+    """Workflow request body for AI-vs-report reconciliation."""
+
+    clinical_report: str = ""
+    ai_image_analysis: Dict[str, Any] = Field(default_factory=dict)
+    extracted_dicom_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class ReconciledFinding(BaseModel):
+    """Single reconciled AI finding compared against the clinical report."""
+
+    finding_label: str
+    finding_text: str
+    location: Optional[str] = None
+    match_status: Literal["matched", "partial", "unmatched"]
+    in_clinical_report: bool
+    confidence: Optional[float] = None
+    rationale: str
+
+
+class AnalysisMatchingSafetyOutput(BaseModel):
+    """Workflow-friendly normalized output for analysis matching."""
+
+    reconciled_findings: list[ReconciledFinding] = Field(default_factory=list)
+    suggested_icd10_codes: list[Icd10Suggestion] = Field(default_factory=list)
+    warnings: list[WorkflowWarning] = Field(default_factory=list)
+
+
+class AnalysisMatchingResponse(BaseModel):
+    """Compatibility response for the legacy analysis-matching route."""
+
+    reconciled_findings: list[ReconciledFinding] = Field(default_factory=list)
+    suggested_icd10_codes: list[Icd10Suggestion] = Field(default_factory=list)
+    warnings: list[WorkflowWarning] = Field(default_factory=list)
+    safety_normalized_output: AnalysisMatchingSafetyOutput

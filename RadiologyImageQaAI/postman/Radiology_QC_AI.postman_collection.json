@@ -32,7 +32,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"qc_result\": {\n    \"study_instance_uid\": \"1.2.840.test\",\n    \"exam_type\": \"CT_ABDOMEN_PELVIS\",\n    \"qc_status\": \"FAIL\",\n    \"issue_type\": \"INCOMPLETE_ANATOMICAL_COVERAGE\",\n    \"missing_region\": \"LOWER_PELVIS\",\n    \"required_landmark_not_seen\": \"PUBIC_SYMPHYSIS\",\n    \"confidence\": 0.95,\n    \"recommended_action\": \"Acquire additional lower pelvis images through the pubic symphysis before the patient leaves.\",\n    \"human_review_required\": true,\n    \"explanation\": \"\",\n    \"disclaimer\": \"Research/MVP only. Not for clinical use without validation and regulatory approval.\"\n  },\n  \"style\": \"technologist_alert\"\n}"
+          "raw": "{\n  \"qc_result\": {\n    \"study_instance_uid\": \"1.2.840.test\",\n    \"exam_type\": \"CT_ABDOMEN_PELVIS\",\n    \"qc_status\": \"FAIL\",\n    \"issue_type\": \"INCOMPLETE_ANATOMICAL_COVERAGE\",\n    \"missing_region\": \"LOWER_PELVIS\",\n    \"required_landmark_not_seen\": \"PUBIC_SYMPHYSIS\",\n    \"confidence\": 0.95,\n    \"recommended_action\": \"Acquire additional lower pelvis images through the pubic symphysis before the patient leaves.\",\n    \"human_review_required\": true,\n    \"explanation\": \"\",\n    \"disclaimer\": \"Research/MVP only. Not for clinical use without validation and regulatory approval.\"\n  },\n  \"style\": \"technologist_alert\",\n  \"OutputLanguage\": \"el\"\n}"
         },
         "url": "{{base_url}}/api/v1/report/explain"
       }
@@ -53,6 +53,11 @@
               "key": "use_gpt_report",
               "type": "text",
               "value": "false"
+            },
+            {
+              "key": "OutputLanguage",
+              "type": "text",
+              "value": "el"
             }
           ]
         },
@@ -70,6 +75,11 @@
               "key": "file",
               "type": "file",
               "src": "sample_data/sample.zip"
+            },
+            {
+              "key": "OutputLanguage",
+              "type": "text",
+              "value": "el"
             }
           ]
         },

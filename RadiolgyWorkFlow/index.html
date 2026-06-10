@@ -1,0 +1,628 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Radiology Workflow Test UI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: #0f1b33;
+        --panel2: #0b162b;
+        --text: #eaf0ff;
+        --muted: #b8c2e6;
+        --border: rgba(255,255,255,0.10);
+        --ok: #2dd4bf;
+        --bad: #fb7185;
+        --warn: #fbbf24;
+        --btn: #1f2f55;
+        --btn2: #253a6d;
+        --shadow: 0 18px 60px rgba(0,0,0,0.45);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      body { background: radial-gradient(1200px 700px at 20% 10%, #1c2a55 0%, var(--bg) 55%); color: var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
+      .wrap { max-width: 1200px; margin: 0 auto; padding: 26px 18px 48px; }
+      h1 { margin: 0; font-size: 22px; letter-spacing: 0.3px; }
+      .top { display:flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+      .muted { color: var(--muted); }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+      @media (max-width: 980px) { .row { grid-template-columns: 1fr; } }
+      .card { background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border: 1px solid var(--border); border-radius: 14px; padding: 14px; box-shadow: var(--shadow); }
+      .card h3 { margin: 0 0 10px; font-size: 15px; }
+      .actions { display:flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+      button { background: var(--btn); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; cursor: pointer; font-weight: 600; }
+      button:hover { background: var(--btn2); }
+      button:disabled { opacity: 0.55; cursor: not-allowed; }
+      .pill { display:inline-flex; align-items:center; gap:8px; border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; font-size: 12px; color: var(--muted); background: rgba(255,255,255,0.03); }
+      .dot { width: 9px; height: 9px; border-radius: 999px; background: var(--warn); }
+      .dot.ok { background: var(--ok); }
+      .dot.bad { background: var(--bad); }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; border-bottom: 1px solid rgba(255,255,255,0.07); padding: 10px 8px; font-size: 13px; vertical-align: top; }
+      th { color: var(--muted); font-weight: 700; }
+      code { font-family: var(--mono); font-size: 12px; padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); }
+      pre { font-family: var(--mono); font-size: 12px; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 12px; overflow: auto; max-height: 420px; }
+      label { font-size: 12px; color: var(--muted); display: block; margin-top: 10px; margin-bottom: 6px; }
+      input[type="text"], textarea, select, input[type="file"] { width: 100%; padding: 10px 10px; border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; background: rgba(255,255,255,0.04); color: var(--text); }
+      textarea { min-height: 84px; resize: vertical; }
+      .grid3 { display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+      @media (max-width: 980px) { .grid3 { grid-template-columns: 1fr; } }
+      .banner { display:none; border-radius: 14px; border: 1px solid rgba(255,255,255,0.12); padding: 10px 12px; margin-bottom: 12px; }
+      .banner.warn { display:block; background: rgba(251,191,36,0.12); border-color: rgba(251,191,36,0.30); }
+      .banner.bad { display:block; background: rgba(251,113,133,0.12); border-color: rgba(251,113,133,0.30); }
+      .banner.ok { display:block; background: rgba(45,212,191,0.10); border-color: rgba(45,212,191,0.25); }
+      .tabs { display:flex; gap:8px; flex-wrap: wrap; margin-bottom: 10px; }
+      .tab { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); padding: 8px 10px; border-radius: 10px; font-weight: 700; font-size: 12px; cursor: pointer; }
+      .tab.active { background: rgba(45,212,191,0.12); border-color: rgba(45,212,191,0.35); }
+      .kvs { display:grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      @media (max-width: 980px) { .kvs { grid-template-columns: 1fr; } }
+      .kv { border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); border-radius: 14px; padding: 10px; min-width: 0; }
+      .kv .k { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+      .kv .v { font-weight: 800; }
+      pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+      .footer { margin-top: 14px; color: var(--muted); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <div>
+          <h1>Radiology Workflow Test UI</h1>
+          <div class="muted">Upload a <code>.dcm</code> or <code>.zip</code>, run the full pipeline, then approve/save the draft.</div>
+        </div>
+        <div class="pill"><span id="overallDot" class="dot"></span><span id="overallText">Services unknown</span></div>
+      </div>
+
+      <div class="row" style="margin-top: 14px;">
+        <div class="card">
+          <h3>Services</h3>
+          <div class="actions">
+            <button onclick="refreshStatus()">Refresh status</button>
+            <button onclick="startAll()">Start missing</button>
+            <button onclick="stopAll()">Stop started</button>
+            <span class="pill" title="If enabled, the UI will call Start missing before Run">
+              <input id="autoStart" type="checkbox" style="width:auto; margin:0;" checked />
+              <span>Auto-start missing</span>
+            </span>
+          </div>
+          <table>
+            <thead><tr><th>Service</th><th>Status</th><th>Health</th></tr></thead>
+            <tbody id="svcBody"></tbody>
+          </table>
+          <div class="footer">Tip: if you run n8n in Docker, replace <code>localhost</code> with <code>host.docker.internal</code> in the workflows.</div>
+        </div>
+
+        <div class="card">
+          <h3>Run pipeline</h3>
+          <div id="runBanner" class="banner"></div>
+          <form id="runForm">
+            <label>DICOM input (.dcm or .zip)</label>
+            <input id="dicomFile" type="file" name="dicom_file" accept=".zip,.dcm,.dicom" required />
+            <input type="hidden" name="view_position" id="view_position" value="" />
+
+            <label>Doctor notes</label>
+            <textarea name="doctor_notes">Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.</textarea>
+
+            <label>Radiologist notes</label>
+            <textarea name="radiologist_notes">PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.</textarea>
+
+            <div class="row">
+              <div style="flex:1;">
+                <label>Exam type <span class="pill" id="badge_exam_type" style="display:none;">Auto-filled from DICOM</span></label>
+                <input id="examType" type="text" name="exam_type" value="Chest X-ray 2 Views" />
+              </div>
+              <div style="flex:1;">
+                <label>Patient ID <span class="pill" id="badge_patient_id" style="display:none;">Auto-filled from DICOM</span></label>
+                <input id="patientId" type="text" name="patient_id" value="LIDC-IDRI-0001" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div style="flex:1;">
+                <label>Accession Number</label>
+                <input id="accessionNumber" type="text" name="accession_number" value="ACC-10008" required />
+              </div>
+              <div style="flex:1;">
+                <label>Patient Name</label>
+                <input id="patientName" type="text" name="patient_name" value="John Doe" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div style="flex:1;">
+                <label>Order ID</label>
+                <input id="orderId" type="text" name="order_id" value="ORD-001" />
+              </div>
+              <div style="flex:1;">
+                <label>Gender</label>
+                <input id="gender" type="text" name="gender" value="Male" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div style="flex:1;">
+                <label>Order Date (ISO datetime)</label>
+                <input id="orderDate" type="text" name="order_date" value="2026-06-04T00:00:00" />
+              </div>
+              <div style="flex:1;">
+                <label>Date of Birth (ISO datetime)</label>
+                <input id="dateOfBirth" type="text" name="date_of_birth" value="1980-01-15T00:00:00" />
+              </div>
+            </div>
+
+            <label>National ID</label>
+            <input id="nationalId" type="text" name="national_id" value="123456789" />
+
+            <div class="grid3">
+              <div>
+                <label>Modality <span class="pill" id="badge_modality" style="display:none;">Auto-filled from DICOM</span></label>
+                <select id="modality" name="modality">
+                  <option value="CR" selected>CR</option>
+                  <option value="DX">DX</option>
+                  <option value="CT">CT</option>
+                </select>
+              </div>
+              <div>
+                <label>Body part <span class="pill" id="badge_body_part" style="display:none;">Auto-filled from DICOM</span></label>
+                <input id="bodyPart" type="text" name="body_part" value="CHEST" />
+              </div>
+              <div>
+                <label>Study date (YYYYMMDD) <span class="pill" id="badge_study_date" style="display:none;">Auto-filled from DICOM</span></label>
+                <input id="studyDate" type="text" name="study_date" value="20260604" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div style="flex:1;">
+                <label>Output language</label>
+                <select id="OutputLanguage" name="OutputLanguage">
+                  <option value="el" selected>Greek</option>
+                  <option value="en">English</option>
+                  <option value="ar">Arabic</option>
+                </select>
+              </div>
+              <div style="flex:1;"></div>
+            </div>
+
+            <div class="actions" style="margin-top: 12px;">
+              <button id="runBtn" type="submit">Run</button>
+              <button type="button" onclick="clearResults()">Clear</button>
+              <button id="approveBtn" type="button" onclick="approveDraft()" disabled>Approve &amp; Save draft</button>
+              <button id="copyBtn" type="button" onclick="copyReport()" disabled>Copy report</button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 14px;">
+        <h3>Output</h3>
+        <div class="tabs">
+          <div class="tab active" id="tabSummary" onclick="selectTab('summary')">Summary</div>
+          <div class="tab" id="tabReport" onclick="selectTab('report')">Report draft</div>
+          <div class="tab" id="tabDelivery" onclick="selectTab('delivery')">Delivery</div>
+          <div class="tab" id="tabStages" onclick="selectTab('stages')">Stages</div>
+          <div class="tab" id="tabJson" onclick="selectTab('json')">Full JSON</div>
+        </div>
+
+        <div id="panelSummary">
+          <div class="kvs">
+            <div class="kv"><div class="k">QA status</div><div id="sumQc" class="v">-</div></div>
+            <div class="kv"><div class="k">Report ID</div><div id="sumReportId" class="v">-</div></div>
+            <div class="kv"><div class="k">Physician</div><div id="sumPhysician" class="v">-</div></div>
+            <div class="kv"><div class="k">Template</div><div id="sumTemplate" class="v">-</div></div>
+          </div>
+        </div>
+
+        <div id="panelReport" style="display:none;">
+          <pre id="reportText">(run the pipeline)</pre>
+        </div>
+
+        <div id="panelDelivery" style="display:none;">
+          <div class="kv" style="margin-bottom: 10px;">
+            <div class="k">Email subject (preview)</div>
+            <div id="deliverySubject" class="v">-</div>
+          </div>
+          <pre id="deliveryBody">(run the pipeline)</pre>
+        </div>
+
+        <div id="panelStages" style="display:none;">
+          <div class="kvs">
+            <div class="kv">
+              <div class="k">Stage 1 - Image QA</div>
+              <pre id="stage1">(run the pipeline)</pre>
+            </div>
+            <div class="kv">
+              <div class="k">Stage 2 - AI Interpretation</div>
+              <pre id="stage2">(run the pipeline)</pre>
+            </div>
+            <div class="kv">
+              <div class="k">Stage 3 - Final Report Filling</div>
+              <pre id="stage3">(run the pipeline)</pre>
+            </div>
+            <div class="kv">
+              <div class="k">Stage 4 - Legacy Matching (skipped)</div>
+              <pre id="stage4">(run the pipeline)</pre>
+            </div>
+            <div class="kv">
+              <div class="k">Stage 5 - Legacy Autofill (skipped)</div>
+              <pre id="stage5">(run the pipeline)</pre>
+            </div>
+          </div>
+        </div>
+
+        <div id="panelJson" style="display:none;">
+          <pre id="result">(run the pipeline)</pre>
+        </div>
+      </div>
+
+    </div>
+
+    <script>
+      let lastResult = null;
+      let currentJobId = null;
+      let es = null;
+
+      function setBanner(kind, text) {
+        const el = document.getElementById('runBanner');
+        el.className = 'banner ' + kind;
+        el.textContent = text;
+      }
+
+      function clearBanner() {
+        const el = document.getElementById('runBanner');
+        el.className = 'banner';
+        el.textContent = '';
+      }
+
+      function clearResults() {
+        lastResult = null;
+        currentJobId = null;
+        if (es) { try { es.close(); } catch {} es = null; }
+        document.getElementById('approveBtn').disabled = true;
+        document.getElementById('copyBtn').disabled = true;
+        document.getElementById('result').textContent = '(run the pipeline)';
+        document.getElementById('reportText').textContent = '(run the pipeline)';
+        document.getElementById('deliverySubject').textContent = '-';
+        document.getElementById('deliveryBody').textContent = '(run the pipeline)';
+        document.getElementById('stage1').textContent = '(run the pipeline)';
+        document.getElementById('stage2').textContent = '(run the pipeline)';
+        document.getElementById('stage3').textContent = '(run the pipeline)';
+        document.getElementById('stage4').textContent = '(run the pipeline)';
+        document.getElementById('stage5').textContent = '(run the pipeline)';
+        document.getElementById('sumQc').textContent = '-';
+        document.getElementById('sumReportId').textContent = '-';
+        document.getElementById('sumPhysician').textContent = '-';
+        document.getElementById('sumTemplate').textContent = '-';
+        clearBanner();
+      }
+
+      function selectTab(which) {
+        const tabs = ['summary','report','delivery','stages','json'];
+        for (const t of tabs) {
+          document.getElementById('tab' + t[0].toUpperCase() + t.slice(1)).classList.toggle('active', t === which);
+          document.getElementById('panel' + t[0].toUpperCase() + t.slice(1)).style.display = (t === which) ? '' : 'none';
+        }
+      }
+
+      function stagePretty(stageObj) {
+        if (!stageObj) return '(not executed)';
+        return JSON.stringify(stageObj, null, 2);
+      }
+
+      function markUserEdited(el) {
+        if (!el) return;
+        el.dataset.userEdited = '1';
+      }
+
+      function showBadge(id) {
+        const b = document.getElementById(id);
+        if (b) b.style.display = '';
+      }
+
+      function maybeSetField(el, badgeId, value) {
+        if (!el) return;
+        const v = (value ?? '').toString();
+        if (!v) return;
+        if (el.dataset.userEdited === '1') return;
+        // Allow overwrite of initial defaults if the user hasn't edited.
+        el.value = v;
+        showBadge(badgeId);
+      }
+
+      function maybeSetSelect(el, badgeId, value) {
+        if (!el) return;
+        const v = (value ?? '').toString();
+        if (!v) return;
+        if (el.dataset.userEdited === '1') return;
+        el.value = v;
+        showBadge(badgeId);
+      }
+
+      function startStreaming(jobId) {
+        currentJobId = jobId;
+        const runBtn = document.getElementById('runBtn');
+
+        if (es) { try { es.close(); } catch {} }
+        es = new EventSource(`/api/jobs/${currentJobId}/events`);
+
+        es.addEventListener('services', (ev) => {
+          try {
+            const data = JSON.parse(ev.data);
+            const body = document.getElementById('svcBody');
+            body.innerHTML = '';
+            let okCount = 0;
+            for (const s of data.services) {
+              const tr = document.createElement('tr');
+              const status = s.running ? '<span class="ok">OK</span>' : '<span class="bad">DOWN</span>';
+              if (s.running) okCount += 1;
+              tr.innerHTML = `<td>${s.name}</td><td>${status}</td><td><code>${s.health_url}</code></td>`;
+              body.appendChild(tr);
+            }
+            const dot = document.getElementById('overallDot');
+            const text = document.getElementById('overallText');
+            if (okCount === data.services.length) {
+              dot.className = 'dot ok';
+              text.textContent = 'All services up';
+            } else if (okCount === 0) {
+              dot.className = 'dot bad';
+              text.textContent = 'All services down';
+            } else {
+              dot.className = 'dot';
+              text.textContent = `${okCount}/${data.services.length} services up`;
+            }
+          } catch {}
+        });
+
+        es.addEventListener('job_status', (ev) => {
+          try {
+            const data = JSON.parse(ev.data);
+            if (data.status === 'running') setBanner('warn', data.message || 'Running...');
+            if (data.status === 'failed') setBanner('bad', data.message || 'Failed');
+          } catch {}
+        });
+
+        es.addEventListener('stage_start', (ev) => {
+          try {
+            const s = JSON.parse(ev.data);
+            setBanner('warn', `Stage ${s.stage} started: ${s.name}`);
+            const stageEl = document.getElementById('stage' + s.stage);
+            if (stageEl) stageEl.textContent = 'Running...';
+            selectTab('stages');
+          } catch {}
+        });
+
+        es.addEventListener('stage_result', (ev) => {
+          try {
+            const s = JSON.parse(ev.data);
+            const stageNum = s.stage;
+            const res = s.result;
+            document.getElementById('stage' + stageNum).textContent = stagePretty(res);
+
+            if (stageNum === 1) {
+              const qc = res?.response?.qc_status ?? '-';
+              document.getElementById('sumQc').textContent = qc;
+            }
+            if (stageNum === 3) {
+              const template = res?.response?.TEMPLATE_NAME ?? '-';
+              const reportId = res?.response?.ID ?? '-';
+              const physician = res?.response?.Physician ?? '-';
+              document.getElementById('sumTemplate').textContent = template;
+              document.getElementById('sumReportId').textContent = reportId;
+              document.getElementById('sumPhysician').textContent = physician;
+            }
+          } catch {}
+        });
+
+        es.addEventListener('result', (ev) => {
+          runBtn.disabled = false;
+          try {
+            const data = JSON.parse(ev.data);
+            lastResult = data;
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            // Ensure stage panels reflect what actually executed.
+            const stageMap = [
+              ['stage1', data?.stage_1_image_qa],
+              ['stage2', data?.stage_2_ai_interpretation],
+              ['stage3', data?.stage_3_report_filling],
+              ['stage4', data?.stage_4_analysis_matching],
+              ['stage5', data?.stage_5_template_autofill],
+            ];
+            for (const [id, obj] of stageMap) {
+              const el = document.getElementById(id);
+              if (el) el.textContent = stagePretty(obj);
+            }
+
+            const qc = data?.stage_1_image_qa?.response?.qc_status ?? '-';
+            const reportId = data?.summary?.ID ?? '-';
+            const physician = data?.summary?.Physician ?? '-';
+            const template = data?.summary?.TEMPLATE_NAME || data?.stage_3_report_filling?.response?.TEMPLATE_NAME || '-';
+            document.getElementById('sumQc').textContent = qc;
+            document.getElementById('sumReportId').textContent = reportId;
+            document.getElementById('sumPhysician').textContent = physician;
+            document.getElementById('sumTemplate').textContent = template;
+
+            const report = data?.summary?.TEMPLATE_TEXT || '(no template text returned)';
+            document.getElementById('reportText').textContent = report;
+            document.getElementById('copyBtn').disabled = false;
+            document.getElementById('deliverySubject').textContent = data?.delivery_preview?.subject || '-';
+            document.getElementById('deliveryBody').textContent = data?.delivery_preview?.body || '(no preview)';
+
+            if (data?.workflow?.continued_after_stage_1 === true) {
+              const qcStatus = (data?.workflow?.qc_status ?? 'unknown').toString();
+              document.getElementById('approveBtn').disabled = false;
+              setBanner('warn', `QA status ${qcStatus}. The workflow still continued to later stages.`);
+            } else {
+              setBanner('ok', 'Draft ready. Review the report and click Approve & Save.');
+              document.getElementById('approveBtn').disabled = false;
+            }
+
+            selectTab('summary');
+          } catch (e2) {
+            setBanner('bad', 'Bad result: ' + String(e2));
+          } finally {
+            if (es) { try { es.close(); } catch {} es = null; }
+          }
+        });
+
+        es.addEventListener('error', () => {
+          runBtn.disabled = false;
+          setBanner('bad', 'Stream error. Check server console.');
+          if (es) { try { es.close(); } catch {} es = null; }
+        });
+      }
+
+      async function refreshStatus() {
+        const r = await fetch('/api/status');
+        const data = await r.json();
+        const body = document.getElementById('svcBody');
+        body.innerHTML = '';
+        let okCount = 0;
+        for (const s of data.services) {
+          const tr = document.createElement('tr');
+          const status = s.running ? '<span class="ok">OK</span>' : '<span class="bad">DOWN</span>';
+          if (s.running) okCount += 1;
+          tr.innerHTML = `<td>${s.name}</td><td>${status}</td><td><code>${s.health_url}</code></td>`;
+          body.appendChild(tr);
+        }
+
+        const dot = document.getElementById('overallDot');
+        const text = document.getElementById('overallText');
+        if (okCount === data.services.length) {
+          dot.className = 'dot ok';
+          text.textContent = 'All services up';
+        } else if (okCount === 0) {
+          dot.className = 'dot bad';
+          text.textContent = 'All services down';
+        } else {
+          dot.className = 'dot';
+          text.textContent = `${okCount}/${data.services.length} services up`;
+        }
+      }
+
+      async function startAll() {
+        await fetch('/api/start-missing', { method: 'POST' });
+        await refreshStatus();
+      }
+
+      async function stopAll() {
+        await fetch('/api/stop-all', { method: 'POST' });
+        await refreshStatus();
+      }
+
+      document.getElementById('runForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearBanner();
+        const runBtn = document.getElementById('runBtn');
+        runBtn.disabled = true;
+        document.getElementById('approveBtn').disabled = true;
+        document.getElementById('result').textContent = 'Running...';
+        document.getElementById('reportText').textContent = 'Running...';
+        document.getElementById('deliverySubject').textContent = 'Running...';
+        document.getElementById('deliveryBody').textContent = 'Running...';
+        document.getElementById('stage1').textContent = 'Running...';
+        document.getElementById('stage2').textContent = 'Running...';
+        document.getElementById('stage3').textContent = 'Running...';
+        document.getElementById('stage4').textContent = 'Running...';
+        document.getElementById('stage5').textContent = 'Running...';
+
+        if (document.getElementById('autoStart').checked) {
+          await startAll();
+        }
+
+        const form = new FormData(e.target);
+        // Create a job, then stream progress via SSE.
+        const create = await fetch('/api/jobs', { method: 'POST', body: form });
+        let createData = null;
+        try { createData = await create.json(); } catch {}
+        if (!create.ok) {
+          runBtn.disabled = false;
+          setBanner('bad', 'Error creating job: ' + JSON.stringify(createData));
+          return;
+        }
+        startStreaming(createData.job_id);
+      });
+
+      // Auto-populate from DICOM on file select.
+      (function initAutoPopulate() {
+        const fileEl = document.getElementById('dicomFile');
+        const patientIdEl = document.getElementById('patientId');
+        const modalityEl = document.getElementById('modality');
+        const bodyPartEl = document.getElementById('bodyPart');
+        const studyDateEl = document.getElementById('studyDate');
+        const examTypeEl = document.getElementById('examType');
+
+        // Track manual edits so auto-fill doesn't overwrite.
+        for (const el of [patientIdEl, modalityEl, bodyPartEl, studyDateEl, examTypeEl]) {
+          if (!el) continue;
+          el.addEventListener('input', () => markUserEdited(el));
+          el.addEventListener('change', () => markUserEdited(el));
+        }
+
+        fileEl?.addEventListener('change', async () => {
+          const f = fileEl.files?.[0];
+          if (!f) return;
+
+          const fd = new FormData();
+          fd.append('dicom_file', f);
+
+          try {
+            const r = await fetch('/api/parse-dicom', { method: 'POST', body: fd });
+            const data = await r.json();
+            if (!r.ok) {
+              setBanner('warn', 'Auto-fill failed: ' + (data?.detail || JSON.stringify(data)));
+              return;
+            }
+
+            maybeSetField(patientIdEl, 'badge_patient_id', data.patient_id);
+            maybeSetSelect(modalityEl, 'badge_modality', data.modality);
+            maybeSetField(bodyPartEl, 'badge_body_part', data.body_part);
+            maybeSetField(studyDateEl, 'badge_study_date', data.study_date);
+            maybeSetField(examTypeEl, 'badge_exam_type', data.exam_type);
+
+            // Do not alter workflow behavior; only show a banner if we inferred ViewPosition.
+            if (data.view_position_inferred === true) {
+              setBanner('warn', 'ViewPosition was missing; inferred from SeriesDescription for QA.');
+            }
+            const vpEl = document.getElementById('view_position');
+            if (vpEl && (data.view_position || data.view_position_inferred)) {
+              vpEl.value = data.view_position || '';
+            }
+          } catch (e) {
+            setBanner('warn', 'Auto-fill error: ' + String(e));
+          }
+        });
+      })();
+
+      async function approveDraft() {
+        if (!lastResult) return;
+        const btn = document.getElementById('approveBtn');
+        btn.disabled = true;
+        setBanner('warn', 'Saving...');
+        const r = await fetch('/api/save-draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(lastResult),
+        });
+        const data = await r.json();
+        if (!r.ok) {
+          setBanner('bad', 'Save failed: ' + JSON.stringify(data));
+          btn.disabled = false;
+          return;
+        }
+        setBanner('ok', 'Saved: ' + data.saved_to);
+      }
+
+      async function copyReport() {
+        const report = document.getElementById('reportText').textContent || '';
+        try {
+          await navigator.clipboard.writeText(report);
+          setBanner('ok', 'Report copied to clipboard.');
+        } catch {
+          setBanner('warn', 'Copy failed (clipboard blocked). Select text from the Report tab and copy manually.');
+        }
+      }
+
+      refreshStatus();
+    </script>
+  </body>
+</html>

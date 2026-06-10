@@ -5,14 +5,14 @@ services:
     build: .
     container_name: sepsis-sentinel
     ports:
-      - "8016:8016"
+      - "8023:8023"
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.2}
       - OPENAI_TIMEOUT=${OPENAI_TIMEOUT:-120}
       - API_HOST=0.0.0.0
-      - API_PORT=8016
+      - API_PORT=8023
       - API_RELOAD=false
     env_file:
       - .env
@@ -20,7 +20,7 @@ services:
       - ./proper_output:/app/proper_output
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8016/api/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8023/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3

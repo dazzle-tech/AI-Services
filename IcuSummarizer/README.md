@@ -81,7 +81,7 @@ Or with uvicorn directly:
 uvicorn main:app --reload
 ```
 
-The API will be available at `http://127.0.0.1:8000`
+The API will be available at `http://127.0.0.1:8013`
 
 ### Production Mode
 
@@ -91,7 +91,7 @@ python main.py
 
 Or with uvicorn:
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8013
 ```
 
 ## API Endpoints
@@ -201,7 +201,7 @@ Content-Type: application/json
 
 ### Generate Summary
 ```bash
-curl -X POST http://localhost:8000/v1/summaries \
+curl -X POST http://localhost:8013/v1/summaries \
   -H "Content-Type: application/json" \
   -H "X-Request-ID: test-123" \
   -d @sample_request.json \
@@ -210,7 +210,7 @@ curl -X POST http://localhost:8000/v1/summaries \
 
 ### Generate Presentation
 ```bash
-curl -X POST http://localhost:8000/v1/presentations \
+curl -X POST http://localhost:8013/v1/presentations \
   -H "Content-Type: application/json" \
   -d @sample_request.json \
   -o handoff_presentation.pptx

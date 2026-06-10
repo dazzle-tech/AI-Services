@@ -190,3 +190,31 @@ def test_overexposed_image_warning() -> None:
         assert res["issue_type"] == IssueType.POOR_EXPOSURE
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
+
+
+def test_xray_qc_human_readable_fields_localize_to_greek() -> None:
+    workdir = _make_workdir()
+    try:
+        arr = np.full((128, 128), 30000, dtype=np.uint16)
+        fp1 = _write_dicom(workdir / "pa.dcm", view_position="PA", pixel_array=arr)
+        fp2 = _write_dicom(workdir / "ap.dcm", view_position="AP", pixel_array=arr)
+
+        res = evaluate_xray_qc(
+            metadata={
+                "modality": "DX",
+                "study_description": "CHEST (2 VIEWS)",
+                "series_description": "PA",
+                "protocol_name": "CHEST 2V",
+                "body_part_examined": "CHEST",
+                "study_instance_uid": "1.2.3",
+                "view_position": "PA",
+            },
+            dicom_files=[fp1, fp2],
+            output_language="el",
+        )
+
+        assert "Επαναλάβετε" in res["recommended_action"]
+        assert "ΑΠΟΤΥΧΙΑ QC" in res["explanation"]
+        assert "Μόνο για ερευνητική" in res["disclaimer"]
+    finally:
+        shutil.rmtree(workdir, ignore_errors=True)

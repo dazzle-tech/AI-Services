@@ -49,6 +49,7 @@ def test_qc_dicom_accepts_zip_and_returns_review_required_for_unknown_protocol(
     assert payload["qc_status"] == "REVIEW_REQUIRED"
     assert payload["human_review_required"] is True
     assert payload["disclaimer"]
+    assert "OutputLanguage" not in payload
 
 
 def test_qc_dicom_ct_ap_happy_path_pass_with_stubbed_pipeline(
@@ -118,6 +119,7 @@ def test_qc_dicom_ct_ap_happy_path_pass_with_stubbed_pipeline(
     assert payload["issue_type"] == "NO_ISSUE"
     assert payload["details"]["source"] == "totalsegmentator_masks"
     assert "QC REVIEW REQUIRED" not in payload["explanation"]
+    assert "OutputLanguage" not in payload
 
 
 def test_qc_dicom_ct_abdomen_notes_filtered(
@@ -253,3 +255,89 @@ def test_qc_xray_accepts_single_dicom_file_upload_and_runs_qc(client: TestClient
     assert payload["exam_type"] == "XR_CHEST_PA"
     assert payload["qc_status"] == "PASS"
     assert payload["issue_type"] == "NO_ISSUE"
+    assert "OutputLanguage" not in payload
+
+
+def test_qc_ct_endpoint_accepts_output_language_form_field(client: TestClient) -> None:
+    zip_bytes = _make_zip_bytes({"study/0001.dcm": b"NOT_A_REAL_DICOM"})
+
+    resp = client.post(
+        "/api/v1/qc/ct/dicom",
+        files={"file": ("study.zip", zip_bytes, "application/zip")},
+        data={"OutputLanguage": "el", "use_gpt_report": "false"},
+    )
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert "OutputLanguage" not in payload
+
+
+def test_qc_xray_endpoint_accepts_output_language_form_field(client: TestClient) -> None:
+    import datetime as _dt
+    import numpy as np
+    import pydicom
+    from pydicom.dataset import FileDataset, FileMetaDataset
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+    file_meta = FileMetaDataset()
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds = FileDataset(None, {}, file_meta=file_meta, preamble=b"\0" * 128)
+    ds.is_little_endian = True
+    ds.is_implicit_VR = False
+    ds.SOPClassUID = generate_uid()
+    ds.SOPInstanceUID = generate_uid()
+    file_meta.MediaStorageSOPClassUID = ds.SOPClassUID
+    file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
+    file_meta.ImplementationClassUID = generate_uid()
+    ds.StudyInstanceUID = generate_uid()
+    ds.SeriesInstanceUID = generate_uid()
+    ds.Modality = "DX"
+    ds.BodyPartExamined = "CHEST"
+    ds.ViewPosition = "PA"
+    ds.StudyDescription = "CHEST"
+    ds.SeriesDescription = "PA"
+    ds.PatientName = "TEST"
+    ds.PatientID = "TEST"
+    ds.StudyDate = _dt.datetime.now().strftime("%Y%m%d")
+    arr = np.full((64, 64), 30000, dtype=np.uint16)
+    ds.Rows = 64
+    ds.Columns = 64
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.PixelData = arr.tobytes()
+    buf = io.BytesIO()
+    pydicom.dcmwrite(buf, ds, write_like_original=False)
+
+    resp = client.post(
+        "/api/v1/qc/xray/dicom",
+        files={"file": ("image.dcm", buf.getvalue(), "application/dicom")},
+        data={"OutputLanguage": "el"},
+    )
+
+    assert resp.status_code == 200
+    payload = resp.json()
+    assert "OutputLanguage" not in payload
+
+
+def test_explain_report_accepts_output_language_and_returns_greek(client: TestClient) -> None:
+    payload = {
+        "qc_result": {
+            "qc_status": "FAIL",
+            "missing_region": "LOWER_PELVIS",
+            "required_landmark_not_seen": "PUBIC_SYMPHYSIS",
+            "recommended_action": "No action required.",
+        },
+        "style": "technologist_alert",
+        "OutputLanguage": "el",
+    }
+
+    resp = client.post("/api/v1/report/explain", json=payload)
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "OutputLanguage" not in body
+    assert "ΑΠΟΤΥΧΙΑ QC" in body["explanation"]

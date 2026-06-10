@@ -7,7 +7,7 @@ Use this JSON payload to test the `/v1/summaries` endpoint:
 ### Using Postman:
 
 1. **Method:** `POST`
-2. **URL:** `http://127.0.0.1:8000/v1/summaries` (or `http://127.0.0.1:8001/v1/summaries` if port 8000 is busy)
+2. **URL:** `http://127.0.0.1:8013/v1/summaries` (or `http://127.0.0.1:8021/v1/summaries` if port 8013 is busy)
 3. **Headers:**
    - `Content-Type: application/json`
    - `X-Request-ID: test-123` (optional)
@@ -130,7 +130,7 @@ Use this JSON payload to test the `/v1/summaries` endpoint:
 ### Using cURL (PowerShell):
 
 ```powershell
-curl -X POST http://127.0.0.1:8000/v1/summaries `
+curl -X POST http://127.0.0.1:8013/v1/summaries `
   -H "Content-Type: application/json" `
   -H "X-Request-ID: test-123" `
   -d @test_sample_request.json
@@ -173,7 +173,7 @@ $body = @'
 }
 '@
 
-Invoke-RestMethod -Uri http://127.0.0.1:8000/v1/summaries -Method POST -Body $body -ContentType "application/json"
+Invoke-RestMethod -Uri http://127.0.0.1:8013/v1/summaries -Method POST -Body $body -ContentType "application/json"
 ```
 
 ### Expected Response:

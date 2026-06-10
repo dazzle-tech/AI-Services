@@ -1,0 +1,52 @@
+{
+  "template_id": "us_abdomen_pt",
+  "name": "Ecografia abdominal",
+  "modality": "US",
+  "body_region": "Abdomen",
+  "description": "Portuguese abdominal ultrasound template with organ-by-organ normal findings and structured conclusion.",
+  "keywords": ["ecografia", "abdominal", "ultrasound", "fígado", "vesícula", "rins", "baço", "bexiga"],
+  "fields": [
+    {
+      "name": "findings_liver",
+      "label": "Fígado",
+      "description": "Liver size, echotexture, lesions, intrahepatic bile ducts.",
+      "required": true
+    },
+    {
+      "name": "findings_gallbladder",
+      "label": "Vesícula B",
+      "description": "Gallbladder wall, content, stones.",
+      "required": true
+    },
+    {
+      "name": "findings_pancreas",
+      "label": "Pâncreas",
+      "description": "Pancreas morphology and main duct.",
+      "required": true
+    },
+    {
+      "name": "findings_kidneys",
+      "label": "Rins",
+      "description": "Kidney morphology, corticomedullary differentiation, hydronephrosis, stones.",
+      "required": true
+    },
+    {
+      "name": "findings_spleen",
+      "label": "Baço",
+      "description": "Spleen morphology and echogenicity.",
+      "required": false
+    },
+    {
+      "name": "findings_bladder",
+      "label": "Bexiga urinária",
+      "description": "Bladder morphology, wall, content, ureteral jets.",
+      "required": false
+    },
+    {
+      "name": "impression",
+      "label": "Conclusão",
+      "description": "Overall impression in Portuguese radiology style.",
+      "required": true
+    }
+  ]
+}

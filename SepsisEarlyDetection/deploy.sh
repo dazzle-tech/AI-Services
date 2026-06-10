@@ -56,7 +56,7 @@ User=root
 WorkingDirectory=$APP_DIR
 Environment="PATH=$APP_DIR/venv/bin"
 EnvironmentFile=$APP_DIR/.env
-ExecStart=$APP_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8016
+ExecStart=$APP_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8023
 Restart=always
 RestartSec=10
 
@@ -86,4 +86,4 @@ echo "4. Set up SSL with certbot (if you have a domain)"
 echo ""
 echo "Check service status: systemctl status sepsis-sentinel"
 echo "View logs: journalctl -u sepsis-sentinel -f"
-echo "Test health: curl http://localhost:8016/api/v1/health"
+echo "Test health: curl http://localhost:8023/api/v1/health"

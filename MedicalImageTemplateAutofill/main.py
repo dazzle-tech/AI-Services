@@ -55,6 +55,7 @@ selector = RAGTemplateSelector(
     embedding_model=config.EMBEDDING_MODEL,
 )
 autofill_service = AutofillService(
+    repository=repository,
     openai_api_key=config.OPENAI_API_KEY,
     model=config.OPENAI_MODEL,
     temperature=config.OPENAI_TEMPERATURE,
@@ -161,12 +162,12 @@ async def select_template(req: SelectTemplateRequest):
             request_id=request_id,
             selection_method=SelectionMethod.STATIC,
             selected_template_id=template.template_id,
-            selected_template_name=template.name,
+            selected_template_name=repository.get_localized_template_name(template, req.OutputLanguage),
             intent_profile=None,
             candidates=[
                 TemplateCandidate(
                     template_id=template.template_id,
-                    name=template.name,
+                    name=repository.get_localized_template_name(template, req.OutputLanguage),
                     modality=template.modality,
                     body_region=template.body_region,
                     score=1.0,
@@ -174,16 +175,29 @@ async def select_template(req: SelectTemplateRequest):
             ],
         )
 
-    candidates = selector.select(req.input_data, top_k=req.top_k)
+    try:
+        candidates = selector.select(
+            req.input_data,
+            top_k=req.top_k,
+            patient_context=(getattr(req, "patient_context", None) or {}),
+            output_language=req.OutputLanguage,
+        )
+    except TypeError:
+        candidates = selector.select(req.input_data, top_k=req.top_k, output_language=req.OutputLanguage)
     if not candidates:
         raise HTTPException(status_code=500, detail="No template candidates returned.")
     best = candidates[0]
+    best_template = repository.get(best.template_id)
 
     return SelectTemplateResponse(
         request_id=request_id,
         selection_method=SelectionMethod.RAG,
         selected_template_id=best.template_id,
-        selected_template_name=best.name,
+        selected_template_name=(
+            repository.get_localized_template_name(best_template, req.OutputLanguage)
+            if best_template is not None
+            else best.name
+        ),
         intent_profile=selector.derive_intent_profile(req.input_data),
         candidates=candidates,
     )
@@ -202,6 +216,7 @@ async def autofill(req: AutofillRequest):
         input_data=req.input_data,
         request_id=req.request_id or f"req-{uuid.uuid4().hex[:8]}",
         patient_context=req.patient_context,
+        output_language=req.OutputLanguage,
     )
 
 
@@ -218,6 +233,8 @@ async def select_and_fill(req: SelectAndFillRequest):
             use_static_template=req.use_static_template,
             static_template_id=req.static_template_id,
             top_k=req.top_k,
+            patient_context=req.patient_context,
+            OutputLanguage=req.OutputLanguage,
         )
     )
 
@@ -227,10 +244,11 @@ async def select_and_fill(req: SelectAndFillRequest):
             template_id=selection.selected_template_id,
             input_data=req.input_data,
             patient_context=req.patient_context,
+            OutputLanguage=req.OutputLanguage,
         )
     )
 
-    return SelectAndFillResponse(request_id=request_id, selection=selection, autofill=fill)
+    return SelectAndFillResponse(**fill.model_dump())
 
 
 if __name__ == "__main__":

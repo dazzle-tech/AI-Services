@@ -69,7 +69,7 @@
 
 4. **Or use curl:**
    ```bash
-   curl -X POST http://localhost:8000/v1/summaries \
+   curl -X POST http://localhost:8013/v1/summaries \
      -H "Content-Type: application/json" \
      -H "X-Request-ID: test-123" \
      -d @test_sample_request.json

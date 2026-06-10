@@ -87,6 +87,10 @@ class QCResult(BaseModel):
 class ExplainRequest(BaseModel):
     qc_result: Dict[str, Any]
     style: str = Field(default="technologist_alert")
+    OutputLanguage: str = Field(
+        default="el",
+        description="Language code for generated explanation text. Examples: el, en, ar."
+    )
 
 
 class ExplainResponse(BaseModel):

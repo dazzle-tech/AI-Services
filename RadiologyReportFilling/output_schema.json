@@ -1,116 +1,13 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "MedicalImagingAssistResponse",
-  "type": "object",
-  "required": ["raw_model_output", "safety_normalized_output", "disclaimer"],
-  "properties": {
-    "raw_model_output": {
-      "type": "object",
-      "description": "Unmodified JSON returned by GPT-4o. Preserved for auditability."
-    },
-    "safety_normalized_output": {
-      "type": "object",
-      "required": [
-        "study_metadata",
-        "exam_type",
-        "findings",
-        "confidence",
-        "priority",
-        "warnings",
-        "critical_alert",
-        "rag_grounding"
-      ],
-      "properties": {
-        "study_metadata": {
-          "type": "object",
-          "description": "Key-value pairs extracted from DICOM (PatientID, Modality, BodyPartExamined, ViewPosition, StudyDate, ...)."
-        },
-        "exam_type": {
-          "type": "string",
-          "description": "Human-readable exam type, e.g. 'Chest X-ray PA/Lateral'."
-        },
-        "findings": {
-          "type": "array",
-          "description": "Final reconciled findings actually believed for this study.",
-          "items": {
-            "type": "object",
-            "properties": {
-              "label": {"type": "string"},
-              "location": {"type": ["string", "null"]},
-              "status": {"type": ["string", "null"]},
-              "size_cm": {"type": ["number", "null"]},
-              "source": {
-                "type": "string",
-                "enum": ["doctor", "radiologist", "clinical_report", "ai", "reconciled"]
-              }
-            },
-            "required": ["label", "source"]
-          }
-        },
-        "confidence": {
-          "type": "string",
-          "enum": ["High", "Medium", "Low"],
-          "description": "Qualitative confidence derived from label alignment, NOT a raw LLM probability."
-        },
-        "priority": {
-          "type": "string",
-          "enum": ["Urgent", "Routine"]
-        },
-        "warnings": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["severity", "code", "message"],
-            "properties": {
-              "severity": {"type": "string", "enum": ["info", "high", "critical"]},
-              "code": {"type": "string"},
-              "message": {"type": "string"}
-            }
-          }
-        },
-        "critical_alert": {
-          "type": "boolean",
-          "description": "True if any life-threatening finding or anatomy/metadata mismatch is detected."
-        },
-        "rag_grounding": {
-          "type": "object",
-          "properties": {
-            "icd10_codes": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "code": {"type": "string"},
-                  "term": {"type": "string"},
-                  "matched_phrase": {"type": "string"}
-                }
-              }
-            },
-            "radlex_terms": {
-              "type": "array",
-              "items": {
-                "type": "object",
-                "properties": {
-                  "id": {"type": "string"},
-                  "term": {"type": "string"},
-                  "matched_phrase": {"type": "string"}
-                }
-              }
-            }
-          }
-        },
-        "corrected_doctor_notes": {"type": ["string", "null"]},
-        "corrected_radiologist_notes": {"type": ["string", "null"]},
-        "structured_report": {"type": ["object", "null"]},
-        "spelling_corrections": {"type": ["object", "null"]},
-        "reconciled_findings": {"type": ["array", "null"]},
-        "ai_findings_dropped": {"type": ["array", "null"]},
-        "ai_findings_used_for_enrichment": {"type": ["array", "null"]}
-      }
-    },
-    "disclaimer": {
-      "type": "string",
-      "const": "This output is for assistive purposes only and is not a final diagnosis. Review by a board-certified radiologist is required."
-    }
-  }
+  "ID": 0,
+  "TEMPLATE_NAME": "",
+  "TEMPLATE_TEXT": "",
+  "STATUS_ID": null,
+  "CREATED_BY": null,
+  "CREATION_DATETIME": null,
+  "DELETED_BY": null,
+  "DELETE_DATETIME": null,
+  "UPDATED_BY": null,
+  "UPDATE_DATETIME": null,
+  "Physician": null
 }

@@ -21,7 +21,7 @@ This document outlines the recommended VM specifications needed to deploy all AI
 - **ICU Summarizer**: 8013
 - **Specialist Alert**: 8014
 - **Medical Image Interpretation Assist**: 8015
-- **Sepsis Early Detection**: 8016
+- **Sepsis Early Detection**: 8023
 - **Chatbot Orchestrator API**: 8017
 - **Chatbot UI/Web (if enabled)**: 8080
 
@@ -138,7 +138,7 @@ This document outlines the recommended VM specifications needed to deploy all AI
 | ICU Summarizer | 8013 | Standalone service |
 | Specialist Alert | 8014 | Standalone service |
 | Medical Image Interpretation Assist | 8015 | Standalone service |
-| Sepsis Early Detection | 8016 | Standalone service |
+| Sepsis Early Detection | 8023 | Standalone service |
 | Chatbot Orchestrator API | 8017 | Standalone service |
 | Chatbot UI/Web | 8080 | Optional |
 | Redis | 6379 | Infrastructure |
@@ -156,7 +156,7 @@ New-NetFirewallRule -DisplayName "HTTP" -Direction Inbound -LocalPort 80 -Protoc
 New-NetFirewallRule -DisplayName "HTTPS" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow
 
 # Allow service ports
-New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8000-8017,8080 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8000-8023,8080 -Protocol TCP -Action Allow
 
 # Allow Redis (internal only - restrict to localhost)
 New-NetFirewallRule -DisplayName "Redis" -Direction Inbound -LocalPort 6379 -Protocol TCP -Action Allow -RemoteAddress 127.0.0.1

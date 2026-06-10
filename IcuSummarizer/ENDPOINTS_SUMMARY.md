@@ -8,7 +8,7 @@ The ICU Summarizer API has **2 main endpoints**:
 
 ## 1. Generate Summary
 
-**Endpoint:** `POST http://127.0.0.1:8000/v1/summaries`
+**Endpoint:** `POST http://127.0.0.1:8013/v1/summaries`
 
 **What it does:**
 - Takes ICU flowsheet data as input
@@ -28,7 +28,7 @@ The ICU Summarizer API has **2 main endpoints**:
 
 ## 2. Generate Presentation
 
-**Endpoint:** `POST http://127.0.0.1:8000/v1/presentations`
+**Endpoint:** `POST http://127.0.0.1:8013/v1/presentations`
 
 **What it does:**
 - Takes same ICU data as Generate Summary

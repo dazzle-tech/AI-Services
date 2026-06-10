@@ -3,7 +3,7 @@ import requests
 import json
 import sys
 
-BASE_URL = "http://localhost:8000"
+BASE_URL = "http://localhost:8013"
 
 def test_summaries():
     """Test summaries endpoint"""

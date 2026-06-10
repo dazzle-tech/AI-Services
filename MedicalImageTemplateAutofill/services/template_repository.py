@@ -11,6 +11,41 @@ from models.schemas import Template, TemplateSummary
 
 logger = logging.getLogger(__name__)
 
+_LOCALIZED_TEMPLATE_NAMES = {
+    "ct_chest": {
+        "el": "ΑΞΟΝΙΚΗ ΤΟΜΟΓΡΑΦΙΑ ΘΩΡΑΚΟΣ - ΠΡΩΤΟΚΟΛΛΟ ΠΝΕΥΜΟΝΙΚΗΣ ΕΜΒΟΛΗΣ",
+        "en": "CT CHEST - PULMONARY EMBOLISM PROTOCOL",
+        "ar": "التصوير المقطعي للصدر - بروتوكول الانصمام الرئوي",
+    },
+    "mammography_screening": {
+        "el": "ΜΑΣΤΟΓΡΑΦΙΑ ΠΡΟΛΗΠΤΙΚΟΥ ΕΛΕΓΧΟΥ",
+        "en": "SCREENING MAMMOGRAPHY",
+        "ar": "تصوير الثدي الشعاعي التحري",
+    },
+    "mri_brain": {
+        "el": "ΜΑΓΝΗΤΙΚΗ ΤΟΜΟΓΡΑΦΙΑ ΕΓΚΕΦΑΛΟΥ",
+        "en": "MRI BRAIN",
+        "ar": "التصوير بالرنين المغناطيسي للدماغ",
+    },
+    "mri_lumbar_spine": {
+        "el": "ΜΑΓΝΗΤΙΚΗ ΤΟΜΟΓΡΑΦΙΑ ΟΣΦΥΪΚΗΣ ΜΟΙΡΑΣ ΣΠΟΝΔΥΛΙΚΗΣ ΣΤΗΛΗΣ",
+        "en": "MRI LUMBAR SPINE",
+        "ar": "التصوير بالرنين المغناطيسي للعمود الفقري القطني",
+    },
+    "us_abdomen_ruq": {
+        "el": "ΥΠΕΡΗΧΟΓΡΑΦΗΜΑ ΑΝΩ ΚΑΙ ΚΑΤΩ ΚΟΙΛΙΑΣ",
+        "pt": "Ecografia abdominal",
+        "en": "ABDOMINAL ULTRASOUND",
+        "ar": "التصوير بالأمواج فوق الصوتية للبطن",
+    },
+    "us_abdomen_pt": {
+        "pt": "Ecografia abdominal",
+        "el": "ΥΠΕΡΗΧΟΓΡΑΦΗΜΑ ΑΝΩ ΚΑΙ ΚΑΤΩ ΚΟΙΛΙΑΣ",
+        "en": "ABDOMINAL ULTRASOUND",
+        "ar": "التصوير بالأمواج فوق الصوتية للبطن",
+    },
+}
+
 
 class TemplateRepository:
     def __init__(self, templates_dir: str):
@@ -54,3 +89,21 @@ class TemplateRepository:
 
     def exists(self, template_id: str) -> bool:
         return template_id in self._templates
+
+    def get_localized_template_name(self, template: Template, output_language: str = "el") -> str:
+        language = (output_language or "el").strip().lower()
+        localized = _LOCALIZED_TEMPLATE_NAMES.get(template.template_id, {})
+        return localized.get(language) or localized.get("en") or template.name
+
+# Modality hard filter helper.
+def filter_by_modality(templates, modality: str):
+    mod = (modality or "").strip().upper()
+    if not mod:
+        return list(templates)
+    allowed = {"CR", "DX"} if mod in {"CR", "DX"} else {mod}
+    out = []
+    for t in templates:
+        tmod = t.get("modality") if isinstance(t, dict) else getattr(t, "modality", None)
+        if (str(tmod or "").strip().upper()) in allowed:
+            out.append(t)
+    return out

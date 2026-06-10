@@ -6,7 +6,7 @@
    ```powershell
    cd C:\Users\User\Desktop\AI-Services\icu-summarizer
    $env:PYTHONPATH = (Get-Location).Path
-   uvicorn app.main:app --host 127.0.0.1 --port 8000
+   uvicorn app.main:app --host 127.0.0.1 --port 8013
    ```
 
 2. **Set OpenAI API Key (required for summaries/presentations):**
@@ -23,7 +23,7 @@
 
 ### 2. Set Collection Variables (Optional)
 - Click on the collection → "Variables" tab
-- Add variable: `base_url` = `http://127.0.0.1:8000`
+- Add variable: `base_url` = `http://127.0.0.1:8013`
 - Add variable: `request_id` = `{{$randomUUID}}` (or use a fixed value)
 
 ---
@@ -32,7 +32,7 @@
 
 ### Request Setup
 - **Method:** `POST`
-- **URL:** `http://127.0.0.1:8000/v1/summaries`
+- **URL:** `http://127.0.0.1:8013/v1/summaries`
 - **Headers:**
   - `Content-Type: application/json`
   - `X-Request-ID: test-123` (optional, will be auto-generated if not provided)
@@ -219,7 +219,7 @@ Copy the content from `test_sample_request.json` or use this sample:
 
 ### Request Setup
 - **Method:** `POST`
-- **URL:** `http://127.0.0.1:8000/v1/presentations`
+- **URL:** `http://127.0.0.1:8013/v1/presentations`
 - **Headers:**
   - `Content-Type: application/json`
   - `X-Request-ID: test-123` (optional)

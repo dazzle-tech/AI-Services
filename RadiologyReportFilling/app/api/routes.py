@@ -1,4 +1,4 @@
-"""API routes for Medical Imaging Assist."""
+"""API routes for the radiology report filling service."""
 import logging
 
 from fastapi import APIRouter, HTTPException
@@ -6,9 +6,12 @@ from fastapi import APIRouter, HTTPException
 from app.core.config import settings
 from app.models.schemas import (
     AnalysisMatchingRequest,
-    AssistiveResponse,
+    AnalysisMatchingResponse,
     HealthResponse,
+    RadiologyReportRequest,
+    RadiologyTemplateResponse,
     ReportCorrectionRequest,
+    ReportCorrectionResponse,
     TermsSummaryResponse,
 )
 from app.services.medical_service import MedicalImagingService
@@ -75,28 +78,18 @@ async def terms_summary() -> TermsSummaryResponse:
 
 @router.post(
     "/report-correction",
-    response_model=AssistiveResponse,
-    summary="Correct radiology report and ground in ICD-10/RadLex",
-    description=(
-        "Cross-checks doctor and radiologist notes, fixes spelling, expands shorthand, "
-        "and grounds findings in ICD-10/RadLex via the local RAG store. Flags laterality "
-        "conflicts and anatomy/metadata mismatches."
-    ),
+    response_model=ReportCorrectionResponse,
+    summary="Validate radiologist notes against doctor notes and return workflow-safe clinical report text",
 )
-async def report_correction(payload: ReportCorrectionRequest) -> AssistiveResponse:
-    """Run report-correction pipeline."""
+async def report_correction(payload: ReportCorrectionRequest) -> ReportCorrectionResponse:
+    """Restore the legacy workflow contract for report correction."""
     try:
         service = _get_service()
-        return service.report_correction(
-            doctor_notes=payload.doctor_notes,
-            radiologist_notes=payload.radiologist_notes,
-            exam_type=payload.exam_type,
-            dicom_metadata=payload.extracted_dicom_metadata,
-        )
+        return service.correct_report(payload)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         logger.exception("Unhandled error in report_correction")
         raise HTTPException(status_code=500, detail=f"Internal server error: {exc}")
@@ -104,27 +97,37 @@ async def report_correction(payload: ReportCorrectionRequest) -> AssistiveRespon
 
 @router.post(
     "/analysis-matching",
-    response_model=AssistiveResponse,
-    summary="Reconcile clinical report with AI image analysis",
-    description=(
-        "Applies Hierarchy of Truth: the clinical report is authoritative. AI findings "
-        "that contradict the report are dropped (with warnings); AI findings that add "
-        "non-conflicting detail are used to enrich the final report."
-    ),
+    response_model=AnalysisMatchingResponse,
+    summary="Reconcile AI image findings against the clinical report and suggest ICD-10 codes",
 )
-async def analysis_matching(payload: AnalysisMatchingRequest) -> AssistiveResponse:
-    """Run analysis-matching pipeline."""
+async def analysis_matching(payload: AnalysisMatchingRequest) -> AnalysisMatchingResponse:
+    """Restore the legacy workflow contract for report-vs-AI reconciliation."""
     try:
         service = _get_service()
-        return service.analysis_matching(
-            clinical_report=payload.clinical_report,
-            ai_image_analysis=payload.ai_image_analysis,
-            dicom_metadata=payload.extracted_dicom_metadata,
-        )
+        return service.match_analysis(payload)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        raise HTTPException(status_code=422, detail=str(exc))
     except Exception as exc:
         logger.exception("Unhandled error in analysis_matching")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {exc}")
+
+
+@router.post(
+    "/report-filling",
+    response_model=RadiologyTemplateResponse,
+    summary="Generate a radiology report template from patient, order, and optional DICOM metadata",
+)
+async def report_filling(payload: RadiologyReportRequest) -> RadiologyTemplateResponse:
+    """Generate the radiology report template response."""
+    try:
+        service = _get_service()
+        return service.generate_report_template(payload)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except Exception as exc:
+        logger.exception("Unhandled error in report_filling")
         raise HTTPException(status_code=500, detail=f"Internal server error: {exc}")

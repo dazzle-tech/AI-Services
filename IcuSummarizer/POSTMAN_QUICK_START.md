@@ -13,7 +13,7 @@
 ```powershell
 cd C:\Users\User\Desktop\AI-Services\icu-summarizer
 $env:PYTHONPATH = (Get-Location).Path
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn app.main:app --host 127.0.0.1 --port 8013 --reload
 ```
 
 **Keep this terminal open!** The server must be running.
@@ -111,7 +111,7 @@ ICU Summarizer API
 ### ❌ "Could not get response"
 **Solution:** 
 - Check if server is running (Step 1)
-- Verify URL is `http://127.0.0.1:8000`
+- Verify URL is `http://127.0.0.1:8013`
 
 ### ❌ "500 Internal Server Error" on summaries/presentations
 **Solution:**

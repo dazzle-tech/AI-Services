@@ -19,6 +19,7 @@ from .models import (
 from .protocol_classifier import classify_exam_type
 from .qc_rules import run_qc_for_exam_type
 from .report_generator import generate_explanation, generate_explanation_with_openai
+from .report_generator import localize_disclaimer, localize_text
 from .segmentation import detect_landmarks_from_masks, run_totalsegmentator
 from .storage import temp_workdir
 
@@ -35,10 +36,21 @@ def _finalize_explanation(
     use_gpt_report: bool,
     settings: Settings,
     style: str = "technologist_alert",
+    output_language: str = "el",
 ) -> str:
     if use_gpt_report:
-        return generate_explanation_with_openai(qc_result, style=style, settings=settings)
-    return generate_explanation(qc_result, style=style, settings=settings)
+        return generate_explanation_with_openai(
+            qc_result,
+            style=style,
+            settings=settings,
+            output_language=output_language,
+        )
+    return generate_explanation(
+        qc_result,
+        style=style,
+        settings=settings,
+        output_language=output_language,
+    )
 
 
 def _filter_detection_notes(notes: str, exam_type: ExamType) -> str:
@@ -199,7 +211,9 @@ def _qc_review_required(
     recommended_action: str,
     settings: Settings,
     details: dict[str, Any],
+    output_language: str = "el",
 ) -> QCResult:
+    localized_action = localize_text(recommended_action, output_language)
     qc_dict: Dict[str, Any] = {
         "study_instance_uid": study_uid,
         "exam_type": exam_type,
@@ -208,17 +222,18 @@ def _qc_review_required(
         "missing_region": None,
         "required_landmark_not_seen": None,
         "confidence": 0.0,
-        "recommended_action": recommended_action,
+        "recommended_action": localized_action,
         "human_review_required": True,
         "explanation": _finalize_explanation(
             {
                 "qc_status": QCStatus.REVIEW_REQUIRED.value,
-                "recommended_action": recommended_action,
+                "recommended_action": localized_action,
             },
             use_gpt_report=False,
             settings=settings,
+            output_language=output_language,
         ),
-        "disclaimer": settings.disclaimer_text,
+        "disclaimer": localize_disclaimer(settings.disclaimer_text, output_language),
         "details": details,
     }
     return QCResult(**qc_dict)
@@ -228,6 +243,7 @@ def _qc_review_required(
 async def qc_ct_dicom_upload(
     file: UploadFile = File(...),
     use_gpt_report: bool = Form(False),
+    OutputLanguage: str = Form("el"),
     settings: Settings = Depends(get_settings),
 ) -> QCResult:
     with temp_workdir() as workdir:
@@ -252,6 +268,7 @@ async def qc_ct_dicom_upload(
                 recommended_action="Verify the uploaded file is a valid zipped CT DICOM study and retry.",
                 settings=settings,
                 details={"stage": "extract_zip_or_metadata", "error": str(e)},
+                output_language=OutputLanguage,
             )
 
         if str(exam_type.value).startswith("XR_") or exam_type == ExamType.XRAY_UNKNOWN or exam_type == ExamType.XRAY:
@@ -270,6 +287,7 @@ async def qc_ct_dicom_upload(
                     "body_part_examined": body_part_examined,
                     "view_position": view_position,
                 },
+                output_language=OutputLanguage,
             )
 
         supported_ct = {
@@ -295,6 +313,7 @@ async def qc_ct_dicom_upload(
                     "body_part_examined": body_part_examined,
                     "view_position": view_position,
                 },
+                output_language=OutputLanguage,
             )
 
         nifti_dir = workdir / "nifti"
@@ -311,6 +330,7 @@ async def qc_ct_dicom_upload(
                 recommended_action="DICOM conversion failed; route for human review or retry with a valid CT series.",
                 settings=settings,
                 details={"stage": "dicom2nifti", "error": str(e)},
+                output_language=OutputLanguage,
             )
 
         try:
@@ -323,6 +343,7 @@ async def qc_ct_dicom_upload(
                 recommended_action="Automatic coverage QC is unavailable (segmentation missing/failed). Route for human review or install TotalSegmentator.",
                 settings=settings,
                 details={"stage": "totalsegmentator", "error": str(e)},
+                output_language=OutputLanguage,
             )
 
         detection = detect_landmarks_from_masks(seg_dir)
@@ -343,17 +364,20 @@ async def qc_ct_dicom_upload(
             "missing_region": rule.missing_region,
             "required_landmark_not_seen": rule.required_landmark_not_seen,
             "confidence": min(rule.confidence, detection.confidence),
-            "recommended_action": rule.recommended_action,
+            "recommended_action": localize_text(rule.recommended_action, OutputLanguage),
             "human_review_required": rule.human_review_required,
             "explanation": "",
-            "disclaimer": settings.disclaimer_text,
+            "disclaimer": localize_disclaimer(settings.disclaimer_text, OutputLanguage),
             "details": {
                 "source": "totalsegmentator_masks",
                 "notes": _filter_detection_notes(detection.notes, exam_type),
             },
         }
         qc_dict["explanation"] = _finalize_explanation(
-            qc_dict, use_gpt_report=use_gpt_report, settings=settings
+            qc_dict,
+            use_gpt_report=use_gpt_report,
+            settings=settings,
+            output_language=OutputLanguage,
         )
         return QCResult(**qc_dict)
 
@@ -361,6 +385,7 @@ async def qc_ct_dicom_upload(
 @app.post("/api/v1/qc/xray/dicom", response_model=QCResult)
 async def qc_xray_dicom_upload(
     file: UploadFile = File(...),
+    OutputLanguage: str = Form("el"),
     settings: Settings = Depends(get_settings),
 ) -> QCResult:
     with temp_workdir() as workdir:
@@ -385,6 +410,7 @@ async def qc_xray_dicom_upload(
                 recommended_action="Verify the uploaded file is a valid zipped X-ray DICOM study and retry.",
                 settings=settings,
                 details={"stage": "extract_zip_or_metadata", "error": str(e)},
+                output_language=OutputLanguage,
             )
 
         supported_xray = {
@@ -411,6 +437,7 @@ async def qc_xray_dicom_upload(
                     "body_part_examined": body_part_examined,
                     "view_position": view_position,
                 },
+                output_language=OutputLanguage,
             )
 
         from .qc_rules_xray import evaluate_xray_qc
@@ -426,8 +453,9 @@ async def qc_xray_dicom_upload(
                 "view_position": view_position,
             },
             dicom_files=dicom_files,
+            output_language=OutputLanguage,
         )
-        qc_payload.setdefault("disclaimer", settings.disclaimer_text)
+        qc_payload.setdefault("disclaimer", localize_disclaimer(settings.disclaimer_text, OutputLanguage))
         return QCResult(**qc_payload)
 
 
@@ -436,5 +464,10 @@ def explain_report(
     payload: ExplainRequest,
     settings: Settings = Depends(get_settings),
 ) -> ExplainResponse:
-    explanation = generate_explanation(payload.qc_result, style=payload.style, settings=settings)
+    explanation = generate_explanation(
+        payload.qc_result,
+        style=payload.style,
+        settings=settings,
+        output_language=payload.OutputLanguage,
+    )
     return ExplainResponse(explanation=explanation)
