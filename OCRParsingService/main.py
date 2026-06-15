@@ -36,7 +36,8 @@ async def root() -> dict[str, str]:
 async def startup_event() -> None:
     logger.info("Starting %s v%s", settings.api_title, settings.api_version)
     logger.info("OCR languages: %s", settings.ocr_languages_list)
-    logger.info("Ollama model: %s", settings.ollama_model)
+    logger.info("Structured extraction model: %s", settings.openai_model)
+    logger.info("OpenAI configured: %s", bool(settings.openai_api_key))
 
 
 @app.on_event("shutdown")

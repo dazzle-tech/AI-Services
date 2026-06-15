@@ -7,6 +7,7 @@ import os
 import re
 import time
 import zipfile
+from datetime import datetime
 from io import BytesIO
 import signal
 import subprocess
@@ -36,6 +37,25 @@ _DICOM_ORDER_MISMATCH_WARNING = (
 _DICOM_ORDER_MISMATCH_SUBJECT_PREFIX = "[WARNING: DICOM/ORDER MISMATCH] "
 _ACCESSION_TOKEN_PATTERN = re.compile(r"\bACC[-A-Z0-9_.]+\b", re.IGNORECASE)
 _STUDY_UID_PATTERN = re.compile(r"\b\d+(?:\.\d+){3,}\b")
+
+PACS_PROTOCOL = os.getenv("PACS_PROTOCOL", "dicomweb")
+
+# DICOMweb settings (used if PACS_PROTOCOL == "dicomweb")
+PACS_BASE_URL = os.getenv("PACS_BASE_URL")
+PACS_AUTH_TOKEN = os.getenv("PACS_AUTH_TOKEN")
+PACS_USERNAME = os.getenv("PACS_USERNAME")
+PACS_PASSWORD = os.getenv("PACS_PASSWORD")
+
+# DIMSE settings (used if PACS_PROTOCOL == "dimse")
+PACS_HOST = os.getenv("PACS_HOST")
+PACS_PORT = int(os.getenv("PACS_PORT", "104"))
+PACS_AE_TITLE = os.getenv("PACS_AE_TITLE", "RADIOLOGY_WORKFLOW")
+PACS_REMOTE_AE_TITLE = os.getenv("PACS_REMOTE_AE_TITLE", "PACS")
+PACS_MOVE_DESTINATION_AE = os.getenv("PACS_MOVE_DESTINATION_AE")
+
+# Shared PACS settings
+PACS_TIMEOUT_SECONDS = float(os.getenv("PACS_TIMEOUT_SECONDS", "30"))
+PACS_ENABLED = os.getenv("PACS_ENABLED", "false").lower() == "true"
 
 
 HealthPath = Literal["/health", "/api/v1/health"]
@@ -1152,7 +1172,9 @@ async def index() -> str:
 
 @app.get("/api/status")
 async def api_status() -> JSONResponse:
-    return JSONResponse(await ensure_services_running(start_missing=False))
+    status = await ensure_services_running(start_missing=False)
+    status["pacs"] = get_pacs_config_status()
+    return JSONResponse(status)
 
 
 @app.post("/api/start-missing")
@@ -1545,6 +1567,24 @@ class JobStatus(BaseModel):
     message: str | None = None
 
 
+class PacsOrderInput(BaseModel):
+    PatientID: str = ""
+    PatientName: str = ""
+    OrderID: str = ""
+    OrderDate: datetime | None = None
+    DateOfBirth: datetime | None = None
+    NationalID: str = ""
+    Gender: str = ""
+    AccessionNumber: str
+    OutputLanguage: str = "el"
+    signing_physician: str = ""
+    signing_physician_code: str = ""
+    doctor_notes: str = ""
+    radiologist_notes: str = ""
+    exam_type: str = ""
+    qa_override: bool = False
+
+
 class _Job:
     def __init__(self, job_id: str, payload: dict[str, Any], dicom_bytes: bytes, upload_name: str, content_type: str):
         self.job_id = job_id
@@ -1563,6 +1603,163 @@ class _Job:
 
 
 JOBS: dict[str, _Job] = {}
+
+
+def _bool_from_flag(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _format_optional_datetime(value: datetime | None) -> str:
+    return value.isoformat() if value is not None else ""
+
+
+def _build_job_payload(order_fields: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "doctor_notes": str(order_fields.get("doctor_notes") or ""),
+        "radiologist_notes": str(order_fields.get("radiologist_notes") or ""),
+        "exam_type": str(order_fields.get("exam_type") or ""),
+        "patient_id": str(order_fields.get("patient_id") or ""),
+        "patient_name": str(order_fields.get("patient_name") or ""),
+        "order_id": str(order_fields.get("order_id") or ""),
+        "order_date": str(order_fields.get("order_date") or ""),
+        "date_of_birth": str(order_fields.get("date_of_birth") or ""),
+        "national_id": str(order_fields.get("national_id") or ""),
+        "gender": str(order_fields.get("gender") or ""),
+        "accession_number": str(order_fields.get("accession_number") or ""),
+        "OutputLanguage": str(order_fields.get("OutputLanguage") or "el"),
+        "signing_physician": str(order_fields.get("signing_physician") or ""),
+        "signing_physician_code": str(order_fields.get("signing_physician_code") or ""),
+        "modality": str(order_fields.get("modality", "CR") or ""),
+        "body_part": str(order_fields.get("body_part") or ""),
+        "study_date": str(order_fields.get("study_date") or ""),
+        "qa_override": _bool_from_flag(order_fields.get("qa_override", False)),
+    }
+
+
+def _build_order_fields_from_pacs_input(order: PacsOrderInput) -> dict[str, Any]:
+    return {
+        "doctor_notes": order.doctor_notes,
+        "radiologist_notes": order.radiologist_notes,
+        "exam_type": order.exam_type,
+        "patient_id": order.PatientID,
+        "patient_name": order.PatientName,
+        "order_id": order.OrderID,
+        "order_date": _format_optional_datetime(order.OrderDate),
+        "date_of_birth": _format_optional_datetime(order.DateOfBirth),
+        "national_id": order.NationalID,
+        "gender": order.Gender,
+        "accession_number": order.AccessionNumber,
+        "OutputLanguage": order.OutputLanguage,
+        "signing_physician": order.signing_physician,
+        "signing_physician_code": order.signing_physician_code,
+        # These are still resolved from the DICOM payload by the existing metadata helpers.
+        "modality": "",
+        "body_part": "",
+        "study_date": "",
+        "qa_override": order.qa_override,
+    }
+
+
+def _required_pacs_settings() -> list[tuple[str, Any]]:
+    protocol = str(PACS_PROTOCOL or "dicomweb").strip().lower()
+    if protocol == "dimse":
+        return [
+            ("PACS_HOST", PACS_HOST),
+            ("PACS_MOVE_DESTINATION_AE", PACS_MOVE_DESTINATION_AE),
+        ]
+    return [("PACS_BASE_URL", PACS_BASE_URL)]
+
+
+def get_pacs_config_status() -> dict[str, Any]:
+    """Return a non-secret summary of PACS configuration readiness."""
+    protocol = str(PACS_PROTOCOL or "dicomweb").strip().lower()
+    required_settings = _required_pacs_settings()
+    missing_settings = [name for name, value in required_settings if value in (None, "")]
+    return {
+        "pacs_enabled": PACS_ENABLED,
+        "pacs_protocol": protocol,
+        "pacs_configured": not missing_settings,
+        "missing_settings": missing_settings,
+    }
+
+
+def _get_pacs_connection_settings() -> dict[str, str | int | float | bool | None]:
+    return {
+        "protocol": PACS_PROTOCOL,
+        "enabled": PACS_ENABLED,
+        "base_url": PACS_BASE_URL,
+        "auth_token_configured": bool(PACS_AUTH_TOKEN),
+        "username": PACS_USERNAME,
+        "host": PACS_HOST,
+        "port": PACS_PORT,
+        "ae_title": PACS_AE_TITLE,
+        "remote_ae_title": PACS_REMOTE_AE_TITLE,
+        "move_destination_ae": PACS_MOVE_DESTINATION_AE,
+        "timeout_seconds": PACS_TIMEOUT_SECONDS,
+    }
+
+
+def fetch_dicom_from_pacs(accession_number: str) -> bytes:
+    settings = _get_pacs_connection_settings()
+    config_status = get_pacs_config_status()
+    logger.info("PACS retrieval requested for accession %s", accession_number)
+    logger.debug("Current PACS settings keys: %s", sorted(settings))
+    if not PACS_ENABLED:
+        raise RuntimeError(
+            "PACS retrieval is disabled. Set PACS_ENABLED=true and configure PACS_* environment variables to enable it."
+        )
+    if not config_status["pacs_configured"]:
+        missing_settings = ", ".join(config_status["missing_settings"])
+        raise RuntimeError(f"PACS is enabled but misconfigured. Missing settings: {missing_settings}")
+    # TODO: Use PACS_BASE_URL/PACS credentials for a DICOMweb QIDO-RS lookup by accession number.
+    # TODO: Retrieve study bytes with WADO-RS or a pynetdicom C-MOVE/C-GET client once PACS is configured.
+    protocol = str(PACS_PROTOCOL or "dicomweb").strip().lower()
+    if protocol == "dimse":
+        raise NotImplementedError(
+            "DIMSE C-FIND/C-MOVE retrieval not yet implemented. "
+            f"Implement C-FIND by AccessionNumber against {PACS_HOST}:{PACS_PORT} "
+            f"(AE: {PACS_REMOTE_AE_TITLE}) using pynetdicom, then C-MOVE/C-GET to retrieve the study."
+        )
+    raise NotImplementedError(
+        "DICOMweb WADO-RS retrieval not yet implemented. "
+        f"Implement QIDO-RS query by AccessionNumber against {PACS_BASE_URL}, "
+        "then WADO-RS retrieve for the matched StudyInstanceUID."
+    )
+
+
+async def _create_job_from_dicom_bytes(
+    dicom_bytes: bytes,
+    upload_name: str,
+    order_fields: dict[str, Any],
+    *,
+    content_type: str | None = None,
+) -> JSONResponse:
+    if not dicom_bytes:
+        raise HTTPException(status_code=400, detail="Empty upload")
+
+    try:
+        normalized_upload_name, normalized_dicom_bytes = _as_zip_bytes(upload_name, dicom_bytes)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    resolved_content_type = content_type or (
+        "application/zip" if normalized_upload_name.lower().endswith(".zip") else "application/dicom"
+    )
+
+    job_id = uuid.uuid4().hex
+    payload = _build_job_payload(order_fields)
+    job = _Job(
+        job_id,
+        payload=payload,
+        dicom_bytes=normalized_dicom_bytes,
+        upload_name=normalized_upload_name,
+        content_type=resolved_content_type,
+    )
+    JOBS[job_id] = job
+    job.task = asyncio.create_task(_run_pipeline_job(job))
+    return JSONResponse({"job_id": job_id})
 
 
 async def _run_pipeline_job(job: _Job) -> None:
@@ -1897,19 +2094,7 @@ async def create_job(
 ) -> JSONResponse:
     original_bytes = await dicom_file.read()
     original_name = dicom_file.filename or "dicom.zip"
-    if not original_bytes:
-        raise HTTPException(status_code=400, detail="Empty upload")
-    try:
-        upload_name, dicom_bytes = _as_zip_bytes(original_name, original_bytes)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    content_type = dicom_file.content_type or (
-        "application/zip" if upload_name.lower().endswith(".zip") else "application/dicom"
-    )
-
-    job_id = uuid.uuid4().hex
-    payload = {
+    order_fields = {
         "doctor_notes": doctor_notes,
         "radiologist_notes": radiologist_notes,
         "exam_type": exam_type,
@@ -1927,12 +2112,30 @@ async def create_job(
         "modality": modality,
         "body_part": body_part,
         "study_date": study_date,
-        "qa_override": str(qa_override).strip().lower() in {"1", "true", "yes", "y"},
+        "qa_override": qa_override,
     }
-    job = _Job(job_id, payload=payload, dicom_bytes=dicom_bytes, upload_name=upload_name, content_type=content_type)
-    JOBS[job_id] = job
-    job.task = asyncio.create_task(_run_pipeline_job(job))
-    return JSONResponse({"job_id": job_id})
+    return await _create_job_from_dicom_bytes(
+        original_bytes,
+        original_name,
+        order_fields,
+        content_type=dicom_file.content_type,
+    )
+
+
+@app.post("/api/jobs/from-pacs")
+async def create_job_from_pacs(order: PacsOrderInput) -> JSONResponse:
+    try:
+        dicom_bytes = fetch_dicom_from_pacs(order.AccessionNumber)
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    return await _create_job_from_dicom_bytes(
+        dicom_bytes,
+        f"{order.AccessionNumber}.dcm",
+        _build_order_fields_from_pacs_input(order),
+    )
 
 
 @app.get("/api/jobs/{job_id}/events")

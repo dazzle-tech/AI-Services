@@ -4,6 +4,7 @@ pydantic==2.8.2
 pydantic-settings==2.4.0
 python-dotenv==1.0.1
 python-multipart==0.0.9
+openai>=1.30.0
 
 easyocr==1.7.1
 numpy==1.26.4

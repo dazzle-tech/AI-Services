@@ -14,9 +14,12 @@ services:
       - API_RELOAD=${API_RELOAD:-false}
       - OCR_LANGUAGES=${OCR_LANGUAGES:-en}
       - OCR_GPU=${OCR_GPU:-false}
-      - OLLAMA_COMMAND=${OLLAMA_COMMAND:-ollama}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:4b}
-      - OLLAMA_TIMEOUT_SECONDS=${OLLAMA_TIMEOUT_SECONDS:-120}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.1}
+      - OPENAI_TIMEOUT=${OPENAI_TIMEOUT:-120}
+      - OPENAI_MAX_RETRIES=${OPENAI_MAX_RETRIES:-3}
+      - OPENAI_RETRY_DELAY=${OPENAI_RETRY_DELAY:-1.0}
     env_file:
       - .env
     restart: unless-stopped

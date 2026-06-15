@@ -2,7 +2,7 @@
 
 FastAPI service that combines:
 - OCR extraction from image files
-- Structured parsing of extracted text using Ollama
+- Structured parsing of extracted text using OpenAI
 
 ## Endpoints
 
@@ -40,8 +40,7 @@ FastAPI service that combines:
 2. Install dependencies
    - `py -m pip install -r requirements.txt`
 3. Copy `.env.example` to `.env`
-4. Ensure Ollama is installed and model is available:
-   - `ollama pull gemma3:4b`
+4. Set `OPENAI_API_KEY` in `.env`
 5. Start service:
    - `uvicorn main:app --host 0.0.0.0 --port 8012 --reload`
 

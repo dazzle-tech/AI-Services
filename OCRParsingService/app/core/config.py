@@ -36,10 +36,13 @@ class Settings(BaseSettings):
     # Identity extraction
     identity_llm_fallback_enabled: bool = False
 
-    # Parsing/Ollama
-    ollama_command: str = "ollama"
-    ollama_model: str = "gemma3:4b"
-    ollama_timeout_seconds: int = 120
+    # Structured extraction/OpenAI
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+    openai_temperature: float = 0.1
+    openai_timeout: int = 120
+    openai_max_retries: int = 3
+    openai_retry_delay: float = 1.0
 
     @property
     def ocr_languages_list(self) -> list[str]:

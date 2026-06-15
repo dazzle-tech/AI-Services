@@ -128,7 +128,7 @@ def _llm_fill_gaps(identity: PatientIdentity, text_lines: list[str], parser: Par
     )
 
     try:
-        out = parser.parse_text(prompt)
+        out = parser.parse_prompt(prompt)
     except Exception:
         return identity
 
