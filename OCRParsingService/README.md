@@ -50,3 +50,8 @@ FastAPI service that combines:
 2. `docker compose up -d --build`
 
 Service runs on port `8012`.
+
+## Postman
+
+Import `postman/OCR_Parsing_Service.postman_collection.json`.
+Default `base_url` is `http://localhost:8012` and can be overridden from the collection variables.

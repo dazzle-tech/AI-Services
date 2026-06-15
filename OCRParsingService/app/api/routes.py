@@ -121,7 +121,7 @@ async def extract_identity(
 ) -> IdentityExtractResponse:
     try:
         image_bytes = await file.read()
-        identity, quality, mrz_present, mrz_valid, text_lines = identity_service.extract_identity_from_image(image_bytes)
+        identity, quality, validation, mrz_present, mrz_valid, text_lines = identity_service.extract_identity_from_image(image_bytes)
 
         extracted_any = any(
             [
@@ -154,6 +154,7 @@ async def extract_identity(
         return IdentityExtractResponse(
             identity=identity,
             quality=quality,
+            validation=validation,
             mrz_present=mrz_present,
             mrz_valid=mrz_valid,
             text_lines=text_lines,
