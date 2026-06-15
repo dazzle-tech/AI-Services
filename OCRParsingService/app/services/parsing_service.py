@@ -63,7 +63,14 @@ class ParsingService:
             - Sex
             - Place of Birth
 
-            Do not include explanations or extra text. If a field is missing, return an empty string.
+            Type normalization rules:
+            - If the OCR text indicates an identification card, identity card, ID card, or contains phrases like "IDENTIFICATION CARD" or "ID NUMBER", set "Type" to "ID".
+            - If the OCR text indicates a passport, set "Type" to "Passport".
+            - If the document type cannot be inferred, return "undefined" for "Type".
+
+            Do not include explanations or extra text.
+            If a field is missing or cannot be inferred confidently, return "undefined".
+            Never return empty strings.
 
             OCR Text:
             {cleaned_text}
