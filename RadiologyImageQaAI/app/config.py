@@ -30,8 +30,9 @@ class Settings(BaseSettings):
 
     # Optional OpenAI report generation (never required for QC logic)
     openai_enabled: bool = False
-    openai_api_key: str | None = None
-    openai_model: str = "gpt-4.1-mini"
+    openai_base_url: str | None = "http://localhost:11434/v1"
+    openai_api_key: str | None = "ollama"
+    openai_model: str = "qwen3:8b"
     deidentify_before_gpt: bool = True
     openai_report_style_default: Literal["technologist_alert", "short", "verbose"] = "technologist_alert"
 

@@ -1,6 +1,7 @@
 from openai import AsyncOpenAI
 import json
 import logging
+import re
 from typing import Dict, Any, List
 from datetime import datetime
 
@@ -15,6 +16,15 @@ from models.schemas import (
 from config import settings, Status, Severity
 
 logger = logging.getLogger(__name__)
+_THINK_BLOCK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
+
+
+def _strip_model_wrappers(raw_text: str) -> str:
+    clean = _THINK_BLOCK_RE.sub("", raw_text.strip(), count=1)
+    if clean.startswith("```"):
+        clean = clean.split("\n", 1)[-1]
+        clean = clean.rsplit("```", 1)[0]
+    return clean.strip()
 
 
 class BaseValidationService:
@@ -25,7 +35,10 @@ class BaseValidationService:
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is not set in environment variables")
         
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        self.client = AsyncOpenAI(
+            api_key=settings.OPENAI_API_KEY,
+            base_url=settings.OPENAI_BASE_URL or None,
+        )
         self.model = settings.OPENAI_MODEL
         self.temperature = settings.OPENAI_TEMPERATURE
         self.max_tokens = settings.OPENAI_MAX_TOKENS
@@ -56,8 +69,8 @@ class BaseValidationService:
                     response_format={"type": "json_object"}
                 )
                 
-                content = response.choices[0].message.content
-                result = json.loads(content)
+                content = response.choices[0].message.content or ""
+                result = json.loads(_strip_model_wrappers(content))
                 
                 logger.info("OpenAI API call successful")
                 return result

@@ -321,7 +321,9 @@ def build_ct_response(
             metadata=metadata,
             output_language=output_language,
             openai_api_key=settings.openai_api_key,
+            openai_base_url=settings.openai_base_url,
             openai_model=settings.openai_model,
+            vision_image_url_as_string=settings.vision_image_url_as_string,
             openai_timeout=settings.openai_timeout_seconds,
         )
     except Exception as e:

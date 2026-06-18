@@ -70,19 +70,8 @@ class AIClient:
             try:
                 # Generate recommendation ID if not provided
                 rec_id = rec_data.get("recommendation_id", f"rec_{idx + 1}")
-                
-                # Always use "medical" type
-                rec_type_str = rec_data.get("type", "medical")
-                # Ensure it's "medical" - if AI returns something else, override it
-                if rec_type_str != "medical":
-                    logger.warning(f"Recommendation type was '{rec_type_str}', overriding to 'medical'")
-                    rec_type_str = "medical"
-                try:
-                    rec_type = RecommendationType(rec_type_str)
-                except ValueError:
-                    # Fallback to MEDICAL if parsing fails
-                    logger.warning(f"Could not parse type '{rec_type_str}', using MEDICAL")
-                    rec_type = RecommendationType.MEDICAL
+
+                rec_type = self._normalize_recommendation_type(rec_data)
                 
                 # Parse priority
                 priority_str = rec_data.get("priority", "moderate")
@@ -112,6 +101,70 @@ class AIClient:
                 continue
         
         return recommendations
+
+    def _normalize_recommendation_type(self, rec_data: Dict[str, Any]) -> RecommendationType:
+        """Normalize model output into one of the supported RecommendationType enum values."""
+        raw_type = str(rec_data.get("type", "") or "").strip().lower()
+        title = str(rec_data.get("title", "") or "").lower()
+        description = str(rec_data.get("description", "") or "").lower()
+        rationale = str(rec_data.get("rationale", "") or "").lower()
+        combined_text = " ".join([title, description, rationale])
+
+        if raw_type:
+            try:
+                return RecommendationType(raw_type)
+            except ValueError:
+                pass
+
+        alias_map = {
+            "medical": RecommendationType.GENERAL,
+            "medicine": RecommendationType.GENERAL,
+            "drug": RecommendationType.MEDICATION,
+            "meds": RecommendationType.MEDICATION,
+            "test": RecommendationType.DIAGNOSTIC,
+            "tests": RecommendationType.DIAGNOSTIC,
+            "imaging": RecommendationType.DIAGNOSTIC,
+            "scan": RecommendationType.DIAGNOSTIC,
+            "therapy": RecommendationType.TREATMENT,
+            "management": RecommendationType.TREATMENT,
+            "followup": RecommendationType.MONITORING,
+            "follow-up": RecommendationType.MONITORING,
+            "observation": RecommendationType.MONITORING,
+            "diet": RecommendationType.LIFESTYLE,
+            "exercise": RecommendationType.LIFESTYLE,
+            "prevention": RecommendationType.LIFESTYLE,
+            "consult": RecommendationType.REFERRAL,
+            "consultation": RecommendationType.REFERRAL,
+            "specialist": RecommendationType.REFERRAL,
+        }
+
+        if raw_type in alias_map:
+            normalized = alias_map[raw_type]
+            logger.warning("Mapped unsupported recommendation type '%s' to '%s'", raw_type, normalized.value)
+            return normalized
+
+        keyword_map = [
+            (("aspirin", "statin", "beta-blocker", "ace inhibitor", "dose", "medication"), RecommendationType.MEDICATION),
+            (("ecg", "echo", "troponin", "lab", "imaging", "diagnostic", "test"), RecommendationType.DIAGNOSTIC),
+            (("treat", "therapy", "intervention", "management", "procedure"), RecommendationType.TREATMENT),
+            (("monitor", "trend", "surveillance", "follow-up", "recheck"), RecommendationType.MONITORING),
+            (("lifestyle", "diet", "exercise", "smoking", "weight"), RecommendationType.LIFESTYLE),
+            (("refer", "referral", "cardiology", "endocrinology", "rehab"), RecommendationType.REFERRAL),
+        ]
+
+        for keywords, normalized in keyword_map:
+            if any(keyword in combined_text for keyword in keywords):
+                if raw_type:
+                    logger.warning(
+                        "Inferred recommendation type '%s' from content for unsupported type '%s'",
+                        normalized.value,
+                        raw_type,
+                    )
+                return normalized
+
+        if raw_type:
+            logger.warning("Could not parse type '%s', using GENERAL", raw_type)
+        return RecommendationType.GENERAL
     
     def generate_specialty_recommendations(
         self,

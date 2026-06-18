@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from typing import Optional
 import os
@@ -16,8 +17,9 @@ class Settings(BaseSettings):
     API_RELOAD: bool = False
     
     # OpenAI Settings
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = "gpt-4o"  # or "gpt-4-turbo"
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "ollama")
+    OPENAI_MODEL: str = "qwen3:8b"
     OPENAI_TEMPERATURE: float = 0.2
     OPENAI_MAX_TOKENS: int = 2000
     
@@ -70,6 +72,17 @@ Provide structured JSON output with:
 - Confidence score
 
 Be thorough, evidence-based, and prioritize diagnostic accuracy and patient safety."""
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def _normalize_debug(cls, value):
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"release", "prod", "production"}:
+                return False
+            if normalized in {"debug", "dev", "development"}:
+                return True
+        return value
     
     class Config:
         env_file = ".env"

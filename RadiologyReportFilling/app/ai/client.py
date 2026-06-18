@@ -1,6 +1,7 @@
 """OpenAI client wrapper for Medical Imaging Assist with retry logic."""
 import json
 import logging
+import re
 import time
 
 from openai import APIConnectionError, APIError, APITimeoutError, OpenAI, RateLimitError
@@ -8,6 +9,15 @@ from openai import APIConnectionError, APIError, APITimeoutError, OpenAI, RateLi
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+_THINK_BLOCK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
+
+
+def _strip_model_wrappers(raw_text: str) -> str:
+    clean = _THINK_BLOCK_RE.sub("", raw_text.strip(), count=1)
+    if clean.startswith("```"):
+        clean = clean.split("\n", 1)[-1]
+        clean = clean.rsplit("```", 1)[0]
+    return clean.strip()
 
 
 class MedicalAIClient:
@@ -16,7 +26,11 @@ class MedicalAIClient:
     def __init__(self) -> None:
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY must be set")
-        self.client = OpenAI(api_key=settings.openai_api_key, timeout=settings.openai_timeout)
+        self.client = OpenAI(
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url or None,
+            timeout=settings.openai_timeout,
+        )
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
         self.max_retries = settings.openai_max_retries
@@ -51,7 +65,7 @@ class MedicalAIClient:
                 raw = response.choices[0].message.content
                 if not raw:
                     raise ValueError("Empty response from model")
-                result = json.loads(raw)
+                result = json.loads(_strip_model_wrappers(raw))
                 if hasattr(response, "usage") and response.usage:
                     usage = response.usage
                     logger.info(

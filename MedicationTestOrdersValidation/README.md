@@ -58,8 +58,11 @@ pip install -r requirements.txt
 Create `.env` file:
 
 ```env
-OPENAI_API_KEY=sk-your-openai-api-key-here
-OPENAI_MODEL=gpt-4o
+# Default local Ollama endpoint. Leave OPENAI_BASE_URL empty and provide a
+# real OPENAI_API_KEY to switch back to cloud OpenAI.
+OPENAI_BASE_URL=http://localhost:11434/v1
+OPENAI_API_KEY=ollama
+OPENAI_MODEL=qwen3:8b
 OPENAI_TEMPERATURE=0.2
 OPENAI_MAX_TOKENS=2000
 HOST=0.0.0.0
@@ -224,6 +227,9 @@ pytest tests/tests_validation_test.py
 Key settings in `config.py`:
 
 - `OPENAI_MODEL` - Model to use (default: gpt-4o)
+- `OPENAI_BASE_URL` - Base URL for an OpenAI-compatible server (default: local Ollama)
+- `OPENAI_API_KEY` - Placeholder `ollama` works for Ollama; use a real key only when `OPENAI_BASE_URL` is empty
+- `OPENAI_MODEL` - Model to use (default: `qwen3:8b`)
 - `OPENAI_TEMPERATURE` - Model temperature (default: 0.2)
 - `OPENAI_MAX_TOKENS` - Max tokens in response (default: 2000)
 - `VALIDATION_CONFIDENCE_THRESHOLD` - Minimum confidence score (default: 0.7)
@@ -258,6 +264,10 @@ Logs are output to console with INFO level by default. Includes:
 - OpenAI API calls
 - Validation results
 - Errors and warnings
+
+The manual test scripts under `tests/` call the configured backend directly. With
+the defaults above, they now hit the local Ollama server unless you explicitly
+clear `OPENAI_BASE_URL` and provide a real OpenAI API key.
 
 ---
 

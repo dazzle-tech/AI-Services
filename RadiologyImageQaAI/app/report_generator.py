@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from enum import Enum
 from typing import Any, Dict
 
@@ -8,6 +9,7 @@ from .config import Settings
 from .models import QCStatus
 
 _SUPPORTED_OUTPUT_LANGUAGES = {"el", "en", "ar"}
+_THINK_BLOCK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
 
 _GENERIC_TRANSLATIONS = {
     "el": {
@@ -204,6 +206,14 @@ def _template_explanation(qc_result: Dict[str, Any], style: str, output_language
     return " ".join(parts)
 
 
+def _strip_model_wrappers(raw_text: str) -> str:
+    clean = _THINK_BLOCK_RE.sub("", raw_text.strip(), count=1)
+    if clean.startswith("```"):
+        clean = clean.split("\n", 1)[-1]
+        clean = clean.rsplit("```", 1)[0]
+    return clean.strip()
+
+
 def generate_explanation(
     qc_result: Dict[str, Any],
     *,
@@ -254,7 +264,10 @@ def generate_explanation_with_openai(
     except Exception:
         return _template_explanation(qc_result, style, output_language)
 
-    client = OpenAI(api_key=settings.openai_api_key)
+    client = OpenAI(
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url or None,
+    )
     prompt = (
         "You are generating a radiology technical quality-control alert for a CT study.\n"
         "Do NOT diagnose. Do NOT suggest clinical interpretations.\n"
@@ -272,7 +285,7 @@ def generate_explanation_with_openai(
         )
         text = getattr(resp, "output_text", None)
         if isinstance(text, str) and text.strip():
-            return text.strip()
+            return _strip_model_wrappers(text)
         return _template_explanation(qc_result, style, output_language)
     except Exception:
         return _template_explanation(qc_result, style, output_language)

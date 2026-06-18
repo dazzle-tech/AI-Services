@@ -100,7 +100,8 @@ Generate evidence-based medical recommendations that:
 6. Note any contraindications or precautions
 
 For each recommendation, provide:
-- Type: Always use "medical" for all recommendations
+- Type: Use one of exactly these values based on the recommendation content:
+  "medication", "diagnostic", "treatment", "monitoring", "lifestyle", "referral", or "general"
 - Clear title
 - Detailed description
 - Clinical rationale
@@ -116,7 +117,7 @@ Return your response as JSON with this structure:
   "recommendations": [
     {{
       "recommendation_id": "rec_1",
-      "type": "medical",
+      "type": "medication",
       "title": "Short title",
       "description": "Detailed recommendation",
       "rationale": "Why this is recommended",
@@ -263,7 +264,7 @@ Return your response as JSON with this structure:
   "recommendations": [
     {{
       "recommendation_id": "rec_1",
-      "type": "medical",
+      "type": "diagnostic",
       "title": "{user_role}-specific test",
       "description": "As a {user_role} specialist, I recommend...",
       "rationale": "From a {user_role} perspective...",

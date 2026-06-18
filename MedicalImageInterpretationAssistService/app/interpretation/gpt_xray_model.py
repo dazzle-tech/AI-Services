@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,21 @@ except Exception:  # pragma: no cover
     OpenAI = None  # type: ignore[assignment]
 
 MODEL_NAME = "gpt-4o-xray-vision"
+_THINK_BLOCK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
+
+
+def _image_content_block(data_uri: str, *, as_string: bool) -> Any:
+    if as_string:
+        return data_uri
+    return {"url": data_uri, "detail": "high"}
+
+
+def _strip_model_wrappers(raw_text: str) -> str:
+    clean = _THINK_BLOCK_RE.sub("", raw_text.strip(), count=1)
+    if clean.startswith("```"):
+        clean = clean.split("\n", 1)[-1]
+        clean = clean.rsplit("```", 1)[0]
+    return clean.strip()
 
 def _make_upper_crop(image_path: str, output_path: str) -> None:
     from PIL import Image
@@ -310,7 +326,9 @@ def run_gpt_xray_model(
     image_path: str,
     exam_type: str,
     openai_api_key: str,
-    openai_model: str = "gpt-4o",
+    openai_base_url: str | None = "http://localhost:11434/v1",
+    openai_model: str = "qwen3-vl:8b",
+    vision_image_url_as_string: bool = True,
     openai_timeout: float = 30.0,
     study_description: str | None = None,
     series_description: str | None = None,
@@ -325,7 +343,11 @@ def run_gpt_xray_model(
     if OpenAI is None:  # pragma: no cover
         raise RuntimeError("openai package is not installed")
 
-    client = OpenAI(api_key=openai_api_key, timeout=openai_timeout)
+    client = OpenAI(
+        api_key=openai_api_key,
+        base_url=openai_base_url or None,
+        timeout=openai_timeout,
+    )
 
     image_bytes = Path(image_path).read_bytes()
     b64 = base64.b64encode(image_bytes).decode("utf-8")
@@ -370,7 +392,10 @@ def run_gpt_xray_model(
     user_content: list[dict[str, Any]] = [
         {
             "type": "image_url",
-            "image_url": {"url": f"data:{mime};base64,{b64}", "detail": "high"},
+            "image_url": _image_content_block(
+                f"data:{mime};base64,{b64}",
+                as_string=vision_image_url_as_string,
+            ),
         },
         {"type": "text", "text": context_text},
     ]
@@ -392,7 +417,10 @@ def run_gpt_xray_model(
         user_content.append(
             {
                 "type": "image_url",
-                "image_url": {"url": f"data:image/png;base64,{crop_b64}", "detail": "high"},
+                "image_url": _image_content_block(
+                    f"data:image/png;base64,{crop_b64}",
+                    as_string=vision_image_url_as_string,
+                ),
             }
         )
 
@@ -416,23 +444,19 @@ def run_gpt_xray_model(
         msg = str(exc).lower()
         if "Timeout" in exc_name or "timeout" in msg or "timed out" in msg:
             raise RuntimeError(
-                "GPT-4o request timed out after 30s. "
+                "Vision model request timed out after 30s. "
                 "Service returned REVIEW_REQUIRED."
             ) from exc
         raise
 
     raw_text = response.choices[0].message.content or ""
-    clean = raw_text.strip()
-    if clean.startswith("```"):
-        clean = clean.split("\n", 1)[-1]
-        clean = clean.rsplit("```", 1)[0]
-    clean = clean.strip()
+    clean = _strip_model_wrappers(raw_text)
 
     try:
         gpt_output = json.loads(clean)
     except json.JSONDecodeError as e:
-        logger.error("GPT-4o returned non-JSON response: %s", raw_text[:500])
-        raise RuntimeError(f"GPT-4o returned invalid JSON: {e}") from e
+        logger.error("Vision model returned non-JSON response: %s", raw_text[:500])
+        raise RuntimeError(f"Vision model returned invalid JSON: {e}") from e
 
     logger.debug("GPT raw output: %s", json.dumps(gpt_output))
 

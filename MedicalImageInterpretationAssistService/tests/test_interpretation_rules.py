@@ -1245,18 +1245,15 @@ def test_xray_endpoint_accepts_output_language_and_localizes_human_text(monkeypa
 
 
 def test_default_model_is_pinned_version() -> None:
-    """Default openai_model must be a pinned dated version, not floating alias."""
+    """Default openai_model must include an explicit local model tag, not a bare alias."""
     from app.config import Settings
 
-    settings = Settings()
-    # Must not be the bare floating alias
-    assert settings.openai_model != "gpt-4o", (
-        "openai_model must be a pinned dated version like "
-        "'gpt-4o-2024-11-20', not the floating 'gpt-4o' alias."
+    settings = Settings(_env_file=None)
+    assert settings.openai_model, "openai_model must not be empty."
+    assert ":" in settings.openai_model, (
+        "openai_model must use an explicit Ollama tag such as "
+        "'qwen3-vl:8b', not a bare floating family alias."
     )
-    # Must follow the dated pattern YYYY-MM-DD
-    import re
-
-    assert re.search(r"\d{4}-\d{2}-\d{2}", settings.openai_model), (
-        f"Expected a dated model version, got: {settings.openai_model}"
-    )
+    family, tag = settings.openai_model.split(":", 1)
+    assert family.strip(), f"Expected a model family before ':', got: {settings.openai_model}"
+    assert tag.strip(), f"Expected a non-empty Ollama tag, got: {settings.openai_model}"

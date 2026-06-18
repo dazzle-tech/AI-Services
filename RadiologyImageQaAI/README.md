@@ -134,9 +134,14 @@ OpenAI is **optional** and used only to **phrase** the explanation text.
 
 Defaults:
 - `OPENAI_ENABLED=false`
+- `OPENAI_BASE_URL=http://localhost:11434/v1`
+- `OPENAI_API_KEY=ollama`
+- `OPENAI_MODEL=qwen3:8b`
 - `DEIDENTIFY_BEFORE_GPT=true`
 
 Do not send PHI by default. The service only sends a minimal structured QC summary when de-identification is enabled.
+Leave `OPENAI_BASE_URL` empty and set a real `OPENAI_API_KEY` if you want to
+switch the same code path back to the OpenAI cloud API.
 
 ## Testing
 ```powershell

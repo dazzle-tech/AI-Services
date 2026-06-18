@@ -103,7 +103,11 @@ class RagStore:
         """Vector retrieval using OpenAI embeddings + cosine similarity."""
         from openai import OpenAI
 
-        client = OpenAI(api_key=settings.openai_api_key, timeout=settings.openai_timeout)
+        client = OpenAI(
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url or None,
+            timeout=settings.openai_timeout,
+        )
         response = client.embeddings.create(model=settings.openai_embed_model, input=query)
         q_vec = np.array(response.data[0].embedding, dtype=np.float32)
         q_vec = q_vec / (np.linalg.norm(q_vec) + 1e-12)
@@ -159,7 +163,11 @@ def build_embeddings() -> None:
     icd10_texts = [_searchable_text(e) for e in icd10]
     radlex_texts = [_searchable_text(e) for e in radlex]
 
-    client = OpenAI(api_key=settings.openai_api_key, timeout=settings.openai_timeout)
+    client = OpenAI(
+        api_key=settings.openai_api_key,
+        base_url=settings.openai_base_url or None,
+        timeout=settings.openai_timeout,
+    )
 
     def _embed_batch(texts: List[str]) -> np.ndarray:
         """Embed a list of strings; return an L2-normalized matrix."""

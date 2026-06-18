@@ -33,19 +33,24 @@ pip install -r requirements.txt
 
 ### 2. Configure environment
 
-Copy the template and add your OpenAI key:
+Copy the template and review the AI settings:
 
 ```powershell
 copy .env.example .env
-notepad .env    # paste your OPENAI_API_KEY
+notepad .env
 ```
 
-Required key in `.env`:
+Default local Ollama configuration in `.env`:
 
 ```
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o
+OPENAI_BASE_URL=http://localhost:11434/v1
+OPENAI_API_KEY=ollama
+OPENAI_MODEL=qwen3:8b
+OPENAI_EMBED_MODEL=nomic-embed-text
 ```
+
+To switch back to the OpenAI cloud API, set `OPENAI_BASE_URL=` and replace
+`OPENAI_API_KEY` with a real key.
 
 > The `.env` file is gitignored. Never commit it.
 
@@ -59,7 +64,8 @@ retrieval, run the one-time ingestion:
 python -m app.services.rag_store ingest
 ```
 
-This calls the OpenAI Embeddings API once and writes `rag_data/embeddings.npz`.
+This calls the configured OpenAI-compatible embeddings API once and writes
+`rag_data/embeddings.npz`.
 The file is gitignored.
 
 ### 4. Run the server
@@ -79,7 +85,9 @@ The server starts on `http://localhost:8000`.
 pytest tests/ -v
 ```
 
-Tests mock the OpenAI API call, so they do not require a working key.
+Tests mock the chat-completions API call, so they do not require a working
+remote key. The RAG embeddings cache still needs to be regenerated separately if
+you want semantic retrieval with the local `nomic-embed-text` model.
 
 ## Using the API in Postman
 
