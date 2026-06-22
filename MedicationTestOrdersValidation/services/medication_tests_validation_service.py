@@ -8,6 +8,7 @@ from datetime import datetime
 from models.schemas import (
     MedicationValidationRequest,
     TestValidationRequest,
+    Diagnosis,
     ValidationResponse,
     QuickSummary,
     DetailedValidation,
@@ -130,6 +131,13 @@ class BaseValidationService:
             logger.error(f"Error parsing validation response: {str(e)}")
             raise Exception(f"Failed to parse validation response: {str(e)}")
 
+    def _format_diagnoses(self, diagnoses: List[Diagnosis]) -> str:
+        """Format diagnoses list for display."""
+        formatted = []
+        for i, diagnosis in enumerate(diagnoses, 1):
+            formatted.append(f"{i}. {diagnosis.type}: {diagnosis.value}")
+        return "\n".join(formatted) if formatted else "None provided"
+
 
 class MedicationValidationService(BaseValidationService):
     """Service for validating medications"""
@@ -178,7 +186,10 @@ ENCOUNTER INFORMATION:
 - Visit Type: {request.encounter.visitType}
 - Date: {request.encounter.plannedStartDate}
 - Chief Complaint: {request.encounter.chiefComplaint}
-- Diagnosis: {request.encounter.primaryDiagnosis}
+- Primary Diagnosis: {request.encounter.primaryDiagnosis}
+
+LIST OF DIAGNOSES:
+{self._format_diagnoses(request.listOfDiagnosis)}
 
 MEDICATIONS TO VALIDATE:
 {self._format_medications(request.medications)}
@@ -191,6 +202,9 @@ Please analyze for:
 5. Dosage safety and appropriateness
 6. Duration concerns
 7. Any duplicate therapy
+
+Medication name may be blank in the input. When that happens, use the active
+ingredients as the medication identifier for your analysis.
 
 Respond with a JSON object containing:
 {{
@@ -274,7 +288,10 @@ ENCOUNTER INFORMATION:
 - Visit Type: {request.encounter.visitType}
 - Date: {request.encounter.plannedStartDate}
 - Chief Complaint: {request.encounter.chiefComplaint}
-- Diagnosis: {request.encounter.primaryDiagnosis}
+- Primary Diagnosis: {request.encounter.primaryDiagnosis}
+
+LIST OF DIAGNOSES:
+{self._format_diagnoses(request.listOfDiagnosis)}
 
 DIAGNOSTIC TESTS TO VALIDATE:
 {self._format_tests(request.tests)}

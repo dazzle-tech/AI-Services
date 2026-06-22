@@ -33,6 +33,7 @@ async def test_medication_validation(sample_index: int = 0):
         print(f"✓ Request created for patient: {request.patient.fullName}")
         print(f"  - Age: {request.encounter.patientAge}")
         print(f"  - Diagnosis: {request.encounter.primaryDiagnosis}")
+        print(f"  - Diagnoses in listOfDiagnosis: {len(request.listOfDiagnosis)}")
         print(f"  - Number of medications: {len(request.medications)}")
         
         # Display medications being validated
