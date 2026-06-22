@@ -58,15 +58,15 @@ pip install -r requirements.txt
 Create `.env` file:
 
 ```env
-# Default local Ollama endpoint. Leave OPENAI_BASE_URL empty and provide a
-# real OPENAI_API_KEY to switch back to cloud OpenAI.
-OPENAI_BASE_URL=http://localhost:11434/v1
-OPENAI_API_KEY=ollama
-OPENAI_MODEL=qwen3:8b
+# OpenAI cloud default. Override this only if you want to route the same
+# client to another OpenAI-compatible provider such as Ollama.
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4o-mini
 OPENAI_TEMPERATURE=0.2
 OPENAI_MAX_TOKENS=2000
 HOST=0.0.0.0
-PORT=8005
+PORT=8006
 DEBUG=False
 ```
 
@@ -78,12 +78,12 @@ DEBUG=False
 python main.py
 ```
 
-The service will start on **http://localhost:8005**
+The service will start on **http://localhost:8006**
 
 ### Production Mode
 
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8005
+uvicorn main:app --host 0.0.0.0 --port 8006
 ```
 
 ## API Endpoints
@@ -226,10 +226,9 @@ pytest tests/tests_validation_test.py
 
 Key settings in `config.py`:
 
-- `OPENAI_MODEL` - Model to use (default: gpt-4o)
-- `OPENAI_BASE_URL` - Base URL for an OpenAI-compatible server (default: local Ollama)
-- `OPENAI_API_KEY` - Placeholder `ollama` works for Ollama; use a real key only when `OPENAI_BASE_URL` is empty
-- `OPENAI_MODEL` - Model to use (default: `qwen3:8b`)
+- `OPENAI_BASE_URL` - Base URL for the OpenAI cloud endpoint by default; override it only for another OpenAI-compatible server
+- `OPENAI_API_KEY` - OpenAI API key used when calling the default OpenAI cloud endpoint
+- `OPENAI_MODEL` - Model to use (default: `gpt-4o-mini`)
 - `OPENAI_TEMPERATURE` - Model temperature (default: 0.2)
 - `OPENAI_MAX_TOKENS` - Max tokens in response (default: 2000)
 - `VALIDATION_CONFIDENCE_THRESHOLD` - Minimum confidence score (default: 0.7)
@@ -265,9 +264,10 @@ Logs are output to console with INFO level by default. Includes:
 - Validation results
 - Errors and warnings
 
-The manual test scripts under `tests/` call the configured backend directly. With
-the defaults above, they now hit the local Ollama server unless you explicitly
-clear `OPENAI_BASE_URL` and provide a real OpenAI API key.
+The manual test scripts under `tests/` call the configured backend directly.
+With the defaults above, they use the OpenAI cloud API. To switch to a local
+OpenAI-compatible backend such as Ollama, set `OPENAI_BASE_URL` and choose a
+model name available on that server.
 
 ---
 

@@ -14,10 +14,9 @@ SAMPLE_MEDICATION_REQUEST_1 = {
         "plannedStartDate": "2025-12-24",
         "chiefComplaint": "testrtest",
         "patientAge": "3y 10m 22d",
-        "diagnosis": "A048,Other specified bacterial intestinal infections"
+        "primaryDiagnosis": "A048,Other specified bacterial intestinal infections"
     },
-    "complain": "testrtest",
-    "diagnosis": {
+    "listOfDiagnosis": {
         "type": "Encounter Diagnosis",
         "value": "A048,Other specified bacterial intestinal infections"
     },
@@ -41,10 +40,9 @@ SAMPLE_MEDICATION_REQUEST_2 = {
         "plannedStartDate": "2025-12-24",
         "chiefComplaint": "Chest pain and shortness of breath",
         "patientAge": "60y 7m 9d",
-        "diagnosis": "I20.0,Unstable angina"
+        "primaryDiagnosis": "I20.0,Unstable angina"
     },
-    "complain": "Chest pain and shortness of breath",
-    "diagnosis": {
+    "listOfDiagnosis": {
         "type": "Encounter Diagnosis",
         "value": "I20.0,Unstable angina"
     },
@@ -69,10 +67,9 @@ SAMPLE_MEDICATION_REQUEST_3 = {
         "plannedStartDate": "2025-12-24",
         "chiefComplaint": "Multiple chronic conditions management",
         "patientAge": "80y 4m 2d",
-        "diagnosis": "I10,Essential (primary) hypertension;E11.9,Type 2 diabetes mellitus without complications"
+        "primaryDiagnosis": "I10,Essential (primary) hypertension;E11.9,Type 2 diabetes mellitus without complications"
     },
-    "complain": "Multiple chronic conditions management",
-    "diagnosis": {
+    "listOfDiagnosis": {
         "type": "Encounter Diagnosis",
         "value": "I10,Essential (primary) hypertension;E11.9,Type 2 diabetes mellitus without complications"
     },
@@ -97,10 +94,9 @@ SAMPLE_TEST_REQUEST_1 = {
         "plannedStartDate": "2025-12-24",
         "chiefComplaint": "testrtest",
         "patientAge": "3y 10m 22d",
-        "diagnosis": "A048,Other specified bacterial intestinal infections"
+        "primaryDiagnosis": "A048,Other specified bacterial intestinal infections"
     },
-    "complain": "testrtest",
-    "diagnosis": {
+    "listOfDiagnosis": {
         "type": "Encounter Diagnosis",
         "value": "A048,Other specified bacterial intestinal infections"
     },
@@ -126,10 +122,9 @@ SAMPLE_TEST_REQUEST_2 = {
         "plannedStartDate": "2025-12-24",
         "chiefComplaint": "Severe chest pain radiating to left arm",
         "patientAge": "60y 7m 9d",
-        "diagnosis": "I20.0,Unstable angina"
+        "primaryDiagnosis": "I20.0,Unstable angina"
     },
-    "complain": "Severe chest pain radiating to left arm",
-    "diagnosis": {
+    "listOfDiagnosis": {
         "type": "Encounter Diagnosis",
         "value": "I20.0,Unstable angina"
     },
@@ -156,10 +151,9 @@ SAMPLE_TEST_REQUEST_3 = {
         "plannedStartDate": "2025-12-24",
         "chiefComplaint": "First prenatal visit",
         "patientAge": "30y 9m 14d",
-        "diagnosis": "Z34.00,Encounter for supervision of normal first pregnancy, unspecified trimester"
+        "primaryDiagnosis": "Z34.00,Encounter for supervision of normal first pregnancy, unspecified trimester"
     },
-    "complain": "First prenatal visit",
-    "diagnosis": {
+    "listOfDiagnosis": {
         "type": "Encounter Diagnosis",
         "value": "Z34.00,Encounter for supervision of normal first pregnancy, unspecified trimester"
     },

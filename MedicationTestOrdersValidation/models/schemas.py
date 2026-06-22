@@ -29,7 +29,7 @@ class Encounter(BaseModel):
     plannedStartDate: str = Field(..., description="Planned start date")
     chiefComplaint: Optional[str] = Field("", description="Chief complaint (null/empty allowed)")
     patientAge: str = Field(..., description="Patient age (formatted)")
-    diagnosis: str = Field(..., description="Primary diagnosis with ICD code")
+    primaryDiagnosis: str = Field(..., description="Primary diagnosis with ICD code")
 
     @validator('chiefComplaint', pre=True)
     def normalize_chief_complaint(cls, v):
@@ -49,17 +49,9 @@ class MedicationValidationRequest(BaseModel):
     """Request model for medication validation"""
     patient: Patient
     encounter: Encounter
-    complain: Optional[str] = Field("", description="Chief complaint (null/empty allowed)")
-    diagnosis: Diagnosis
+    listOfDiagnosis: Diagnosis
     medications: List[str] = Field(..., description="List of medications to validate")
 
-    @validator('complain', pre=True)
-    def normalize_complain(cls, v):
-        """Accept null or missing; coerce to empty string."""
-        if v is None:
-            return ""
-        return v if isinstance(v, str) else str(v)
-    
     class Config:
         json_schema_extra = {
             "example": {
@@ -75,10 +67,9 @@ class MedicationValidationRequest(BaseModel):
                     "plannedStartDate": "2025-12-24",
                     "chiefComplaint": "Chest pain",
                     "patientAge": "3y 10m 22d",
-                    "diagnosis": "I20.0,Unstable angina"
+                    "primaryDiagnosis": "I20.0,Unstable angina"
                 },
-                "complain": "Chest pain",
-                "diagnosis": {
+                "listOfDiagnosis": {
                     "type": "Encounter Diagnosis",
                     "value": "I20.0,Unstable angina"
                 },
@@ -93,17 +84,9 @@ class TestValidationRequest(BaseModel):
     """Request model for test validation"""
     patient: Patient
     encounter: Encounter
-    complain: Optional[str] = Field("", description="Chief complaint (null/empty allowed)")
-    diagnosis: Diagnosis
+    listOfDiagnosis: Diagnosis
     tests: List[str] = Field(..., description="List of tests to validate")
 
-    @validator('complain', pre=True)
-    def normalize_complain(cls, v):
-        """Accept null or missing; coerce to empty string."""
-        if v is None:
-            return ""
-        return v if isinstance(v, str) else str(v)
-    
     class Config:
         json_schema_extra = {
             "example": {
@@ -119,10 +102,9 @@ class TestValidationRequest(BaseModel):
                     "plannedStartDate": "2025-12-24",
                     "chiefComplaint": "Chest pain",
                     "patientAge": "3y 10m 22d",
-                    "diagnosis": "I20.0,Unstable angina"
+                    "primaryDiagnosis": "I20.0,Unstable angina"
                 },
-                "complain": "Chest pain",
-                "diagnosis": {
+                "listOfDiagnosis": {
                     "type": "Encounter Diagnosis",
                     "value": "I20.0,Unstable angina"
                 },
