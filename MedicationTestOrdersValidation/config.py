@@ -17,9 +17,9 @@ class Settings(BaseSettings):
     API_RELOAD: bool = False
     
     # OpenAI Settings
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "ollama")
-    OPENAI_MODEL: str = "qwen3:8b"
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1") or "https://api.openai.com/v1"
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     OPENAI_TEMPERATURE: float = 0.2
     OPENAI_MAX_TOKENS: int = 2000
     

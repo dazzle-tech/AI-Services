@@ -37,7 +37,7 @@ class BaseValidationService:
         
         self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
-            base_url=settings.OPENAI_BASE_URL or None,
+            base_url=settings.OPENAI_BASE_URL,
         )
         self.model = settings.OPENAI_MODEL
         self.temperature = settings.OPENAI_TEMPERATURE
@@ -178,7 +178,7 @@ ENCOUNTER INFORMATION:
 - Visit Type: {request.encounter.visitType}
 - Date: {request.encounter.plannedStartDate}
 - Chief Complaint: {request.encounter.chiefComplaint}
-- Diagnosis: {request.encounter.diagnosis}
+- Diagnosis: {request.encounter.primaryDiagnosis}
 
 MEDICATIONS TO VALIDATE:
 {self._format_medications(request.medications)}
@@ -274,7 +274,7 @@ ENCOUNTER INFORMATION:
 - Visit Type: {request.encounter.visitType}
 - Date: {request.encounter.plannedStartDate}
 - Chief Complaint: {request.encounter.chiefComplaint}
-- Diagnosis: {request.encounter.diagnosis}
+- Diagnosis: {request.encounter.primaryDiagnosis}
 
 DIAGNOSTIC TESTS TO VALIDATE:
 {self._format_tests(request.tests)}
