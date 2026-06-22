@@ -34,6 +34,7 @@ async def test_diagnostic_validation(sample_index: int = 0):
         print(f"  - Age: {request.encounter.patientAge}")
         print(f"  - Chief Complaint: {request.encounter.chiefComplaint}")
         print(f"  - Diagnosis: {request.encounter.primaryDiagnosis}")
+        print(f"  - Diagnoses in listOfDiagnosis: {len(request.listOfDiagnosis)}")
         print(f"  - Number of tests: {len(request.tests)}")
         
         # Display tests being validated

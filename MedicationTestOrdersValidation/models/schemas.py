@@ -49,8 +49,27 @@ class MedicationValidationRequest(BaseModel):
     """Request model for medication validation"""
     patient: Patient
     encounter: Encounter
-    listOfDiagnosis: Diagnosis
+    listOfDiagnosis: List[Diagnosis] = Field(..., description="List of diagnosis objects outside the encounter")
     medications: List[str] = Field(..., description="List of medications to validate")
+
+    @validator("medications", each_item=True)
+    def validate_medication_entry(cls, value):
+        """Require active ingredients while allowing an empty medication name."""
+        if not isinstance(value, str):
+            raise ValueError("Each medication entry must be a string")
+
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("Medication entry cannot be empty")
+
+        if "Active Ingredients:" not in normalized:
+            raise ValueError("Each medication entry must include 'Active Ingredients:'")
+
+        _, active_ingredients = normalized.split("Active Ingredients:", 1)
+        if not active_ingredients.strip():
+            raise ValueError("Active ingredients value cannot be empty")
+
+        return value
 
     class Config:
         json_schema_extra = {
@@ -69,12 +88,14 @@ class MedicationValidationRequest(BaseModel):
                     "patientAge": "3y 10m 22d",
                     "primaryDiagnosis": "I20.0,Unstable angina"
                 },
-                "listOfDiagnosis": {
-                    "type": "Encounter Diagnosis",
-                    "value": "I20.0,Unstable angina"
-                },
+                "listOfDiagnosis": [
+                    {
+                        "type": "Encounter Diagnosis",
+                        "value": "I20.0,Unstable angina"
+                    }
+                ],
                 "medications": [
-                    "Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 100 mg"
+                    "Medication Name:  | Active Ingredients: Acetylsalicylic acid - 100 mg"
                 ]
             }
         }
@@ -84,7 +105,7 @@ class TestValidationRequest(BaseModel):
     """Request model for test validation"""
     patient: Patient
     encounter: Encounter
-    listOfDiagnosis: Diagnosis
+    listOfDiagnosis: List[Diagnosis] = Field(..., description="List of diagnosis objects outside the encounter")
     tests: List[str] = Field(..., description="List of tests to validate")
 
     class Config:
@@ -104,10 +125,12 @@ class TestValidationRequest(BaseModel):
                     "patientAge": "3y 10m 22d",
                     "primaryDiagnosis": "I20.0,Unstable angina"
                 },
-                "listOfDiagnosis": {
-                    "type": "Encounter Diagnosis",
-                    "value": "I20.0,Unstable angina"
-                },
+                "listOfDiagnosis": [
+                    {
+                        "type": "Encounter Diagnosis",
+                        "value": "I20.0,Unstable angina"
+                    }
+                ],
                 "tests": [
                     "Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New"
                 ]

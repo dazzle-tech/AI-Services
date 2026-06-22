@@ -16,10 +16,12 @@ SAMPLE_MEDICATION_REQUEST_1 = {
         "patientAge": "3y 10m 22d",
         "primaryDiagnosis": "A048,Other specified bacterial intestinal infections"
     },
-    "listOfDiagnosis": {
-        "type": "Encounter Diagnosis",
-        "value": "A048,Other specified bacterial intestinal infections"
-    },
+    "listOfDiagnosis": [
+        {
+            "type": "Encounter Diagnosis",
+            "value": "A048,Other specified bacterial intestinal infections"
+        }
+    ],
     "medications": [
         "Medication Name: EnoCap | Active Ingredients: Enalapril (C09AA02) - 10 mg | Instructions: tests | Instructions Type: Manual Instructions | Valid Until: 2025-12-02 | Is Chronic: No | Duration: 90 | Duration Type: Months | Maximum Dose: 898 | ICD-10: A8100, Creutzfeldt-Jakob disease, unspecified.",
         "Medication Name: Lopressor | Active Ingredients: Metoprolol (C07AB02) - 50 mg | Instructions Type: Pre-defined Instructions | Valid Until: 2025-12-09 | Is Chronic: No | Duration: 1 | Duration Type: Weeks | Maximum Dose: 98 | ICD-10: A001, Cholera due to Vibrio cholerae 01, biovar eltor."
@@ -42,10 +44,12 @@ SAMPLE_MEDICATION_REQUEST_2 = {
         "patientAge": "60y 7m 9d",
         "primaryDiagnosis": "I20.0,Unstable angina"
     },
-    "listOfDiagnosis": {
-        "type": "Encounter Diagnosis",
-        "value": "I20.0,Unstable angina"
-    },
+    "listOfDiagnosis": [
+        {
+            "type": "Encounter Diagnosis",
+            "value": "I20.0,Unstable angina"
+        }
+    ],
     "medications": [
         "Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 325 mg | Instructions: Take once daily | Instructions Type: Pre-defined Instructions | Valid Until: 2026-12-24 | Is Chronic: Yes | Duration: 365 | Duration Type: Days | Maximum Dose: 325 | ICD-10: I20.0, Unstable angina",
         "Medication Name: Atorvastatin | Active Ingredients: Atorvastatin (C10AA05) - 40 mg | Instructions: Take once daily at bedtime | Instructions Type: Pre-defined Instructions | Valid Until: 2026-12-24 | Is Chronic: Yes | Duration: 365 | Duration Type: Days | Maximum Dose: 80 | ICD-10: E78.0, Pure hypercholesterolemia",
@@ -69,10 +73,12 @@ SAMPLE_MEDICATION_REQUEST_3 = {
         "patientAge": "80y 4m 2d",
         "primaryDiagnosis": "I10,Essential (primary) hypertension;E11.9,Type 2 diabetes mellitus without complications"
     },
-    "listOfDiagnosis": {
-        "type": "Encounter Diagnosis",
-        "value": "I10,Essential (primary) hypertension;E11.9,Type 2 diabetes mellitus without complications"
-    },
+    "listOfDiagnosis": [
+        {
+            "type": "Encounter Diagnosis",
+            "value": "I10,Essential (primary) hypertension;E11.9,Type 2 diabetes mellitus without complications"
+        }
+    ],
     "medications": [
         "Medication Name: Warfarin | Active Ingredients: Warfarin (B01AA03) - 5 mg | Instructions: Take once daily | Instructions Type: Pre-defined Instructions | Valid Until: 2026-01-24 | Is Chronic: Yes | Duration: 30 | Duration Type: Days | Maximum Dose: 10 | ICD-10: I48.0, Paroxysmal atrial fibrillation",
         "Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 81 mg | Instructions: Take once daily | Instructions Type: Pre-defined Instructions | Valid Until: 2026-01-24 | Is Chronic: Yes | Duration: 30 | Duration Type: Days | Maximum Dose: 81 | ICD-10: I25.10, Atherosclerotic heart disease",
@@ -96,10 +102,12 @@ SAMPLE_TEST_REQUEST_1 = {
         "patientAge": "3y 10m 22d",
         "primaryDiagnosis": "A048,Other specified bacterial intestinal infections"
     },
-    "listOfDiagnosis": {
-        "type": "Encounter Diagnosis",
-        "value": "A048,Other specified bacterial intestinal infections"
-    },
+    "listOfDiagnosis": [
+        {
+            "type": "Encounter Diagnosis",
+            "value": "A048,Other specified bacterial intestinal infections"
+        }
+    ],
     "tests": [
         "Order Type: Laboratory | Test Name: Blood Type - RH | Internal Code: BTRH00 | Status: New | Reason: Follow-up of Previously Diagnosed Condition | Priority: Regular",
         "Order Type: Laboratory | Test Name: Blood Type - ABO | Internal Code: BTABO00 | Status: New",
@@ -124,10 +132,12 @@ SAMPLE_TEST_REQUEST_2 = {
         "patientAge": "60y 7m 9d",
         "primaryDiagnosis": "I20.0,Unstable angina"
     },
-    "listOfDiagnosis": {
-        "type": "Encounter Diagnosis",
-        "value": "I20.0,Unstable angina"
-    },
+    "listOfDiagnosis": [
+        {
+            "type": "Encounter Diagnosis",
+            "value": "I20.0,Unstable angina"
+        }
+    ],
     "tests": [
         "Order Type: Laboratory | Test Name: Troponin I | Internal Code: TROP00 | Status: New | Reason: Rule out myocardial infarction | Priority: STAT",
         "Order Type: Laboratory | Test Name: CK-MB | Internal Code: CKMB00 | Status: New | Reason: Cardiac enzyme | Priority: STAT",
@@ -153,10 +163,12 @@ SAMPLE_TEST_REQUEST_3 = {
         "patientAge": "30y 9m 14d",
         "primaryDiagnosis": "Z34.00,Encounter for supervision of normal first pregnancy, unspecified trimester"
     },
-    "listOfDiagnosis": {
-        "type": "Encounter Diagnosis",
-        "value": "Z34.00,Encounter for supervision of normal first pregnancy, unspecified trimester"
-    },
+    "listOfDiagnosis": [
+        {
+            "type": "Encounter Diagnosis",
+            "value": "Z34.00,Encounter for supervision of normal first pregnancy, unspecified trimester"
+        }
+    ],
     "tests": [
         "Order Type: Laboratory | Test Name: Complete Blood Count | Internal Code: CBC00 | Status: New | Reason: Routine prenatal screening | Priority: Regular",
         "Order Type: Laboratory | Test Name: Blood Type and Rh | Internal Code: BTRH00 | Status: New | Reason: Prenatal screening | Priority: Regular",

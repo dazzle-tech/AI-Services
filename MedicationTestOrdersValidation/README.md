@@ -120,18 +120,22 @@ POST /api/v1/validate/medication
     "plannedStartDate": "2025-12-24",
     "chiefComplaint": "Chest pain",
     "patientAge": "3y 10m 22d",
-    "diagnosis": "I20.0,Unstable angina"
+    "primaryDiagnosis": "I20.0,Unstable angina"
   },
-  "complain": "Chest pain",
-  "diagnosis": {
-    "type": "Encounter Diagnosis",
-    "value": "I20.0,Unstable angina"
-  },
+  "listOfDiagnosis": [
+    {
+      "type": "Encounter Diagnosis",
+      "value": "I20.0,Unstable angina"
+    }
+  ],
   "medications": [
-    "Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 100 mg"
+    "Medication Name:  | Active Ingredients: Acetylsalicylic acid - 100 mg"
   ]
 }
 ```
+
+`Medication Name:` may be empty. `Active Ingredients:` is the required part of
+each medication string.
 
 **Response:**
 ```json
@@ -175,13 +179,14 @@ POST /api/v1/validate/tests
     "plannedStartDate": "2025-12-24",
     "chiefComplaint": "Chest pain",
     "patientAge": "3y 10m 22d",
-    "diagnosis": "I20.0,Unstable angina"
+    "primaryDiagnosis": "I20.0,Unstable angina"
   },
-  "complain": "Chest pain",
-  "diagnosis": {
-    "type": "Encounter Diagnosis",
-    "value": "I20.0,Unstable angina"
-  },
+  "listOfDiagnosis": [
+    {
+      "type": "Encounter Diagnosis",
+      "value": "I20.0,Unstable angina"
+    }
+  ],
   "tests": [
     "Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New"
   ]
