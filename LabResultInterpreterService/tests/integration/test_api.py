@@ -1,4 +1,5 @@
 """Integration tests for REST API endpoints."""
+import os
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
@@ -9,6 +10,8 @@ from tests.fixtures.sample_data import (
     SAMPLE_REQUEST_FULL,
     SAMPLE_LAB_MINIMAL,
 )
+
+TEST_MODEL = os.getenv("OPENAI_MODEL", "")
 
 
 @pytest.fixture
@@ -87,7 +90,7 @@ class TestInterpretLabsEndpoint:
                 disclaimer=mock_interpretation_response["disclaimer"],
             ),
             summary="Lab interpretation generated successfully.",
-            processing_metadata={"model": "gpt-4o", "lab_result_count": 1, "trend_count": 1},
+            processing_metadata={"model": TEST_MODEL, "lab_result_count": 1, "trend_count": 1},
         )
 
         request_data = {
@@ -152,7 +155,7 @@ class TestInterpretLabsEndpoint:
                 disclaimer=mock_interpretation_response["disclaimer"],
             ),
             summary="Lab interpretation generated successfully.",
-            processing_metadata={"model": "gpt-4o", "lab_result_count": 3, "trend_count": 1},
+            processing_metadata={"model": TEST_MODEL, "lab_result_count": 3, "trend_count": 1},
         )
 
         request_data = {
@@ -204,7 +207,7 @@ class TestInterpretLabsEndpoint:
                 disclaimer=mock_interpretation_response["disclaimer"],
             ),
             summary="Lab interpretation generated successfully.",
-            processing_metadata={"model": "gpt-4o", "lab_result_count": 1, "trend_count": 1},
+            processing_metadata={"model": TEST_MODEL, "lab_result_count": 1, "trend_count": 1},
         )
 
         request_data = {

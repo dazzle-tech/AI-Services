@@ -1,8 +1,12 @@
 """Unit tests for Pydantic schemas."""
+import os
+
 import pytest
 from pydantic import ValidationError
 
 from app.models.schemas import Alert, AlertRequest, AlertResponse, PatientRecordInput
+
+TEST_MODEL = os.getenv("OPENAI_MODEL", "")
 
 
 class TestPatientRecordInput:
@@ -129,9 +133,9 @@ class TestAlertResponse:
             request_id="test-123",
             alerts=[],
             summary="No clinically meaningful alerts were identified from the provided record.",
-            processing_metadata={"model": "gpt-4o", "alert_count": 0},
+            processing_metadata={"model": TEST_MODEL, "alert_count": 0},
         )
-        assert response.processing_metadata["model"] == "gpt-4o"
+        assert response.processing_metadata["model"] == TEST_MODEL
         assert response.processing_metadata["alert_count"] == 0
 
     def test_summary_required(self):

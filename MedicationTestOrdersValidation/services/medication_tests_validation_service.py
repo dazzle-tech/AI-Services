@@ -39,10 +39,14 @@ class BaseValidationService:
         self.client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
             base_url=settings.OPENAI_BASE_URL,
+            timeout=settings.OPENAI_TIMEOUT,
+            max_retries=settings.OPENAI_MAX_RETRIES,
         )
+        self.base_url = settings.OPENAI_BASE_URL
         self.model = settings.OPENAI_MODEL
         self.temperature = settings.OPENAI_TEMPERATURE
         self.max_tokens = settings.OPENAI_MAX_TOKENS
+        self.timeout = settings.OPENAI_TIMEOUT
     
     async def call_openai(self, system_prompt: str, user_message: str) -> Dict[str, Any]:
         """
@@ -58,6 +62,14 @@ class BaseValidationService:
         for attempt in range(settings.MAX_RETRY_ATTEMPTS):
             try:
                 logger.info(f"Calling OpenAI API (attempt {attempt + 1})")
+                prompt_length = len(system_prompt) + len(user_message)
+                logger.info(
+                    "Calling medication/test validation using model %s base_url=%s timeout=%ss prompt_length=%s",
+                    self.model,
+                    self.base_url,
+                    self.timeout,
+                    prompt_length,
+                )
                 
                 response = await self.client.chat.completions.create(
                     model=self.model,
@@ -67,7 +79,8 @@ class BaseValidationService:
                     ],
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    response_format={"type": "json_object"}
+                    response_format={"type": "json_object"},
+                    timeout=self.timeout,
                 )
                 
                 content = response.choices[0].message.content or ""

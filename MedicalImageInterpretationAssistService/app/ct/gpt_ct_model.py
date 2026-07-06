@@ -7,11 +7,11 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..model_resolver import model_not_found, resolve_fallback_model
 from ..interpretation.findings_schema import make_finding
 from ..interpretation.models import Finding
 
 logger = logging.getLogger(__name__)
-MODEL_NAME = "gpt-4o-ct-vision"
 _THINK_BLOCK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
 
 try:
@@ -91,15 +91,27 @@ def _strip_model_wrappers(raw_text: str) -> str:
     return clean.strip()
 
 
+def _raise_timeout_or_original(exc: Exception) -> None:
+    exc_name = type(exc).__name__
+    msg = str(exc).lower()
+    if "Timeout" in exc_name or "timeout" in msg or "timed out" in msg:
+        raise RuntimeError(
+            "CT vision model request timed out after 30s. "
+            "Service returned REVIEW_REQUIRED."
+        ) from exc
+    raise exc
+
+
 def run_gpt_ct_model(
     slice_png_paths: list[str],
     exam_type: str,
     metadata: dict[str, Any],
     openai_api_key: str,
     openai_base_url: str | None = "http://localhost:11434/v1",
-    openai_model: str = "qwen3-vl:8b",
+    openai_model: str = "",
     vision_image_url_as_string: bool = True,
-    openai_timeout: float = 30.0,
+    openai_timeout: float = 120.0,
+    openai_max_retries: int = 1,
     output_language: str = "el",
 ) -> tuple[list[Finding], dict[str, Any], dict[str, Any]]:
     """
@@ -111,6 +123,7 @@ def run_gpt_ct_model(
         api_key=openai_api_key,
         base_url=openai_base_url or None,
         timeout=openai_timeout,
+        max_retries=openai_max_retries,
     )
 
     # Build image content blocks
@@ -156,22 +169,42 @@ def run_gpt_ct_model(
         },
     ]
 
+    selected_model = openai_model
+    prompt_length = len(SYSTEM_PROMPT) + len(context_text)
     try:
+        logger.info(
+            "Calling CT interpretation using model %s base_url=%s timeout=%ss prompt_length=%s",
+            selected_model,
+            openai_base_url or "https://api.openai.com/v1",
+            openai_timeout,
+            prompt_length,
+        )
         response = client.chat.completions.create(
-            model=openai_model,
+            model=selected_model,
             max_tokens=2000,
             messages=messages,
             temperature=0.1,
+            timeout=openai_timeout,
         )
     except Exception as exc:
-        exc_name = type(exc).__name__
-        msg = str(exc).lower()
-        if "Timeout" in exc_name or "timeout" in msg or "timed out" in msg:
-            raise RuntimeError(
-                "CT vision model request timed out after 30s. "
-                "Service returned REVIEW_REQUIRED."
-            ) from exc
-        raise
+        if model_not_found(exc):
+            fallback_model = resolve_fallback_model(client, openai_model, require_vision=True)
+            if fallback_model and fallback_model != openai_model:
+                selected_model = fallback_model
+                try:
+                    response = client.chat.completions.create(
+                        model=selected_model,
+                        max_tokens=2000,
+                        messages=messages,
+                        temperature=0.1,
+                        timeout=openai_timeout,
+                    )
+                except Exception as retry_exc:
+                    _raise_timeout_or_original(retry_exc)
+            else:
+                _raise_timeout_or_original(exc)
+        else:
+            _raise_timeout_or_original(exc)
 
     raw_text = response.choices[0].message.content or ""
     clean = _strip_model_wrappers(raw_text)
@@ -206,7 +239,8 @@ def run_gpt_ct_model(
             continue
 
     model_meta = {
-        "name": MODEL_NAME,
+        "name": selected_model,
+        "underlying_model": selected_model,
         "body_part_detected": gpt_output.get("body_part", "UNKNOWN"),
         "image_quality": gpt_output.get("image_quality", "UNKNOWN"),
         "view_detected": "AXIAL",

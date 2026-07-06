@@ -45,7 +45,7 @@ docker run -p 8003:8003 -e OPENAI_API_KEY=your-key lab-result-interpreter-servic
 | Variable             | Description                    | Default   |
 | -------------------- | ------------------------------ | --------- |
 | `OPENAI_API_KEY`     | OpenAI API key (required)      | -         |
-| `OPENAI_MODEL`       | Model name                     | `gpt-4o`  |
+| `OPENAI_MODEL`       | Model name                     | `qwen3:1.7b`  |
 | `OPENAI_TEMPERATURE` | Temperature                    | `0.2`     |
 | `OPENAI_MAX_TOKENS`  | Max completion tokens          | `1500`    |
 | `API_PORT`           | Server port                    | `8003`    |
@@ -131,7 +131,7 @@ Interpret lab results with optional patient context and historical comparison.
   },
   "summary": "Lab interpretation generated successfully.",
   "processing_metadata": {
-    "model": "gpt-4o",
+    "model": "qwen3:1.7b",
     "timestamp": "2026-03-20T12:00:00.000000",
     "lab_result_count": 1,
     "trend_count": 1

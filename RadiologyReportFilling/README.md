@@ -45,8 +45,18 @@ Default local Ollama configuration in `.env`:
 ```
 OPENAI_BASE_URL=http://localhost:11434/v1
 OPENAI_API_KEY=ollama
-OPENAI_MODEL=qwen3:8b
+OPENAI_MODEL=qwen3:1.7b
 OPENAI_EMBED_MODEL=nomic-embed-text
+```
+
+`qwen3:1.7b` is suitable for Report Filling because this endpoint is a
+text-generation task. It is not suitable for image interpretation.
+
+Local Ollama setup:
+
+```bash
+ollama pull qwen3:1.7b
+ollama run qwen3:1.7b
 ```
 
 To switch back to the OpenAI cloud API, set `OPENAI_BASE_URL=` and replace
@@ -74,10 +84,10 @@ The file is gitignored.
 python main.py
 ```
 
-The server starts on `http://localhost:8000`.
+The server starts on `http://localhost:8024`.
 
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+- Swagger UI: `http://localhost:8024/docs`
+- ReDoc: `http://localhost:8024/redoc`
 
 ### 5. Run the tests
 
@@ -95,12 +105,54 @@ you want semantic retrieval with the local `nomic-embed-text` model.
 
 | Method | URL | Headers | Body |
 |---|---|---|---|
-| `GET` | `http://localhost:8000/` | -- | -- |
-| `GET` | `http://localhost:8000/api/v1/health` | -- | -- |
-| `GET` | `http://localhost:8000/api/v1/terms/summary` | -- | -- |
-| `POST` | `http://localhost:8000/api/v1/report-correction` | `Content-Type: application/json` | see body below |
-| `POST` | `http://localhost:8000/api/v1/analysis-matching` | `Content-Type: application/json` | see body below |
-| `POST` | `http://localhost:8000/api/v1/report-filling` | `Content-Type: application/json` | metadata template request |
+| `GET` | `http://localhost:8024/` | -- | -- |
+| `GET` | `http://localhost:8024/api/v1/health` | -- | -- |
+| `GET` | `http://localhost:8024/api/v1/terms/summary` | -- | -- |
+| `POST` | `http://localhost:8024/api/v1/report-correction` | `Content-Type: application/json` | see body below |
+| `POST` | `http://localhost:8024/api/v1/analysis-matching` | `Content-Type: application/json` | see body below |
+| `POST` | `http://localhost:8024/api/v1/report-filling` | `Content-Type: application/json` | static-template, compact-workflow, or debug full-workflow payload |
+
+### Postman collection requests
+
+The bundled collection file `Medical_Imaging_Assist.postman_collection.json`
+uses the `{{base_url}}` variable and now includes three report-filling request
+variants:
+
+- `Report Filling - Static Template Test`: fast smoke test with metadata-only
+  input. It can return a valid template response without necessarily exercising
+  the AI report-generation path.
+- `Report Filling - Compact Workflow Payload`: mirrors the production Stage 3
+  workflow body by sending patient/order fields plus compact
+  `AIInterpretationSummary`, `QC`, and minimal `DICOM` metadata. This is the
+  preferred request for real workflow testing because it exercises the AI
+  report-generation path without flooding the prompt with large debug objects.
+- `Report Filling - Full Workflow Payload (Debug)`: retains the older large
+  body with full `AIInterpretation`, `QCResult`, and `DICOM` objects for
+  troubleshooting only.
+
+### Why the workflow payload is compact
+
+Report Filling should receive report-generation context, not the full
+workflow/debug payload. Full DICOM metadata belongs to the QC and
+Interpretation services, which need the detailed study data. Report Filling
+only needs minimal exam metadata plus short workflow summaries so the prompt
+stays small enough for local models such as `qwen3:1.7b`.
+
+If the configured text model returns invalid JSON, times out, or fails for any
+other reason, Report Filling now returns HTTP `200` with a valid report object
+built from `RadiologistNotes` instead of breaking the workflow with `422`.
+
+`RadiologistNotes` are always treated as the primary source of truth for final
+report content. `DoctorNotes` are used only as supporting clinical context.
+
+The recommended compact payload keeps:
+
+- patient and order identifiers
+- doctor notes as secondary clinical context
+- radiologist notes as the primary source for final report content
+- a short AI interpretation summary for warning/context only
+- a short QC summary for warning/context only
+- minimal DICOM metadata for modality, body part, study date, view, and study ID
 
 ### Setting up a POST request
 
@@ -207,7 +259,7 @@ Regenerate them anytime with `python generate_data.py`.
 
 ### Swagger UI alternative
 
-Open `http://localhost:8000/docs` for interactive testing without Postman.
+Open `http://localhost:8024/docs` for interactive testing without Postman.
 
 ## Project layout
 

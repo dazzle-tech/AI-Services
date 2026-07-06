@@ -36,7 +36,7 @@ pip install -r requirements.txt
 
 2. Copy `.env.example` to `.env` and configure:
 ```bash
-OPENAI_MODEL=gpt-4.1
+OPENAI_MODEL=qwen3:1.7b
 OPENAI_API_KEY=your-api-key-here
 ```
 
@@ -120,7 +120,7 @@ result = service.perform_qa(
 Create a `.env` file in the project root with:
 
 ```
-OPENAI_MODEL=gpt-4.1
+OPENAI_MODEL=qwen3:1.7b
 OPENAI_API_KEY=sk-proj-your-api-key-here
 ```
 

@@ -116,7 +116,7 @@ Edit `.env` and add your OpenAI API key:
 
 ```env
 OPENAI_API_KEY=sk-your-actual-key-here
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=qwen3:1.7b
 OPENAI_TEMPERATURE=0.2
 ```
 
@@ -131,7 +131,7 @@ All configuration is in `config.py` and `.env` file.
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | Your OpenAI API key (required) | - |
-| `OPENAI_MODEL` | Model to use | `gpt-4o` |
+| `OPENAI_MODEL` | Model to use | `qwen3:1.7b` |
 | `OPENAI_TEMPERATURE` | Temperature (0.0-1.0) | `0.1` |
 | `API_HOST` | Server host | `0.0.0.0` |
 | `API_PORT` | Server port | `8000` |
@@ -166,7 +166,7 @@ Expected output:
 ================================================================================
 🏥 MEDICAL GUIDELINE VALIDATION API - STARTING
 ================================================================================
-🤖 AI Model: gpt-4o
+🤖 AI Model: qwen3:1.7b
 📍 Server: http://0.0.0.0:8000
 📚 API Docs: http://localhost:8000/docs
 ================================================================================

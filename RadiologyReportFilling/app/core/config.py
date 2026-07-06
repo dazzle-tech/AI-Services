@@ -31,10 +31,10 @@ class Settings(BaseSettings):
     # will still fail with a clear error when invoked.
     openai_base_url: str = "http://localhost:11434/v1"
     openai_api_key: str = "ollama"
-    openai_model: str = "qwen3:8b"
+    openai_model: str = ""
     openai_temperature: float = 0.2
     openai_timeout: int = 120
-    openai_max_retries: int = 3
+    openai_max_retries: int = 1
     openai_retry_delay: float = 1.0
     openai_embed_model: str = "nomic-embed-text"
 
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
 
     # Server Configuration
     api_host: str = "0.0.0.0"
-    api_port: int = 8000
+    api_port: int = 8024
     api_reload: bool = False
 
     # Output persistence

@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from typing import Any, Optional
 
+import config
 from models.schemas import AutofillResponse, FieldValidation, Template
 from services.template_repository import TemplateRepository
 
@@ -118,7 +119,12 @@ class AutofillService:
 
         from openai import OpenAI
 
-        self._client = OpenAI(api_key=self.openai_api_key)
+        self._client = OpenAI(
+            api_key=self.openai_api_key,
+            base_url=config.OPENAI_BASE_URL or None,
+            timeout=config.OPENAI_TIMEOUT,
+            max_retries=config.OPENAI_MAX_RETRIES,
+        )
         self.initialized = True
         logger.info("Autofill service initialized with model %s", self.model)
 
@@ -202,13 +208,24 @@ class AutofillService:
             "output_language": output_language,
         }
 
+        system_prompt = _build_system_prompt(output_language)
+        user_payload_json = json.dumps(user_payload, ensure_ascii=False)
+        prompt_length = len(system_prompt) + len(user_payload_json)
+        logger.info(
+            "Calling template autofill using model %s base_url=%s timeout=%ss prompt_length=%s",
+            self.model,
+            config.OPENAI_BASE_URL,
+            config.OPENAI_TIMEOUT,
+            prompt_length,
+        )
         response = self._client.chat.completions.create(
             model=self.model,
             temperature=self.temperature,
             response_format={"type": "json_object"},
+            timeout=config.OPENAI_TIMEOUT,
             messages=[
-                {"role": "system", "content": _build_system_prompt(output_language)},
-                {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_payload_json},
             ],
         )
         content = response.choices[0].message.content or "{}"

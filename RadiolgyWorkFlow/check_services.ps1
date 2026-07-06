@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 $checks = @(
   @{ Name = 'RadiologyImageQaAI';     Url = 'http://127.0.0.1:8016/health' },
   @{ Name = 'InterpretationAssist';   Url = 'http://127.0.0.1:8015/health' },
-  @{ Name = 'RadiologyReportFilling'; Url = 'http://127.0.0.1:8000/api/v1/health' },
+  @{ Name = 'RadiologyReportFilling'; Url = 'http://127.0.0.1:8024/api/v1/health' },
   @{ Name = 'TemplateAutofill';       Url = 'http://127.0.0.1:8022/health' }
 )
 

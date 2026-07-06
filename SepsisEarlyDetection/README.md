@@ -223,7 +223,7 @@ pytest tests/ -v
 | Variable             | Required | Default   | Description                        |
 |----------------------|----------|-----------|------------------------------------|
 | OPENAI_API_KEY       | Yes      | --        | Your OpenAI API key                |
-| OPENAI_MODEL         | No       | gpt-4o    | OpenAI model to use                |
+| OPENAI_MODEL         | No       | qwen3:1.7b | OpenAI model to use               |
 | OPENAI_TEMPERATURE   | No       | 0.2       | Model temperature (0.0 - 1.0)     |
 | OPENAI_TIMEOUT       | No       | 120       | API call timeout in seconds        |
 | API_HOST             | No       | 0.0.0.0   | Server bind host                   |

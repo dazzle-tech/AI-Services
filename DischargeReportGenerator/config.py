@@ -19,8 +19,11 @@ load_dotenv()
 logger.info("Environment variables loaded from .env file")
 
 # OpenAI Configuration
+OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", "http://localhost:11434/v1")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "")
+OPENAI_TIMEOUT = float(os.environ.get("OPENAI_TIMEOUT", "120"))
+OPENAI_MAX_RETRIES = int(os.environ.get("OPENAI_MAX_RETRIES", "1"))
 OPENAI_TEMPERATURE = float(os.environ.get("OPENAI_TEMPERATURE", "0.2"))
 
 # API Configuration

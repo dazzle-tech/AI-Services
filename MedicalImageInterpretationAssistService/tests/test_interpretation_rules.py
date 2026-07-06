@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import io
+import logging
+import os
 import zipfile
 
 import pytest
 from fastapi.testclient import TestClient
+
+TEST_MODEL = os.getenv("OPENAI_MODEL", "") or "configured-model"
 
 
 def _client() -> TestClient:
@@ -269,6 +273,7 @@ def test_chest_pa_metadata_preferred_over_model_and_single_view_warnings(monkeyp
 
     settings = get_settings()
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "vision_model", "llava:7b")
 
     import app.interpretation.gpt_xray_model as gpt_model
 
@@ -326,6 +331,108 @@ def test_chest_pa_metadata_preferred_over_model_and_single_view_warnings(monkeyp
     assert op["confidence"] <= 0.55
 
 
+def test_xr_chest_moves_off_target_findings_to_incidental_bucket(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    import tempfile
+    from pathlib import Path
+
+    import app.interpretation.interpretation_service as svc
+    from app.config import Settings
+    from app.interpretation.models import Finding
+
+    monkeypatch.setattr(
+        svc,
+        "extract_dicom_metadata",
+        lambda _folder: {
+            "modality": "CR",
+            "study_description": "CHEST XRAY PA/LATERAL",
+            "series_description": "PA",
+            "protocol_name": "CHEST",
+            "body_part_examined": "CHEST",
+            "study_instance_uid": "1.2.300",
+            "image_laterality": None,
+            "view_position": "PA",
+            "patient_age": None,
+            "patient_sex": None,
+        },
+    )
+    monkeypatch.setattr(svc, "_load_upload_to_dicom_dir", lambda upload, dicom_dir: [Path("/fake/1.dcm")])
+    monkeypatch.setattr(svc, "_dicom_to_png", lambda src, dst: dst.write_bytes(b"PNG"))
+    monkeypatch.setattr(svc, "_extract_available_views", lambda _files: ["PA", "LATERAL"])
+    monkeypatch.setattr(svc, "_should_use_gpt", lambda _: True)
+    monkeypatch.setattr(
+        "app.interpretation.gpt_xray_model.run_gpt_xray_model",
+        lambda **_kwargs: (
+            [
+                Finding(
+                    finding_code="CONSOLIDATION",
+                    finding_text="Possible right lower lobe consolidation. Radiologist review required.",
+                    location="right lower lobe",
+                    confidence=0.82,
+                    priority="ROUTINE",
+                    radiologist_review_required=True,
+                ),
+                Finding(
+                    finding_code="SURGICAL_HARDWARE",
+                    finding_text="Lumbar spinal fixation hardware is visible. Radiologist review required.",
+                    location="lumbar spine",
+                    confidence=0.96,
+                    priority="ROUTINE",
+                    radiologist_review_required=True,
+                ),
+                Finding(
+                    finding_code="URETERIC_STENT",
+                    finding_text="Possible ureteric stent at the right renal pelvis. Radiologist review required.",
+                    location="right renal pelvis",
+                    confidence=0.94,
+                    priority="ROUTINE",
+                    radiologist_review_required=True,
+                ),
+            ],
+            {},
+            {
+                "name": TEST_MODEL,
+                "image_quality": "ADEQUATE",
+                "laterality_from_image": None,
+                "view_detected": "PA",
+                "body_part_detected": "CHEST",
+            },
+        ),
+    )
+
+    settings = Settings(openai_api_key="sk-test", vision_model="llava:7b")
+
+    with tempfile.TemporaryDirectory() as tmp, caplog.at_level(logging.INFO):
+        upload_path = Path(tmp) / "upload.dcm"
+        upload_path.write_bytes(b"FAKE")
+        workdir = Path(tmp) / "work"
+        workdir.mkdir()
+        response = svc.build_dicom_response(
+            upload_input_path=upload_path,
+            workdir=workdir,
+            clinical_indication=None,
+            output_language="en",
+            settings=settings,
+        )
+
+    assert response.status == "COMPLETED"
+    assert [finding.finding_code for finding in response.findings] == ["CONSOLIDATION"]
+    assert response.findings[0].location == "right lower lobe"
+    assert {finding.finding_code for finding in response.incidental_or_off_target_findings} == {
+        "SURGICAL_HARDWARE",
+        "URETERIC_STENT",
+    }
+    assert all(finding.radiologist_review_required for finding in response.findings)
+    assert all(
+        finding.radiologist_review_required for finding in response.incidental_or_off_target_findings
+    )
+    assert "XR_CHEST original model findings=" in caplog.text
+    assert "XR_CHEST filtered findings=" in caplog.text
+    assert "XR_CHEST moved incidental/off-target findings=" in caplog.text
+
+
 def test_body_part_classifier_hand() -> None:
     from app.protocol_classifier import classify_exam_type
 
@@ -346,6 +453,7 @@ def test_gpt_path_used_when_api_key_set(monkeypatch: pytest.MonkeyPatch) -> None
 
     settings = get_settings()
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "vision_model", "llava:7b")
 
     import app.interpretation.gpt_xray_model as gpt_model
 
@@ -370,6 +478,48 @@ def test_gpt_path_used_when_api_key_set(monkeypatch: pytest.MonkeyPatch) -> None
     body = response.json()
     assert body["status"] == "COMPLETED"
     assert body["ai"]["model_name"] == "stub-gpt"
+
+
+def test_text_only_vision_model_returns_review_required_without_multimodal_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.interpretation.interpretation_service as svc
+    from app.config import Settings
+
+    monkeypatch.setattr(svc, "run_xray_model", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("local fallback should not run")))
+    monkeypatch.setattr(
+        "app.interpretation.gpt_xray_model.run_gpt_xray_model",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("multimodal model should not be called")),
+    )
+
+    from PIL import Image
+
+    img = Image.new("L", (64, 64), color=128)
+    settings = Settings(openai_api_key="ollama", vision_model="qwen3:1.7b", enable_image_model=True)
+
+    import tempfile
+    from pathlib import Path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        img_path = Path(tmp) / "xray.png"
+        img.save(img_path, format="PNG")
+        workdir = Path(tmp) / "work"
+        workdir.mkdir()
+        response = svc.build_image_response(
+            upload_input_path=img_path,
+            workdir=workdir,
+            clinical_indication=None,
+            settings=settings,
+            output_language="en",
+            exam_type="XR_CHEST",
+        )
+
+    assert response.status == "REVIEW_REQUIRED"
+    assert response.summary == (
+        "Image interpretation was skipped because the configured local model does not support image input. "
+        "Radiologist review required."
+    )
+    assert "Configured model does not support image input." in response.warnings
 
 
 def test_fallback_to_torchxrayvision_when_no_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -400,6 +550,54 @@ def test_fallback_to_torchxrayvision_when_no_api_key(monkeypatch: pytest.MonkeyP
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "COMPLETED"
+
+
+def test_completed_response_uses_configured_vision_model_when_model_meta_name_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tempfile
+    from pathlib import Path
+
+    import numpy as np
+    from PIL import Image
+
+    import app.interpretation.interpretation_service as svc
+    from app.config import Settings
+
+    monkeypatch.setattr(svc, "_should_use_gpt", lambda _: True)
+    monkeypatch.setattr(
+        "app.interpretation.gpt_xray_model.run_gpt_xray_model",
+        lambda **_kwargs: (
+            [],
+            {},
+            {
+                "image_quality": "ADEQUATE",
+                "laterality_from_image": None,
+                "view_detected": "PA",
+                "body_part_detected": "CHEST",
+            },
+        ),
+    )
+
+    settings = Settings(openai_api_key="ollama", vision_model="qwen2.5vl:3b")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        img_path = Path(tmp) / "xray.png"
+        Image.fromarray(np.zeros((64, 64), dtype=np.uint8)).save(str(img_path))
+        workdir = Path(tmp) / "work"
+        workdir.mkdir()
+        response = svc.build_image_response(
+            upload_input_path=img_path,
+            workdir=workdir,
+            clinical_indication=None,
+            settings=settings,
+            output_language="en",
+            exam_type="XR_CHEST",
+        )
+
+    assert response.status == "COMPLETED"
+    assert response.ai.model_name == "qwen2.5vl:3b"
+    assert response.ai.model_name != "unknown"
 
 
 def test_non_chest_xr_without_api_key_returns_review_required(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -524,6 +722,7 @@ def test_view_detected_axial(monkeypatch: pytest.MonkeyPatch) -> None:
 
     settings = get_settings()
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "vision_model", "llava:7b")
 
     import app.interpretation.gpt_xray_model as gpt_model
 
@@ -578,6 +777,7 @@ def test_indication_mismatch_warning(monkeypatch: pytest.MonkeyPatch) -> None:
 
     settings = get_settings()
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "vision_model", "llava:7b")
 
     import app.interpretation.gpt_xray_model as gpt_model
 
@@ -633,6 +833,7 @@ def test_missing_views_warning(monkeypatch: pytest.MonkeyPatch) -> None:
 
     settings = get_settings()
     monkeypatch.setattr(settings, "openai_api_key", "sk-test")
+    monkeypatch.setattr(settings, "vision_model", "llava:7b")
 
     import app.interpretation.gpt_xray_model as gpt_model
 
@@ -1041,7 +1242,7 @@ def test_audit_log_called_on_completed(monkeypatch: pytest.MonkeyPatch) -> None:
             [stub_finding],
             {},
             {
-                "name": "gpt-4o-xray-vision",
+                "name": TEST_MODEL,
                 "image_quality": "ADEQUATE",
                 "laterality_from_image": None,
                 "view_detected": "PA",
@@ -1050,7 +1251,7 @@ def test_audit_log_called_on_completed(monkeypatch: pytest.MonkeyPatch) -> None:
         ),
     )
 
-    settings = Settings(openai_api_key="sk-test")
+    settings = Settings(openai_api_key="sk-test", vision_model="llava:7b")
 
     with tempfile.TemporaryDirectory() as tmp:
         img_path = Path(tmp) / "xray.png"
@@ -1083,7 +1284,7 @@ def test_audit_log_written_to_stdout(capsys) -> None:
         status="COMPLETED",
         finding_codes=["PNEUMOTHORAX"],
         critical_alert=False,
-        model_name="gpt-4o-xray-vision",
+        model_name=TEST_MODEL,
         modality_handled="XRAY",
         clinical_indication=None,
         warnings=[],
@@ -1161,7 +1362,7 @@ def test_body_part_uppercase_in_response(monkeypatch: pytest.MonkeyPatch) -> Non
             [],
             {},
             {
-                "name": "gpt-4o-xray-vision",
+                "name": TEST_MODEL,
                 "image_quality": "ADEQUATE",
                 "laterality_from_image": None,
                 "view_detected": "AP",
@@ -1170,7 +1371,7 @@ def test_body_part_uppercase_in_response(monkeypatch: pytest.MonkeyPatch) -> Non
         ),
     )
 
-    settings = Settings(openai_api_key="sk-test")
+    settings = Settings(openai_api_key="sk-test", vision_model="llava:7b")
     with tempfile.TemporaryDirectory() as tmp:
         fake_dcm = Path(tmp) / "upload.dcm"
         fake_dcm.write_bytes(b"FAKE")
@@ -1244,16 +1445,9 @@ def test_xray_endpoint_accepts_output_language_and_localizes_human_text(monkeypa
     assert "Απαιτείται αξιολόγηση" in body["summary"]
 
 
-def test_default_model_is_pinned_version() -> None:
-    """Default openai_model must include an explicit local model tag, not a bare alias."""
+def test_default_model_defaults_to_env_override() -> None:
+    """openai_model should stay unset until OPENAI_MODEL is provided."""
     from app.config import Settings
 
     settings = Settings(_env_file=None)
-    assert settings.openai_model, "openai_model must not be empty."
-    assert ":" in settings.openai_model, (
-        "openai_model must use an explicit Ollama tag such as "
-        "'qwen3-vl:8b', not a bare floating family alias."
-    )
-    family, tag = settings.openai_model.split(":", 1)
-    assert family.strip(), f"Expected a model family before ':', got: {settings.openai_model}"
-    assert tag.strip(), f"Expected a non-empty Ollama tag, got: {settings.openai_model}"
+    assert settings.openai_model == ""

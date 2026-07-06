@@ -109,7 +109,7 @@ Edit `.env` and add your OpenAI API key:
 
 ```env
 OPENAI_API_KEY=sk-your-actual-key-here
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=qwen3:1.7b
 OPENAI_TEMPERATURE=0.2
 ```
 
@@ -128,7 +128,7 @@ Expected output:
 ================================================================================
 📝 DISCHARGE REPORT GENERATION API - STARTING
 ================================================================================
-🤖 AI Model: gpt-4o
+🤖 AI Model: qwen3:1.7b
 📍 Server: http://0.0.0.0:8000
 📚 API Docs: http://localhost:8000/docs
 ✅ Discharge Report Generator ready!
@@ -172,7 +172,7 @@ Check API health and configuration status.
   "status": "healthy",
   "openai_configured": true,
   "generator_initialized": true,
-  "model": "gpt-4o"
+  "model": "qwen3:1.7b"
 }
 ```
 

@@ -46,7 +46,7 @@ docker run -p 8004:8004 -e OPENAI_API_KEY=sk-your-key smart-discharge-planner
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | OpenAI API key (required) | - |
-| `OPENAI_MODEL` | Model name | `gpt-4o` |
+| `OPENAI_MODEL` | Model name | `qwen3:1.7b` |
 | `OPENAI_TEMPERATURE` | Temperature | `0.2` |
 | `OPENAI_MAX_TOKENS` | Max completion tokens | `1500` |
 | `API_PORT` | Server port | `8004` |
@@ -110,7 +110,7 @@ curl -X POST "http://localhost:8004/api/v1/plan-discharge" \
   },
   "summary": "Discharge planning assessment generated successfully.",
   "processing_metadata": {
-    "model": "gpt-4o",
+    "model": "qwen3:1.7b",
     "timestamp": "2026-03-20T12:00:00",
     "blocker_count": 2
   }

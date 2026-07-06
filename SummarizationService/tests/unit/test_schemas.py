@@ -1,7 +1,11 @@
 """Unit tests for Pydantic schemas."""
+import os
+
 import pytest
 from pydantic import ValidationError
 from app.models.schemas import PatientDataInput, SummaryRequest, SummaryResponse, SurgeryWithStatus
+
+TEST_MODEL = os.getenv("OPENAI_MODEL", "")
 
 
 class TestPatientDataInput:
@@ -194,12 +198,12 @@ class TestSummaryResponse:
     
     def test_response_with_metadata(self):
         """Test response with processing metadata."""
-        metadata = {"model": "gpt-4o", "tokens": 250}
+        metadata = {"model": TEST_MODEL, "tokens": 250}
         response = SummaryResponse(
             ClinicalSummary="Test summary",
             processing_metadata=metadata
         )
-        assert response.processing_metadata["model"] == "gpt-4o"
+        assert response.processing_metadata["model"] == TEST_MODEL
         assert response.processing_metadata["tokens"] == 250
     
     def test_clinical_summary_required(self):

@@ -65,7 +65,7 @@ Add a new template by dropping a JSON file into `data/templates/` matching the e
 | Variable             | Default                     | Purpose |
 |----------------------|-----------------------------|---------|
 | `OPENAI_API_KEY`     | _(required for real autofill)_ | OpenAI key |
-| `OPENAI_MODEL`       | `gpt-4o`                    | Model for autofill |
+| `OPENAI_MODEL`       | `qwen3:1.7b`               | Model for autofill |
 | `OPENAI_TEMPERATURE` | `0.1`                       | LLM temperature |
 | `EMBEDDING_MODEL`    | `all-MiniLM-L6-v2`          | sentence-transformer model |
 | `TEMPLATES_DIR`      | `data/templates`            | Where template JSONs live (resolved relative to project) |

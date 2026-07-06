@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import zipfile
+import logging
 from pathlib import Path
 from typing import Any
 import re
@@ -12,6 +13,7 @@ from pydicom.misc import is_dicom  # type: ignore
 
 from ..config import Settings
 from ..dicom_utils import extract_dicom_metadata, find_dicom_files
+from ..model_resolver import model_supports_vision
 from ..protocol_classifier import SUPPORTED_EXAMS, ExamClassification, classify_exam_type
 from .models import AIInfo, Finding, InterpretationResponse, StudyInfo
 from .xray_model import STRONG_THRESHOLD, WEAK_THRESHOLD, run_xray_model
@@ -20,6 +22,8 @@ from ..audit import log_interpretation
 
 _VIEW_WORD_RE = re.compile(r"(^|\s)(pa|ap)(\s|$)", re.IGNORECASE)
 _TWO_VIEWS_RE = re.compile(r"(\b2\b|two)\s*view", re.IGNORECASE)
+
+logger = logging.getLogger(__name__)
 
 BILATERAL_BODY_PARTS = {
     "ABDOMEN",
@@ -31,6 +35,110 @@ BILATERAL_BODY_PARTS = {
     "KUB",
     "PELVIS",
     "KIDNEY",
+}
+
+_CHEST_PRIORITY_FINDING_CODES = {
+    "PNEUMOTHORAX",
+    "PLEURAL_EFFUSION",
+    "CONSOLIDATION",
+    "PULMONARY_OPACITY",
+    "LUNG_OPACITY",
+    "LOWER_ZONE_OPACITY",
+    "PNEUMONIA",
+    "INFILTRATION",
+    "ATELECTASIS",
+    "PULMONARY_EDEMA",
+    "CARDIOMEGALY",
+    "PULMONARY_NODULE",
+    "NODULE",
+    "MASS",
+    "FRACTURE",
+    "RIB_FRACTURE",
+    "CLAVICLE_FRACTURE",
+    "SCAPULAR_FRACTURE",
+    "STERNUM_FRACTURE",
+    "THORACIC_SPINE_FRACTURE",
+}
+
+_CHEST_SUPPORT_DEVICE_CODES = {
+    "CHEST_TUBE",
+    "PLEURAL_DRAIN",
+    "CENTRAL_LINE",
+    "PICC_LINE",
+    "CVC",
+    "PORT",
+    "ENDOTRACHEAL_TUBE",
+    "TRACHEOSTOMY_TUBE",
+    "NG_TUBE",
+    "ENTERIC_TUBE",
+    "PACEMAKER",
+}
+
+_CHEST_RELEVANT_KEYWORDS = {
+    "lung",
+    "pulmonary",
+    "pleura",
+    "pleural",
+    "pneumothorax",
+    "effusion",
+    "cardiomediastinal",
+    "cardiac",
+    "heart",
+    "mediastin",
+    "hilar",
+    "perihilar",
+    "diaphragm",
+    "costophrenic",
+    "cp angle",
+    "rib",
+    "clavicle",
+    "scapula",
+    "scapular",
+    "sternum",
+    "sternotomy",
+    "thoracic",
+    "chest wall",
+    "apex",
+    "basilar",
+    "lower lung zone",
+    "upper lung zone",
+    "mid lung zone",
+    "central line",
+    "picc",
+    "cvc",
+    "port",
+    "endotracheal",
+    "tracheostomy",
+    "chest tube",
+    "pleural drain",
+    "mediastinal drain",
+}
+
+_CHEST_OFF_TARGET_KEYWORDS = {
+    "abdomen",
+    "abdominal",
+    "renal",
+    "kidney",
+    "ureter",
+    "ureteric",
+    "bladder",
+    "pelvis",
+    "pelvic",
+    "lumbar",
+    "lumbosacral",
+    "iliac",
+    "sacrum",
+    "sacral",
+    "hip",
+    "femur",
+    "bowel",
+    "nephrostomy",
+}
+
+_CHEST_OFF_TARGET_FINDING_CODES = {
+    "URETERIC_STENT",
+    "NEPHROSTOMY_TUBE",
+    "CONTRAST_OPACIFIED_BLADDER",
 }
 
 _SUPPORTED_OUTPUT_LANGUAGES = {"el", "en", "ar"}
@@ -247,12 +355,16 @@ def localize_response(response: InterpretationResponse, output_language: str) ->
     if language == "en":
         return response
     localized_findings = [_localize_finding(finding, language) for finding in response.findings]
+    localized_incidental_findings = [
+        _localize_finding(finding, language) for finding in response.incidental_or_off_target_findings
+    ]
     localized_warnings = [_localize_warning_text(text, language) for text in response.warnings]
     localized_summary = _translate_text(response.summary, language)
     localized_disclaimer = localize_disclaimer_text(language)
     return response.model_copy(
         update={
             "findings": localized_findings,
+            "incidental_or_off_target_findings": localized_incidental_findings,
             "summary": localized_summary,
             "warnings": localized_warnings,
             "disclaimer": localized_disclaimer,
@@ -396,6 +508,114 @@ def _normalize_model_laterality(raw: Any) -> str | None:
         return "RIGHT"
     return None
 
+
+def _finding_log_payload(findings: list[Finding]) -> list[dict[str, Any]]:
+    return [finding.model_dump(mode="json") for finding in findings]
+
+
+def _contains_any_keyword(text: str, keywords: set[str]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
+
+def _finding_text_blob(finding: Finding) -> str:
+    return " ".join(
+        part
+        for part in [
+            finding.finding_code,
+            finding.location or "",
+            finding.finding_text or "",
+        ]
+        if part
+    ).lower()
+
+
+def _is_off_target_xr_chest_finding(finding: Finding) -> bool:
+    code = (finding.finding_code or "").strip().upper()
+    blob = _finding_text_blob(finding)
+    confidence = float(finding.confidence or 0.0)
+    chest_relevant = (
+        code in _CHEST_PRIORITY_FINDING_CODES
+        or code in _CHEST_SUPPORT_DEVICE_CODES
+        or _contains_any_keyword(blob, _CHEST_RELEVANT_KEYWORDS)
+    )
+    off_target = code in _CHEST_OFF_TARGET_FINDING_CODES or _contains_any_keyword(blob, _CHEST_OFF_TARGET_KEYWORDS)
+    if off_target and not (chest_relevant and confidence >= 0.90):
+        return True
+    if code in {"SURGICAL_HARDWARE", "SURGICAL_CLIPS", "IMPLANTED_DEVICE", "VASCULAR_DEVICE"} and not chest_relevant:
+        return True
+    return False
+
+
+def _postprocess_xr_findings(
+    *,
+    findings: list[Finding],
+    exam_type: str,
+    final_view: str | None,
+    single_frontal_only: bool,
+) -> tuple[list[Finding], list[Finding]]:
+    if not exam_type.startswith("XR_CHEST"):
+        return findings, []
+
+    logger.info("XR_CHEST original model findings=%s", _finding_log_payload(findings))
+
+    filtered_findings: list[Finding] = []
+    incidental_findings: list[Finding] = []
+    for finding in findings:
+        code = (getattr(finding, "finding_code", "") or "").upper()
+        location = getattr(finding, "location", None)
+        confidence = float(getattr(finding, "confidence", 0.0) or 0.0)
+        finding_text = getattr(finding, "finding_text", "")
+        priority = getattr(finding, "priority", "ROUTINE")
+
+        if single_frontal_only and isinstance(location, str) and "lobe" in location.lower():
+            new_loc, changed = _zone_location_from_lobe(location)
+            if changed:
+                location = new_loc
+                confidence = min(confidence, 0.55)
+
+        if code == "CARDIOMEGALY":
+            priority = "ROUTINE"
+            if final_view == "AP":
+                confidence = min(confidence, 0.55)
+                finding_text = "Possible apparent enlargement of the cardiac silhouette (AP projection may magnify heart size). Radiologist review required."
+            elif final_view == "PA":
+                confidence = min(confidence, 0.60)
+                finding_text = "Possible mild enlargement of the cardiac silhouette. Radiologist review required."
+            else:
+                confidence = min(confidence, 0.55)
+                finding_text = "Possible mild enlargement of the cardiac silhouette. Radiologist review required."
+
+        if code in {"PULMONARY_OPACITY", "LUNG_OPACITY", "CONSOLIDATION", "PNEUMONIA", "INFILTRATION"}:
+            if single_frontal_only:
+                confidence = min(confidence, 0.45 if confidence < 0.70 else 0.55)
+            if confidence < 0.35:
+                continue
+            if single_frontal_only and code in {"PULMONARY_OPACITY", "LUNG_OPACITY"} and confidence <= 0.55:
+                code = "LOWER_ZONE_OPACITY"
+                if isinstance(location, str) and location.strip():
+                    location = location.strip()
+                else:
+                    location = "lower lung zone"
+                finding_text = "Questionable mild basilar opacity or vascular crowding. Radiologist review required."
+
+        candidate = finding.model_copy(
+            update={
+                "finding_code": code,
+                "location": location,
+                "confidence": confidence,
+                "finding_text": finding_text,
+                "priority": priority,
+            }
+        )
+        if _is_off_target_xr_chest_finding(candidate):
+            incidental_findings.append(candidate)
+            continue
+        filtered_findings.append(candidate)
+
+    logger.info("XR_CHEST filtered findings=%s", _finding_log_payload(filtered_findings))
+    logger.info("XR_CHEST moved incidental/off-target findings=%s", _finding_log_payload(incidental_findings))
+    return filtered_findings, incidental_findings
+
 def build_summary(findings: list[Finding], output_language: str = "en") -> str:
     language = normalize_output_language(output_language)
     if not findings:
@@ -465,6 +685,66 @@ def _should_use_gpt(settings: Settings) -> bool:
     return (not running_pytest) or api_key.startswith("sk-test")
 
 
+def _selected_vision_model(settings: Settings) -> str:
+    return settings.vision_model.strip()
+
+
+def _supports_configured_vision_model(settings: Settings) -> bool | None:
+    selected_model = _selected_vision_model(settings)
+    if not selected_model:
+        return None
+    return model_supports_vision(selected_model)
+
+
+def _should_skip_image_model(settings: Settings) -> tuple[bool, str | None, str]:
+    selected_model = _selected_vision_model(settings)
+    supports_vision = _supports_configured_vision_model(settings)
+    logger.info(
+        "Image interpretation config selected_model=%s supports_vision=%s enable_image_model=%s",
+        selected_model or "<unset>",
+        supports_vision,
+        settings.enable_image_model,
+    )
+
+    if not settings.enable_image_model:
+        return True, selected_model or None, "Image interpretation is disabled by ENABLE_IMAGE_MODEL=false."
+    if _should_use_gpt(settings) and not selected_model:
+        return True, None, "VISION_MODEL is not configured for image interpretation."
+    if selected_model and supports_vision is False:
+        return True, selected_model, "Configured model does not support image input."
+    return False, selected_model or None, ""
+
+
+def _build_review_required_response(
+    *,
+    exam_type: str,
+    summary: str,
+    warnings: list[str],
+    output_language: str,
+    settings: Settings,
+    clinical_indication: str | None,
+    study: StudyInfo | None = None,
+    model_name: str | None = None,
+) -> InterpretationResponse:
+    response = InterpretationResponse(
+        exam_type=exam_type,
+        status="REVIEW_REQUIRED",
+        findings=[],
+        critical_alert=False,
+        summary=summary,
+        study=study or StudyInfo(),
+        ai=AIInfo(
+            model_name=model_name or "unknown",
+            modality_handled="XRAY",
+            slices_reviewed=1,
+            not_for_medical_use=True,
+        ),
+        warnings=warnings,
+        disclaimer=settings.disclaimer_text,
+    )
+    return _audit(localize_response(response, output_language), clinical_indication)
+
+
 def build_image_response(
     *,
     upload_input_path: Path,
@@ -476,11 +756,10 @@ def build_image_response(
 ) -> InterpretationResponse:
     image_path = workdir / "xray_input.png"
     warnings: list[str] = []
+    skip_image_model, selected_vision_model, skip_reason = _should_skip_image_model(settings)
     mismatch_warning = _check_indication_mismatch(clinical_indication, exam_type)
     if mismatch_warning:
-        import logging
-
-        logging.getLogger(__name__).warning(mismatch_warning)
+        logger.warning(mismatch_warning)
         warnings.append(mismatch_warning)
 
     try:
@@ -488,18 +767,30 @@ def build_image_response(
     except Exception as e:
         reason = str(e) or e.__class__.__name__
         study = StudyInfo(image_quality="UNREADABLE")
-        ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
-        return _audit(localize_response(InterpretationResponse(
+        return _build_review_required_response(
             exam_type=exam_type,
-            status="REVIEW_REQUIRED",
-            critical_alert=False,
             summary="Unsupported or unreadable image file. Radiologist review required.",
-            findings=[],
-            study=study,
-            ai=ai,
             warnings=[*warnings, reason],
-            disclaimer=settings.disclaimer_text,
-        ), output_language), clinical_indication)
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+        )
+
+    if skip_image_model:
+        return _build_review_required_response(
+            exam_type=exam_type,
+            summary=(
+                "Image interpretation was skipped because the configured local model does not support image input. "
+                "Radiologist review required."
+            ),
+            warnings=[*warnings, skip_reason],
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=StudyInfo(image_quality="UNKNOWN"),
+            model_name=selected_vision_model,
+        )
 
     try:
         if _should_use_gpt(settings):
@@ -510,8 +801,8 @@ def build_image_response(
                 exam_type=exam_type,
                 output_language=output_language,
                 openai_api_key=(settings.openai_api_key or "").strip(),
-                openai_model=settings.openai_model,
-                openai_timeout=settings.openai_timeout_seconds,
+                openai_model=selected_vision_model,
+                openai_timeout=settings.openai_timeout,
                 study_description=None,
                 series_description=None,
                 laterality=None,
@@ -528,37 +819,40 @@ def build_image_response(
     except Exception as e:
         reason = str(e) or e.__class__.__name__
         study = StudyInfo(image_quality="UNREADABLE")
-        ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
         if reason == "No local model available for this body part; configure OPENAI_API_KEY to enable full X-ray coverage.":
-            return _audit(localize_response(InterpretationResponse(
+            return _build_review_required_response(
                 exam_type=exam_type,
-                status="REVIEW_REQUIRED",
-                findings=[],
-                critical_alert=False,
                 summary=build_summary([], output_language),
-                study=study,
-                ai=ai,
                 warnings=[*warnings, reason],
-                disclaimer=settings.disclaimer_text,
-            ), output_language), clinical_indication)
-        return _audit(localize_response(InterpretationResponse(
+                output_language=output_language,
+                settings=settings,
+                clinical_indication=clinical_indication,
+                study=study,
+                model_name=selected_vision_model,
+            )
+        return _build_review_required_response(
             exam_type=exam_type,
-            status="REVIEW_REQUIRED",
-            critical_alert=False,
             summary="X-ray interpretation model inference failed. Radiologist review required.",
-            findings=[],
-            study=study,
-            ai=ai,
             warnings=[*warnings, reason],
-            disclaimer=settings.disclaimer_text,
-        ), output_language), clinical_indication)
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+            model_name=selected_vision_model,
+        )
 
     study = StudyInfo(image_quality=str(model_meta.get("image_quality") or "UNKNOWN"))
     model_lat = _normalize_model_laterality(model_meta.get("laterality_from_image"))
     if model_lat:
         study.laterality = model_lat
+    findings, incidental_findings = _postprocess_xr_findings(
+        findings=findings,
+        exam_type=exam_type,
+        final_view=str(model_meta.get("view_detected") or "").upper() or None,
+        single_frontal_only=False,
+    )
     ai = AIInfo(
-        model_name=str(model_meta.get("name", "unknown") or "unknown"),
+        model_name=str(model_meta.get("name") or selected_vision_model or "unknown"),
         modality_handled="XRAY",
         slices_reviewed=1,
         not_for_medical_use=True,
@@ -567,6 +861,7 @@ def build_image_response(
         exam_type=exam_type,
         status="COMPLETED",
         findings=findings,
+        incidental_or_off_target_findings=incidental_findings,
         critical_alert=has_critical(findings),
         summary=build_summary(findings, output_language),
         study=study,
@@ -634,6 +929,7 @@ def build_dicom_response(
     output_language: str = "el",
     settings: Settings,
 ) -> InterpretationResponse:
+    skip_image_model, selected_vision_model, skip_reason = _should_skip_image_model(settings)
     # Support non-DICOM image uploads (png/jpg/jpeg/...) in the same endpoint.
     if (
         (not zipfile.is_zipfile(upload_input_path))
@@ -651,11 +947,8 @@ def build_dicom_response(
 
     dicom_dir = workdir / "dicom"
     dicom_files = _load_upload_to_dicom_dir(upload_input_path, dicom_dir)
-    import logging
-
-    _logger = logging.getLogger(__name__)
     if len(dicom_files) > 1:
-        _logger.warning(
+        logger.warning(
             "Zip contains %d DICOM files; only the first will be used for interpretation (MVP behaviour).",
             len(dicom_files),
         )
@@ -703,7 +996,7 @@ def build_dicom_response(
 
     mismatch_warning = _check_indication_mismatch(clinical_indication, exam_type)
     if mismatch_warning:
-        _logger.warning(mismatch_warning)
+        logger.warning(mismatch_warning)
         warnings.append(mismatch_warning)
 
     if exam_type == "UNSUPPORTED_MODALITY":
@@ -758,6 +1051,33 @@ def build_dicom_response(
             disclaimer=settings.disclaimer_text,
         ), output_language), clinical_indication)
 
+    if skip_image_model:
+        study = StudyInfo(
+            study_instance_uid=study_uid,
+            modality=metadata.get("modality"),
+            body_part=(metadata.get("body_part_examined") or "").upper() or None,
+            laterality=metadata.get("image_laterality"),
+            view=detected_view,
+            study_description=metadata.get("study_description"),
+            series_description=metadata.get("series_description"),
+            patient_age=metadata.get("patient_age"),
+            patient_sex=metadata.get("patient_sex"),
+            image_quality=None,
+        )
+        return _build_review_required_response(
+            exam_type=exam_type,
+            summary=(
+                "Image interpretation was skipped because the configured local model does not support image input. "
+                "Radiologist review required."
+            ),
+            warnings=[*warnings, skip_reason],
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+            model_name=selected_vision_model,
+        )
+
     try:
         image_path = workdir / "xray.png"
         _dicom_to_png(dicom_files[0], image_path)
@@ -774,9 +1094,9 @@ def build_dicom_response(
                 output_language=output_language,
                 openai_api_key=(settings.openai_api_key or "").strip(),
                 openai_base_url=settings.openai_base_url,
-                openai_model=settings.openai_model,
+                openai_model=selected_vision_model,
                 vision_image_url_as_string=settings.vision_image_url_as_string,
-                openai_timeout=settings.openai_timeout_seconds,
+                openai_timeout=settings.openai_timeout,
                 study_description=metadata.get("study_description"),
                 series_description=metadata.get("series_description"),
                 laterality=metadata.get("image_laterality"),
@@ -832,18 +1152,16 @@ def build_dicom_response(
             patient_sex=metadata.get("patient_sex"),
             image_quality=None,
         )
-        ai = AIInfo(model_name="unknown", modality_handled="XRAY", slices_reviewed=1, not_for_medical_use=True)
-        return _audit(localize_response(InterpretationResponse(
+        return _build_review_required_response(
             exam_type=exam_type,
-            status="REVIEW_REQUIRED",
-            findings=[],
-            critical_alert=False,
             summary=summary,
-            study=study,
-            ai=ai,
             warnings=[*warnings, reason],
-            disclaimer=settings.disclaimer_text,
-        ), output_language), clinical_indication)
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+            model_name=selected_vision_model,
+        )
 
     # Keep any pre-model warnings (e.g., clinical indication mismatch, missing views).
     expected_views = _expected_views_from_study_description(metadata.get("study_description"))
@@ -873,89 +1191,12 @@ def build_dicom_response(
     if image_quality in {"LIMITED", "UNREADABLE"}:
         warnings.append("Image quality limitations reported by model; interpret findings cautiously.")
 
-    # Apply chest-specific safety post-processing
-    adjusted_findings: list[Any] = []
-    incidental_low_conf: list[dict[str, Any]] = []
-    for f in findings:
-        if not exam_type.startswith("XR_CHEST"):
-            adjusted_findings.append(f)
-            continue
-
-        code = (getattr(f, "finding_code", "") or "").upper()
-        location = getattr(f, "location", None)
-        confidence = float(getattr(f, "confidence", 0.0) or 0.0)
-        finding_text = getattr(f, "finding_text", "")
-
-        # Avoid lobe-specific localization on single frontal views.
-        if single_frontal_only and isinstance(location, str) and "lobe" in location.lower():
-            new_loc, changed = _zone_location_from_lobe(location)
-            if changed:
-                location = new_loc
-                confidence = min(confidence, 0.55)
-
-        # Cardiomegaly: reduce overconfidence and adjust wording based on view.
-        if code == "CARDIOMEGALY":
-            priority = "ROUTINE"
-            if final_view == "AP":
-                confidence = min(confidence, 0.55)
-                finding_text = "Possible apparent enlargement of the cardiac silhouette (AP projection may magnify heart size). Radiologist review required."
-            elif final_view == "PA":
-                confidence = min(confidence, 0.60)
-                finding_text = "Possible mild enlargement of the cardiac silhouette. Radiologist review required."
-            else:
-                confidence = min(confidence, 0.55)
-                finding_text = "Possible mild enlargement of the cardiac silhouette. Radiologist review required."
-            adjusted_findings.append(
-                f.model_copy(
-                    update={
-                        "location": location,
-                        "confidence": confidence,
-                        "finding_text": finding_text,
-                        "priority": priority,
-                    }
-                )
-            )
-            continue
-
-        # Opacity/consolidation: stricter + avoid high confidence on single frontal.
-        if code in {"PULMONARY_OPACITY", "LUNG_OPACITY", "CONSOLIDATION", "PNEUMONIA", "INFILTRATION"}:
-            if single_frontal_only:
-                confidence = min(confidence, 0.45 if confidence < 0.70 else 0.55)
-            # Omit very low confidence
-            if confidence < 0.35:
-                incidental_low_conf.append(
-                    {
-                        "finding_code": code,
-                        "location": location,
-                        "confidence": confidence,
-                        "reason": "Below configured confidence threshold for reporting.",
-                    }
-                )
-                continue
-
-            if single_frontal_only and code in {"PULMONARY_OPACITY", "LUNG_OPACITY"} and confidence <= 0.55:
-                code = "LOWER_ZONE_OPACITY"
-                if isinstance(location, str) and location.strip():
-                    loc_text = location.strip()
-                else:
-                    loc_text = "lower lung zone"
-                location = loc_text
-                finding_text = (
-                    "Questionable mild basilar opacity or vascular crowding. Radiologist review required."
-                )
-
-        adjusted_findings.append(
-            f.model_copy(
-                update={
-                    "finding_code": code,
-                    "location": location,
-                    "confidence": confidence,
-                    "finding_text": finding_text,
-                }
-            )
-        )
-
-    findings = adjusted_findings
+    findings, incidental_findings = _postprocess_xr_findings(
+        findings=findings,
+        exam_type=exam_type,
+        final_view=final_view,
+        single_frontal_only=single_frontal_only,
+    )
 
     dicom_laterality = metadata.get("image_laterality")
     body_part_upper = (metadata.get("body_part_examined") or "").upper()
@@ -987,7 +1228,7 @@ def build_dicom_response(
         image_quality=model_meta.get("image_quality"),
     )
     ai = AIInfo(
-        model_name=str(model_meta.get("name", "unknown") or "unknown"),
+        model_name=str(model_meta.get("name") or selected_vision_model or "unknown"),
         modality_handled="XRAY",
         slices_reviewed=1,
         not_for_medical_use=True,
@@ -996,6 +1237,7 @@ def build_dicom_response(
         exam_type=exam_type,
         status="COMPLETED",
         findings=findings,
+        incidental_or_off_target_findings=incidental_findings,
         critical_alert=has_critical(findings),
         summary=build_summary(findings, output_language),
         study=study,

@@ -5,7 +5,7 @@ param(
 $services = @(
   @{ Name = 'RadiologyImageQaAI';     Wd = 'C:\Users\User\Desktop\AI-Services\RadiologyImageQaAI'; Port = 8016; Health = 'http://127.0.0.1:8016/health' },
   @{ Name = 'InterpretationAssist';   Wd = 'C:\Users\User\Desktop\AI-Services\MedicalImageInterpretationAssistService'; Port = 8015; Health = 'http://127.0.0.1:8015/health' },
-  @{ Name = 'RadiologyReportFilling'; Wd = 'C:\Users\User\Desktop\AI-Services\RadiologyReportFilling'; Port = 8000; Health = 'http://127.0.0.1:8000/api/v1/health' },
+  @{ Name = 'RadiologyReportFilling'; Wd = 'C:\Users\User\Desktop\AI-Services\RadiologyReportFilling'; Port = 8024; Health = 'http://127.0.0.1:8024/api/v1/health' },
   @{ Name = 'TemplateAutofill';       Wd = 'C:\Users\User\Desktop\AI-Services\MedicalImageTemplateAutofill'; Port = 8022; Health = 'http://127.0.0.1:8022/health' }
 )
 

@@ -8,7 +8,7 @@ from unittest.mock import patch
 def mock_env_vars(monkeypatch):
     """Mock environment variables for testing."""
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key-for-testing-only")
-    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
+    monkeypatch.setenv("OPENAI_MODEL", os.getenv("OPENAI_MODEL", ""))
     monkeypatch.setenv("OPENAI_TEMPERATURE", "0.2")
 
 

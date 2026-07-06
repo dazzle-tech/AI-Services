@@ -6,6 +6,8 @@ Generates discharge summaries from clinical documentation.
 import os
 import json
 import logging
+import re
+from difflib import SequenceMatcher
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime
 from openai import OpenAI  # Import the OpenAI client class
@@ -35,13 +37,19 @@ class DischargeReportGenerator:
         
         self.model = config.OPENAI_MODEL
         self.temperature = 0.2  # Slightly higher for more natural medical writing
+        self.timeout = config.OPENAI_TIMEOUT
         
     def initialize(self):
         """Initialize the service."""
         if not self.initialized:
             if self.openai_api_key:
                 # Initialize OpenAI client (NEW API - v1.0+)
-                self.client = OpenAI(api_key=self.openai_api_key)
+                self.client = OpenAI(
+                    api_key=self.openai_api_key,
+                    base_url=config.OPENAI_BASE_URL or None,
+                    timeout=config.OPENAI_TIMEOUT,
+                    max_retries=config.OPENAI_MAX_RETRIES,
+                )
             self.initialized = True
             logger.info("Discharge Report Generator initialized")
     
@@ -91,6 +99,14 @@ class DischargeReportGenerator:
         except Exception as e:
             logger.error(f"OpenAI API Error: {e}", exc_info=True)
             report_sections = self._create_fallback_report(str(e))
+
+        # Post-generation safety checks
+        report_sections = self._post_process_sections(
+            report_sections=report_sections,
+            patient_record=patient_record,
+            clinical_documentation=clinical_documentation,
+            report_template=report_template,
+        )
         
         # Assemble full report text
         full_report_text = self._assemble_full_report(
@@ -196,22 +212,13 @@ Generate a complete discharge summary following the template structure provided.
 
 Return your response as a JSON object with a "sections" array:
 
-{{
-  "sections": [
-    {{
-      "section_name": "Chief Complaint",
-      "content": "Detailed content here...",
-      "confidence": 0.95,
-      "sources": ["admission_notes", "progress_notes"]
-    }},
-    {{
-      "section_name": "Hospital Course",
-      "content": "Detailed narrative...",
-      "confidence": 0.90,
-      "sources": ["progress_notes", "procedures"]
-    }}
-  ]
-}}
+{self._build_section_example_json(
+    section_names=template.sections,
+    source_groups=[
+        ["admission_notes", "progress_notes"],
+        ["progress_notes", "procedures"]
+    ]
+)}
 
 # IMPORTANT GUIDELINES
 
@@ -221,6 +228,7 @@ Return your response as a JSON object with a "sections" array:
 - Maintain professional, objective tone
 - If information is missing or unclear, note "Information not available in provided documentation"
 - Confidence score should reflect data quality (0.0-1.0)
+- If allergies are documented, ensure they appear in an appropriate section. If the template includes an "Allergies" section, place them there. Otherwise include them in "Discharge Diagnosis" or the closest matching section so they are never omitted.
 
 Generate the discharge summary now as JSON:"""
         
@@ -290,16 +298,13 @@ Generate a complete, professional discharge summary with these standard sections
 
 Return as JSON object with "sections" array:
 
-{{
-  "sections": [
-    {{
-      "section_name": "Chief Complaint",
-      "content": "...",
-      "confidence": 0.95,
-      "sources": ["admission_notes"]
-    }}
-  ]
-}}
+{self._build_section_example_json(
+    section_names=["Section 1", "Section 2"],
+    source_groups=[
+        ["admission_notes"],
+        ["progress_notes"]
+    ]
+)}
 
 # GUIDELINES
 
@@ -308,6 +313,7 @@ Return as JSON object with "sections" array:
 - Include specific clinical details and values
 - Clear discharge instructions
 - Confidence based on documentation quality
+- Document any known allergies explicitly. If an "Allergies" or "Discharge Diagnosis" section is present, include them there so they are not dropped.
 
 Generate the comprehensive discharge summary now:"""
         
@@ -328,6 +334,14 @@ Generate the comprehensive discharge summary now:"""
             raise Exception("OpenAI client not initialized")
         
         try:
+            prompt_length = len(prompt)
+            logger.info(
+                "Calling discharge report generation using model %s base_url=%s timeout=%ss prompt_length=%s",
+                self.model,
+                config.OPENAI_BASE_URL,
+                self.timeout,
+                prompt_length,
+            )
             # Call OpenAI API using the new client
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -342,7 +356,8 @@ Generate the comprehensive discharge summary now:"""
                     }
                 ],
                 temperature=self.temperature,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
+                timeout=self.timeout,
             )
             
             content = response.choices[0].message.content
@@ -389,6 +404,421 @@ Generate the comprehensive discharge summary now:"""
         except Exception as e:
             logger.error(f"OpenAI API Error: {e}", exc_info=True)
             raise
+
+    def _build_section_example_json(
+        self,
+        section_names: List[str],
+        source_groups: List[List[str]]
+    ) -> str:
+        """Build a JSON example that mirrors the requested section names."""
+
+        examples = []
+        safe_section_names = section_names[:2] if section_names else []
+        while len(safe_section_names) < 2:
+            safe_section_names.append(f"Section {len(safe_section_names) + 1}")
+
+        for index, section_name in enumerate(safe_section_names[:2]):
+            source_list = source_groups[index] if index < len(source_groups) else []
+            examples.append({
+                "section_name": section_name,
+                "content": "Detailed content here..." if index == 0 else "Detailed narrative...",
+                "confidence": 0.95 if index == 0 else 0.90,
+                "sources": source_list
+            })
+
+        return json.dumps({"sections": examples}, indent=2)
+
+    def _post_process_sections(
+        self,
+        report_sections: List[DischargeReportSection],
+        patient_record: PatientRecord,
+        clinical_documentation: ClinicalDocumentation,
+        report_template: Optional[ReportTemplate]
+    ) -> List[DischargeReportSection]:
+        """Apply safety checks after generation."""
+
+        sections = self._ensure_allergies_present(
+            report_sections,
+            patient_record,
+            report_template
+        )
+
+        validated_sections = []
+        for section in sections:
+            validated_sections.append(
+                self._flag_untraceable_clinical_terms(
+                    section,
+                    patient_record,
+                    clinical_documentation
+                )
+            )
+
+        return validated_sections
+
+    def _ensure_allergies_present(
+        self,
+        report_sections: List[DischargeReportSection],
+        patient_record: PatientRecord,
+        report_template: Optional[ReportTemplate]
+    ) -> List[DischargeReportSection]:
+        """Ensure documented allergies appear in the generated report."""
+
+        if not patient_record.allergies:
+            return report_sections
+
+        allergy_text = ", ".join(patient_record.allergies)
+        if any(allergy.lower() in self._assemble_section_text(report_sections).lower() for allergy in patient_record.allergies):
+            return report_sections
+
+        preferred_names = ["Allergies", "Discharge Diagnosis"]
+        if report_template:
+            template_section_names = {section.lower(): section for section in report_template.sections}
+            for preferred_name in preferred_names:
+                if preferred_name.lower() in template_section_names:
+                    target_name = template_section_names[preferred_name.lower()]
+                    return self._append_text_to_section(
+                        report_sections,
+                        target_name,
+                        f"Known allergies: {allergy_text}."
+                    )
+
+        if report_sections:
+            return self._append_text_to_section(
+                report_sections,
+                report_sections[0].section_name,
+                f"Known allergies: {allergy_text}."
+            )
+
+        return [
+            DischargeReportSection(
+                section_name="Allergies",
+                content=f"Known allergies: {allergy_text}.",
+                confidence=1.0,
+                sources=["patient_record"]
+            )
+        ]
+
+    def _append_text_to_section(
+        self,
+        report_sections: List[DischargeReportSection],
+        target_section_name: str,
+        extra_text: str
+    ) -> List[DischargeReportSection]:
+        """Append text to a section, creating a copy of the section list."""
+
+        updated_sections = []
+        appended = False
+        for section in report_sections:
+            if not appended and section.section_name == target_section_name:
+                content = section.content.rstrip()
+                if extra_text.lower() not in content.lower():
+                    content = f"{content}\n\n{extra_text}" if content else extra_text
+                updated_sections.append(
+                    DischargeReportSection(
+                        section_name=section.section_name,
+                        content=content,
+                        confidence=section.confidence,
+                        sources=section.sources,
+                    )
+                )
+                appended = True
+            else:
+                updated_sections.append(section)
+
+        if not appended:
+            updated_sections.append(
+                DischargeReportSection(
+                    section_name=target_section_name,
+                    content=extra_text,
+                    confidence=0.95,
+                    sources=["patient_record"]
+                )
+            )
+
+        return updated_sections
+
+    def _assemble_section_text(self, sections: List[DischargeReportSection]) -> str:
+        """Flatten section contents for a presence check."""
+
+        return "\n".join(section.content for section in sections)
+
+    def _build_source_text_map(self, docs: ClinicalDocumentation) -> Dict[str, str]:
+        """Build a lookup of source document text by source key."""
+
+        return {
+            "admission_notes": docs.admission_notes or "",
+            "progress_notes": "\n".join(docs.progress_notes),
+            "procedures": self._format_procedures(docs.procedures_performed),
+            "procedures_performed": self._format_procedures(docs.procedures_performed),
+            "lab_results": json.dumps(docs.lab_results, indent=2),
+            "imaging_results": self._format_imaging(docs.imaging_results),
+            "consultation_notes": "\n".join(docs.consultation_notes),
+            "prior_discharge_summaries": "\n".join(docs.prior_discharge_summaries),
+        }
+
+    def _flag_untraceable_clinical_terms(
+        self,
+        section: DischargeReportSection,
+        patient_record: PatientRecord,
+        docs: ClinicalDocumentation
+    ) -> DischargeReportSection:
+        """Lower confidence and add a reviewer note when a section contains untraceable terms."""
+
+        source_text_map = self._build_source_text_map(docs)
+        source_text_map.update({
+            "primary_diagnosis": patient_record.primary_diagnosis or "",
+            "secondary_diagnoses": "\n".join(patient_record.secondary_diagnoses),
+            "allergies": "\n".join(patient_record.allergies),
+            "medications_on_admission": self._format_medications(patient_record.medications_on_admission),
+        })
+        allowed_sources = section.sources or list(source_text_map.keys())
+        source_text = "\n".join(
+            source_text_map.get(source_key, "")
+            for source_key in allowed_sources
+        ).strip()
+
+        source_terms = self._extract_clinical_terms(source_text)
+        candidate_terms = self._extract_clinical_terms(section.content)
+        discrepancy_notes, untraceable_terms = self._detect_clinical_issues(
+            candidate_terms=candidate_terms,
+            source_terms=source_terms,
+            source_text=source_text,
+        )
+
+        if not discrepancy_notes and not untraceable_terms:
+            return section
+
+        note_parts = []
+        if discrepancy_notes:
+            note_parts.extend(discrepancy_notes)
+        if untraceable_terms:
+            note_parts.append(
+                "unverified clinical terms detected: "
+                + ", ".join(sorted(set(untraceable_terms)))
+            )
+
+        reviewer_note = "Reviewer warning: " + "; ".join(note_parts) + "."
+        content = section.content.rstrip()
+        if reviewer_note.lower() not in content.lower():
+            content = f"{content}\n\n{reviewer_note}" if content else reviewer_note
+
+        penalty_terms = len(set(untraceable_terms)) + len(set(discrepancy_notes))
+        lowered_confidence = max(0.0, round(section.confidence - (0.10 * penalty_terms), 2))
+
+        return DischargeReportSection(
+            section_name=section.section_name,
+            content=content,
+            confidence=lowered_confidence,
+            sources=section.sources
+        )
+
+    def _detect_clinical_issues(
+        self,
+        candidate_terms: List[str],
+        source_terms: List[str],
+        source_text: str
+    ) -> Tuple[List[str], List[str]]:
+        """Detect specific abbreviation mismatches and generic untraceable terms."""
+
+        specific_discrepancies = []
+        untraceable = []
+
+        source_term_set = {term.upper() for term in source_terms}
+
+        for candidate in candidate_terms:
+            discrepancy_note = self._detect_abbreviation_discrepancy(candidate, source_term_set)
+            if discrepancy_note:
+                specific_discrepancies.append(discrepancy_note)
+                continue
+
+            if self._term_matches_source(candidate, source_terms, source_text):
+                continue
+
+            untraceable.append(candidate)
+
+        return specific_discrepancies, untraceable
+
+    def _extract_clinical_terms(self, text: str) -> List[str]:
+        """Extract likely clinical abbreviations or procedure names from text."""
+
+        if not text:
+            return []
+
+        terms = set()
+
+        acronym_pattern = r"(?<![A-Za-z0-9])([A-Z]{2,}(?:[-/][A-Z0-9]+)*)(?![A-Za-z0-9])"
+        for match in re.findall(acronym_pattern, text):
+            terms.add(match.upper())
+
+        procedure_keywords = [
+            "echocardiogram",
+            "echocardiography",
+            "angiography",
+            "catheterization",
+            "catheterisation",
+            "stent",
+            "ultrasound",
+            "endoscopy",
+            "biopsy",
+            "x-ray",
+            "xray",
+            "ct",
+            "mri",
+            "ecg",
+            "ekg",
+            "pci",
+            "stemi",
+            "tee",
+            "tte",
+        ]
+        for keyword in procedure_keywords:
+            if self._contains_whole_term(text, keyword):
+                terms.add(keyword.upper())
+
+        # Treat standalone ST as suspicious only when it is actually used as a claim,
+        # not when it is part of STEMI / ST-elevation wording.
+        if self._contains_whole_term(text, "ST"):
+            if not self._contains_whole_term(text, "STEMI") and not self._contains_whole_term(text, "ST-ELEVATION") and not self._contains_whole_term(text, "ST ELEVATION"):
+                terms.add("ST")
+
+        return sorted(terms)
+
+    def _contains_whole_term(self, text: str, term: str) -> bool:
+        """Check whether a term appears as a standalone token or phrase."""
+
+        if not text or not term:
+            return False
+
+        pattern = rf"(?<![A-Za-z0-9]){re.escape(term)}(?![A-Za-z0-9])"
+        return re.search(pattern, text, flags=re.IGNORECASE) is not None
+
+    def _detect_abbreviation_discrepancy(
+        self,
+        candidate: str,
+        source_terms: set
+    ) -> Optional[str]:
+        """Detect common abbreviation swaps such as TTE vs TEE."""
+
+        pair_map = {
+            "tee": "tte",
+            "tte": "tee",
+            "ekg": "ecg",
+            "ecg": "ekg",
+        }
+
+        normalized_candidate = candidate.lower()
+        counterpart = pair_map.get(normalized_candidate)
+        if not counterpart:
+            return None
+
+        if counterpart.upper() in source_terms and normalized_candidate.upper() not in source_terms:
+            return f"source says {counterpart.upper()}, generated text says {normalized_candidate.upper()}"
+
+        return None
+
+    def _term_matches_source(
+        self,
+        candidate: str,
+        source_terms: List[str],
+        source_text: str
+    ) -> bool:
+        """Check whether a candidate term is supported by source text."""
+
+        normalized_candidate = candidate.lower()
+        if self._contains_whole_term(source_text, normalized_candidate):
+            return True
+
+        normalized_sources = [term.lower() for term in source_terms]
+        if normalized_candidate in normalized_sources:
+            return True
+
+        if self._matches_known_clinical_equivalence(normalized_candidate, normalized_sources, source_text):
+            return True
+
+        # Avoid over-permissive matching for short abbreviations like TTE/TEE.
+        if len(normalized_candidate) <= 4:
+            return False
+
+        for source_term in normalized_sources:
+            if len(source_term) <= 4:
+                continue
+            if SequenceMatcher(None, normalized_candidate, source_term).ratio() >= 0.88:
+                return True
+
+        return False
+
+    def _matches_known_clinical_equivalence(
+        self,
+        normalized_candidate: str,
+        normalized_sources: List[str],
+        source_text: str
+    ) -> bool:
+        """Allow verified abbreviation-expansion pairs and expected clinical variants."""
+
+        equivalence_groups = {
+            "tte": [
+                "transthoracic echocardiogram",
+                "transthoracic echocardiography",
+                "echocardiogram",
+                "echocardiography",
+                "echo",
+            ],
+            "echocardiogram": [
+                "tte",
+                "transthoracic echocardiogram",
+                "transthoracic echocardiography",
+                "echocardiography",
+                "echo",
+            ],
+            "echocardiography": [
+                "tte",
+                "transthoracic echocardiogram",
+                "transthoracic echocardiography",
+                "echocardiogram",
+                "echo",
+            ],
+            "pci": [
+                "percutaneous coronary intervention",
+            ],
+            "stemi": [
+                "st-elevation myocardial infarction",
+                "st elevation myocardial infarction",
+            ],
+            "st": [
+                "stemi",
+                "st-elevation myocardial infarction",
+                "st elevation myocardial infarction",
+            ],
+            "procedure": [
+                "procedure performed",
+                "procedures performed",
+                "performed procedure",
+            ],
+            "intervention": [
+                "procedure",
+                "procedures",
+                "performed",
+            ],
+            "imaging": [
+                "x-ray",
+                "xray",
+                "ct",
+                "mri",
+                "ultrasound",
+            ],
+        }
+
+        aliases = equivalence_groups.get(normalized_candidate, [])
+        if not aliases:
+            return False
+
+        for alias in aliases:
+            if self._contains_whole_term(source_text, alias):
+                return True
+            if alias.lower() in normalized_sources:
+                return True
+
+        return False
     
     # =========================================================================
     # Helper Methods

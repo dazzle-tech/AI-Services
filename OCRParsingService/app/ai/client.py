@@ -21,13 +21,19 @@ class StructuredOutputClient:
     def __init__(self) -> None:
         self.api_key = settings.openai_api_key.strip()
         self.model = settings.openai_model
+        self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.temperature = settings.openai_temperature
         self.timeout = settings.openai_timeout
         self.max_retries = settings.openai_max_retries
         self.retry_delay = settings.openai_retry_delay
         self.client = None
         if self.api_key and OpenAI is not None:
-            self.client = OpenAI(api_key=self.api_key, timeout=self.timeout)
+            self.client = OpenAI(
+                api_key=self.api_key,
+                base_url=settings.openai_base_url or None,
+                timeout=self.timeout,
+                max_retries=self.max_retries,
+            )
 
     def generate_json(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
         """Send a JSON-mode request and return the parsed object."""
@@ -36,12 +42,25 @@ class StructuredOutputClient:
         if OpenAI is None:  # pragma: no cover
             raise RuntimeError("openai package is not installed")
         if self.client is None:
-            self.client = OpenAI(api_key=self.api_key, timeout=self.timeout)
+            self.client = OpenAI(
+                api_key=self.api_key,
+                base_url=settings.openai_base_url or None,
+                timeout=self.timeout,
+                max_retries=self.max_retries,
+            )
 
         last_exception: Exception | None = None
         for attempt in range(self.max_retries):
             try:
                 logger.info("OpenAI API call attempt %d/%d", attempt + 1, self.max_retries)
+                prompt_length = len(system_prompt) + len(user_prompt)
+                logger.info(
+                    "Calling OCR structured extraction using model %s base_url=%s timeout=%ss prompt_length=%s",
+                    self.model,
+                    self.base_url,
+                    self.timeout,
+                    prompt_length,
+                )
                 start_time = time.monotonic()
                 response = self.client.chat.completions.create(
                     model=self.model,
@@ -51,6 +70,7 @@ class StructuredOutputClient:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
+                    timeout=self.timeout,
                 )
                 elapsed_seconds = time.monotonic() - start_time
                 logger.info("OpenAI request finished in %.2fs", elapsed_seconds)

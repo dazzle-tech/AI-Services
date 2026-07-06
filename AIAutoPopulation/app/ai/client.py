@@ -17,8 +17,15 @@ class AIClient:
         """Initialize OpenAI client."""
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY must be set")
-        self.client = OpenAI(api_key=settings.openai_api_key)
+        self.client = OpenAI(
+            api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url or None,
+            timeout=settings.openai_timeout,
+            max_retries=settings.openai_max_retries,
+        )
+        self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.model = settings.openai_model
+        self.timeout = settings.openai_timeout
         self.temperature = settings.openai_temperature
         self.max_tokens = settings.openai_max_tokens
     
@@ -53,6 +60,14 @@ class AIClient:
             
             # Use reduced tokens if only vitals are requested (faster processing)
             max_tokens = settings.openai_max_tokens_vitals_only if vitals_only else self.max_tokens
+            prompt_length = len(json.dumps(messages, ensure_ascii=False))
+            logger.info(
+                "Calling AI extraction using model %s base_url=%s timeout=%ss prompt_length=%s",
+                self.model,
+                self.base_url,
+                self.timeout,
+                prompt_length,
+            )
             
             # Call OpenAI API with JSON response format
             response = self.client.chat.completions.create(
@@ -60,7 +75,8 @@ class AIClient:
                 messages=messages,
                 temperature=self.temperature,
                 max_tokens=max_tokens,
-                response_format={"type": "json_object"}  # Force JSON output
+                response_format={"type": "json_object"},  # Force JSON output
+                timeout=self.timeout,
             )
             
             # Extract content

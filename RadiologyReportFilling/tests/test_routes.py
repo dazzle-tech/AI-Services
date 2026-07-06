@@ -107,6 +107,45 @@ _PORTUGUESE_ABDOMEN_PAYLOAD = {
     },
 }
 
+_COMPACT_WORKFLOW_PAYLOAD = {
+    "PatientID": "LIDC-IDRI-0001",
+    "PatientName": "John Doe",
+    "OrderID": "ORD-001",
+    "OrderDate": "2026-06-04T00:00:00",
+    "DateOfBirth": "1980-01-15T00:00:00",
+    "NationalID": "123456789",
+    "Gender": "Male",
+    "AccessionNumber": "ACC-10008",
+    "OutputLanguage": "el",
+    "ExamType": "CHEST",
+    "DoctorNotes": "Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+    "RadiologistNotes": "PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.",
+    "SigningPhysician": None,
+    "SigningPhysicianCode": None,
+    "AIInterpretationSummary": {
+        "status": "REVIEW_REQUIRED",
+        "critical_alert": False,
+        "summary": "Η εκτέλεση του μοντέλου ερμηνείας ακτινογραφίας απέτυχε. Απαιτείται αξιολόγηση από ακτινολόγο.",
+        "findings_count": 0,
+        "warnings": ["Vision model request timed out after 30s. Service returned REVIEW_REQUIRED."],
+    },
+    "QC": {
+        "qc_status": "REVIEW_REQUIRED",
+        "issue_type": "MISSING_METADATA",
+        "recommended_action": "Επαληθεύστε τα μεταδεδομένα DICOM (λείπει το ViewPosition).",
+        "human_review_required": True,
+        "confidence": 0.6,
+    },
+    "DICOM": {
+        "Modality": "DX",
+        "BodyPartExamined": "CHEST",
+        "StudyDate": "20000101",
+        "ViewPosition": None,
+        "StudyInstanceUID": "1.2.276.0.7230010.3.1.2.3864760610.2128.1780568219.775",
+        "DICOMAccessionNumber": "ACC-10008",
+    },
+}
+
 _LEGACY_AI_BLOCK_EN = "Additional" + " AI" + " findings:"
 _LEGACY_AI_BLOCK_EL = "Λοιπά" + " ευρήματα" + " AI:"
 _MISMATCH_WARNING_TITLE = "⚠ WARNING: DICOM/ORDER MISMATCH"
@@ -593,3 +632,130 @@ async def test_report_filling_fallback_is_full_template_style(client):
     assert "Findings:" in body["TEMPLATE_TEXT"]
     assert "Impression:" in body["TEMPLATE_TEXT"]
     assert len(body["TEMPLATE_TEXT"].splitlines()) >= 8
+
+
+async def test_report_filling_accepts_compact_workflow_payload_and_builds_compact_prompt(client):
+    """Compact workflow payloads should trigger AI adaptation without dumping raw workflow JSON."""
+    mock_ai_output = {
+        "ID": 0,
+        "TEMPLATE_NAME": "RADIOLOGY REPORT",
+        "TEMPLATE_TEXT": (
+            "RADIOLOGY REPORT\n\n"
+            "Findings:\n"
+            "Right lower lobe consolidation.\n\n"
+            "Impression:\n"
+            "Right lower lobe opacity suspicious for pneumonia.\n"
+        ),
+        "Physician": None,
+    }
+    with patch(
+        "app.services.medical_service.MedicalAIClient.analyze",
+        return_value=mock_ai_output,
+    ) as mock_analyze:
+        response = await client.post("/api/v1/report-filling", json=_COMPACT_WORKFLOW_PAYLOAD)
+
+    assert response.status_code == 200, response.text
+    system_prompt = mock_analyze.call_args.args[0]
+    user_prompt = mock_analyze.call_args.args[1]
+    assert "RadiologistNotes are the primary source of truth for imaging findings." in system_prompt
+    assert "Never write 'No significant radiological abnormality'" in system_prompt
+    assert "The Impression section must summarize the actual abnormal findings from RadiologistNotes." in system_prompt
+    assert "COMPACT_REPORT_CONTEXT:" in user_prompt
+    assert "Radiologist notes: PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe." in user_prompt
+    assert "Doctor notes: Patient presenting with acute chest pain and persistent cough." in user_prompt
+    assert "AI interpretation summary: Η εκτέλεση του μοντέλου ερμηνείας ακτινογραφίας απέτυχε." in user_prompt
+    assert "QC status: REVIEW_REQUIRED" in user_prompt
+    assert "QC issue: MISSING_METADATA" in user_prompt
+    assert "DICOM modality: DX" in user_prompt
+    assert "DICOM body part: CHEST" in user_prompt
+    assert "DICOM view position: missing" in user_prompt
+    assert '"AIInterpretation"' not in user_prompt
+    assert '"QCResult"' not in user_prompt
+    assert '"DICOM"' not in user_prompt
+
+
+async def test_report_filling_sanitizes_nested_ai_warning_strings(client):
+    """Nested AI warning payloads should be flattened into short plain-text prompt context."""
+    payload = {
+        **_COMPACT_WORKFLOW_PAYLOAD,
+        "AIInterpretationSummary": {
+            "status": "REVIEW_REQUIRED",
+            "critical_alert": False,
+            "summary": "Image interpretation skipped.",
+            "findings_count": 0,
+            "warnings": [
+                "{\"warnings\":[\"Configured model does not support multimodal/image requests.\"],\"status\":\"REVIEW_REQUIRED\"}"
+            ],
+        },
+    }
+    with patch(
+        "app.services.medical_service.MedicalAIClient.analyze",
+        return_value={"ID": 0, "TEMPLATE_NAME": "CHEST", "TEMPLATE_TEXT": "CHEST", "Physician": None},
+    ) as mock_analyze:
+        response = await client.post("/api/v1/report-filling", json=payload)
+
+    assert response.status_code == 200, response.text
+    user_prompt = mock_analyze.call_args.args[1]
+    assert "AI warnings: Image interpretation failed because the configured model does not support image input." in user_prompt
+    assert '"warnings"' not in user_prompt
+
+
+async def test_report_filling_returns_fallback_report_when_model_returns_invalid_json(client):
+    """Invalid model JSON should not surface as 422 and should fall back to radiologist notes."""
+    payload = {
+        **_COMPACT_WORKFLOW_PAYLOAD,
+        "OutputLanguage": "en",
+        "ExamType": "CHEST",
+    }
+    with patch(
+        "app.services.medical_service.MedicalAIClient.analyze",
+        side_effect=ValueError("Model returned invalid JSON: Expecting property name enclosed in double quotes"),
+    ):
+        response = await client.post("/api/v1/report-filling", json=payload)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["TEMPLATE_NAME"] == "CHEST"
+    assert "PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax." in body["TEMPLATE_TEXT"]
+    assert "Automatic AI report generation failed or returned invalid JSON" in body["TEMPLATE_TEXT"]
+    assert body["Physician"] is None
+
+
+async def test_report_filling_rebuilds_inconsistent_english_chest_report_from_radiologist_notes(client):
+    """English chest output should be rebuilt when the model impression contradicts radiologist findings."""
+    payload = {
+        **_COMPACT_WORKFLOW_PAYLOAD,
+        "OutputLanguage": "en",
+        "ExamType": "CHEST",
+    }
+    mock_ai_output = {
+        "ID": 0,
+        "TEMPLATE_NAME": "RADIOLOGY REPORT",
+        "TEMPLATE_TEXT": (
+            "RADIOLOGY REPORT\n\n"
+            "Clinical indication:\n"
+            "Acute chest pain and cough.\n\n"
+            "Technique:\n"
+            "Chest radiographs obtained.\n\n"
+            "Findings:\n"
+            "Consolidation and opacity noted.\n\n"
+            "Impression:\n"
+            "No significant radiological abnormality identified on the current evaluation.\n"
+        ),
+        "Physician": None,
+    }
+
+    with patch(
+        "app.services.medical_service.MedicalAIClient.analyze",
+        return_value=mock_ai_output,
+    ):
+        response = await client.post("/api/v1/report-filling", json=payload)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "right lower lobe" in body["TEMPLATE_TEXT"].lower()
+    assert "consolidation" in body["TEMPLATE_TEXT"].lower()
+    assert "No evidence of pneumothorax" in body["TEMPLATE_TEXT"]
+    assert "No significant radiological abnormality" not in body["TEMPLATE_TEXT"]
+    assert "QC note:\nDICOM ViewPosition metadata is missing. Human review is required." in body["TEMPLATE_TEXT"]
+    assert "1.2.276.0.7230010.3.1.2.3864760610.2128.1780568219.775" not in body["TEMPLATE_TEXT"]

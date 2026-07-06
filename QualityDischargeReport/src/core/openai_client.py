@@ -1,11 +1,13 @@
 """OpenAI API client wrapper."""
 
 import os
+import logging
 from typing import Dict, Any, Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 class OpenAIClient:
@@ -18,13 +20,18 @@ class OpenAIClient:
             model: Model name (defaults to OPENAI_MODEL env var)
             api_key: API key (defaults to OPENAI_API_KEY env var)
         """
-        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4.1")
+        self.model = model or os.getenv("OPENAI_MODEL", "")
         api_key = api_key or os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1") or None
+        timeout = float(os.getenv("OPENAI_TIMEOUT", "120"))
+        max_retries = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
         
         if not api_key:
             raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable.")
         
-        self.client = OpenAI(api_key=api_key)
+        self.base_url = base_url
+        self.timeout = timeout
+        self.client = OpenAI(api_key=api_key, base_url=base_url, timeout=timeout, max_retries=max_retries)
     
     def complete(
         self,
@@ -52,11 +59,20 @@ class OpenAIClient:
         messages.append({"role": "user", "content": prompt})
         
         try:
+            prompt_length = sum(len(message.get("content", "")) for message in messages if isinstance(message.get("content"), str))
+            logger.info(
+                "Calling quality discharge report using model %s base_url=%s timeout=%ss prompt_length=%s",
+                self.model,
+                self.base_url,
+                self.timeout,
+                prompt_length,
+            )
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens
+                max_tokens=max_tokens,
+                timeout=self.timeout,
             )
             
             return response.choices[0].message.content

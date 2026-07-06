@@ -65,7 +65,7 @@ docker run -p 8002:8002 -e OPENAI_API_KEY=sk-your-key nurse-task-prioritization-
 | Variable             | Description                    | Default   |
 |----------------------|--------------------------------|-----------|
 | `OPENAI_API_KEY`     | OpenAI API key (required)      | -         |
-| `OPENAI_MODEL`       | OpenAI model name              | `gpt-4o`  |
+| `OPENAI_MODEL`       | OpenAI model name              | `qwen3:1.7b`  |
 | `OPENAI_TEMPERATURE` | Temperature for generation     | `0.2`     |
 | `API_PORT`           | Server port                    | `8002`    |
 | `LOG_LEVEL`          | Logging level                  | `INFO`    |
@@ -166,7 +166,7 @@ Prioritize nursing tasks across assigned patients.
   ],
   "summary": "Task prioritization generated successfully.",
   "processing_metadata": {
-    "model": "gpt-4o",
+    "model": "qwen3:1.7b",
     "timestamp": "2026-03-16T09:05:00.000000",
     "patient_count": 1,
     "task_count": 1

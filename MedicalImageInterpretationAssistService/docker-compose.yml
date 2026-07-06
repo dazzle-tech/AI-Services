@@ -14,8 +14,8 @@ services:
       - SERVICE_NAME=${SERVICE_NAME:-medical-image-interpretation-assist}
       - DISCLAIMER_TEXT=${DISCLAIMER_TEXT:-Assistive AI only. Radiologist review required. Not for final diagnosis.}
       - OPENAI_ENABLED=${OPENAI_ENABLED:-false}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VISION_MODEL=${VISION_MODEL:-qwen2.5vl:3b}
     env_file:
       - .env
     restart: unless-stopped

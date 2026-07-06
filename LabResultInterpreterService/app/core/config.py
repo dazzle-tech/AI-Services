@@ -19,13 +19,14 @@ class Settings(BaseSettings):
 
     # OpenAI Configuration
     openai_api_key: str
-    openai_model: str = "gpt-4o"
+    openai_base_url: str | None = "http://localhost:11434/v1"
+    openai_model: str = ""
     openai_temperature: float = 0.2
     openai_max_tokens: int = 1500  # Lab interpretation responses are longer
 
     # API Configuration
-    openai_timeout: int = 30
-    openai_max_retries: int = 3
+    openai_timeout: int = 120
+    openai_max_retries: int = 1
     openai_retry_delay: float = 1.0
 
     # Service Configuration

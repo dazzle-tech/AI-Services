@@ -10,7 +10,7 @@ print("Testing .env file loading")
 print("=" * 50)
 
 api_key = os.getenv("OPENAI_API_KEY")
-model_name = os.getenv("MODEL_NAME", "gpt-4o")
+model_name = os.getenv("OPENAI_MODEL", "")
 
 print(f"\nOPENAI_API_KEY: {'[OK] Loaded' if api_key else '[ERROR] Not found'}")
 if api_key:
@@ -18,7 +18,7 @@ if api_key:
 else:
     print("  ERROR: OPENAI_API_KEY not found in .env file")
 
-print(f"\nMODEL_NAME: {model_name}")
+print(f"\nOPENAI_MODEL: {model_name}")
 
 # Test app initialization
 print("\n" + "=" * 50)

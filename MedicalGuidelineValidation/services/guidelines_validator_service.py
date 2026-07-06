@@ -34,6 +34,8 @@ class OpenAIGuidelineValidator:
         # Model configuration - will be set from config during initialization
         self.model = None
         self.temperature = None
+        self.base_url = None
+        self.timeout = None
         
     def initialize(self):
         """Initialize the validator."""
@@ -52,9 +54,16 @@ class OpenAIGuidelineValidator:
             # Set model configuration from config
             self.model = config.OPENAI_MODEL
             self.temperature = config.OPENAI_TEMPERATURE
+            self.base_url = config.OPENAI_BASE_URL
+            self.timeout = config.OPENAI_TIMEOUT
             
             # Initialize OpenAI client (NEW API - v1.0+)
-            self.client = OpenAI(api_key=self.openai_api_key)
+            self.client = OpenAI(
+                api_key=self.openai_api_key,
+                base_url=config.OPENAI_BASE_URL or None,
+                timeout=config.OPENAI_TIMEOUT,
+                max_retries=config.OPENAI_MAX_RETRIES,
+            )
             
             # Initialize guidelines service
             guidelines_service.initialize()
@@ -336,6 +345,14 @@ Respond with JSON only, no other text:"""
             raise Exception("OpenAI client not initialized")
         
         try:
+            prompt_length = len(prompt)
+            logger.info(
+                "Calling guideline validation using model %s base_url=%s timeout=%ss prompt_length=%s",
+                self.model,
+                self.base_url,
+                self.timeout,
+                prompt_length,
+            )
             # Call OpenAI API using the new client
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -350,7 +367,8 @@ Respond with JSON only, no other text:"""
                     }
                 ],
                 temperature=self.temperature,
-                response_format={"type": "json_object"}  # Ensure JSON response
+                response_format={"type": "json_object"},  # Ensure JSON response
+                timeout=self.timeout,
             )
             
             # Extract response
