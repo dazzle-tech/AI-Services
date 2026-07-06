@@ -57,6 +57,10 @@ EXTRACTION RULES:
 - For medications: extract name, dosage, frequency, route if mentioned
 - For vitals: extract exact values with units if mentioned
 - For diagnoses: extract only explicitly stated diagnoses
+- For plan, assessment, chief_complaint, history_of_present_illness, past_medical_history, family_history, and social_history: return a single string, not a list
+- For history_of_present_illness, preserve age and sex when they are part of the opening sentence
+- For procedures, include only procedures that were actually performed or completed, not planned or ordered items
+- For allergies, use an empty list when the text states no known allergies / NKDA
 
 OUTPUT FORMAT:
 - You MUST respond with valid JSON only
@@ -121,17 +125,17 @@ INSTRUCTIONS:
   "structured_fields": {{
     "chief_complaint": "string or null",
     "history_of_present_illness": "string or null",
-    "diagnosis": ["string"] or null,
-    "medications": [{{"name": "string", "dosage": "string", "frequency": "string", "route": "string"}}] or null,
-    "vitals": {{"bp": "string", "hr": "string", "temp": "string", "rr": "string", "o2_sat": "string"}} or null,
-    "procedures": ["string"] or null,
-    "allergies": ["string"] or null,
-    "assessment": "string or null",
-    "plan": "string or null",
-    "past_medical_history": "string or null",
-    "family_history": "string or null",
-    "social_history": "string or null",
-    "review_of_systems": {{"system_name": "string"}} or null
+  "diagnosis": ["string"] or null,
+  "medications": [{{"name": "string", "dosage": "string", "frequency": "string", "route": "string"}}] or null,
+  "vitals": {{"bp": "string", "hr": "string", "temp": "string", "rr": "string", "o2_sat": "string"}} or null,
+  "procedures": ["string"] or null,
+  "allergies": ["string"] or null,
+  "assessment": "string or null",
+  "plan": "string or null",
+  "past_medical_history": "string or null",
+  "family_history": "string or null",
+  "social_history": "string or null",
+  "review_of_systems": {{"system_name": "string"}} or null
   }},
   "uncertainty_flags": [
     {{"field_name": "string", "reason": "string", "confidence": "low|medium|high"}}
@@ -154,6 +158,8 @@ INSTRUCTIONS:
     {{"field_name": "string", "source": "user_text|patient_record|inferred", "extraction_method": "string"}}
   ]
 }}"""
+
+
 
 
 def build_complete_prompt(

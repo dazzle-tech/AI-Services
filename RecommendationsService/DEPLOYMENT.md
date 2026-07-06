@@ -57,7 +57,7 @@ Required:
 - `OPENAI_API_KEY` - Your OpenAI API key
 
 Optional:
-- `OPENAI_MODEL` - Default: `gpt-4o`
+- `OPENAI_MODEL` - Default: `qwen3:1.7b`
 - `OPENAI_TEMPERATURE` - Default: `0.3`
 - `OPENAI_MAX_TOKENS` - Default: `1500`
 - `API_PORT` - Default: `8004` (or `8080` for App Platform)

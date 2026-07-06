@@ -30,11 +30,19 @@ class OpenAIClient:
         
         self.api_key = api_key or settings.openai_api_key
         self.model = model or settings.openai_model
+        self.base_url = settings.openai_base_url
+        self.timeout = settings.openai_timeout
+        self.max_retries = settings.openai_max_retries
         
         if not self.api_key:
             raise ValueError("OpenAI API key is required. Set OPENAI_API_KEY environment variable.")
         
-        self._client = openai.OpenAI(api_key=self.api_key)
+        self._client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url=self.base_url or None,
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+        )
     
     def generate(self, prompt: str, model: Optional[str] = None, options: Optional[Dict[str, Any]] = None) -> str:
         """
@@ -52,6 +60,14 @@ class OpenAIClient:
         options = options or {"temperature": 0.1, "max_tokens": 2000}
         
         try:
+            prompt_length = len(prompt)
+            logger.info(
+                "Calling chatbot OpenAI client using model %s base_url=%s timeout=%ss prompt_length=%s",
+                model,
+                self.base_url,
+                self.timeout,
+                prompt_length,
+            )
             response = self._client.chat.completions.create(
                 model=model,
                 messages=[
@@ -59,6 +75,7 @@ class OpenAIClient:
                 ],
                 temperature=options.get("temperature", 0.1),
                 max_tokens=options.get("max_tokens", 2000),
+                timeout=self.timeout,
             )
             return (response.choices[0].message.content or "").strip()
         except Exception as e:

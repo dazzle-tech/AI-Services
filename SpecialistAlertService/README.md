@@ -24,7 +24,7 @@ Example response:
   "provider": "openai",
   "openai_configured": true,
   "api_accessible": true,
-  "model": "gpt-4o",
+  "model": "qwen3:1.7b",
   "version": "1.1.0"
 }
 ```
@@ -117,7 +117,7 @@ Example response:
   ],
   "summary": "Clinical alerts generated successfully.",
   "processing_metadata": {
-    "model": "gpt-4o",
+    "model": "qwen3:1.7b",
     "timestamp": "2026-03-31T10:00:00",
     "alert_count": 1,
     "input_sections_count": 6,
@@ -162,7 +162,7 @@ Environment variables follow the same pattern used by `SummarizationService`.
 | Variable | Description | Default |
 | --- | --- | --- |
 | `OPENAI_API_KEY` | OpenAI API key | required |
-| `OPENAI_MODEL` | OpenAI model name | `gpt-4o` |
+| `OPENAI_MODEL` | OpenAI model name | `qwen3:1.7b` |
 | `API_PORT` | REST API port | `8005` |
 | `LOG_LEVEL` | Application log level | `INFO` |
 | `OPENAI_TEMPERATURE` | Model temperature | `0.1` |

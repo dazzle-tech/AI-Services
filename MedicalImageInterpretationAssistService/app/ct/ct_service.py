@@ -16,6 +16,7 @@ from ..interpretation.interpretation_service import (
     has_critical,
     localize_response,
 )
+from ..model_resolver import model_supports_vision
 from ..storage import temp_workdir
 from .ct_dicom_utils import (
     build_series_index,
@@ -46,6 +47,47 @@ _CHEST_ONLY_FINDING_CODES = {
     "PNEUMOTHORAX",
     "PLEURAL_EFFUSION",
 }
+
+
+def _selected_vision_model(settings: Settings) -> str:
+    return settings.vision_model.strip()
+
+
+def _supports_configured_vision_model(settings: Settings) -> bool | None:
+    selected_model = _selected_vision_model(settings)
+    if not selected_model:
+        return None
+    return model_supports_vision(selected_model)
+
+
+def _build_ct_review_required_response(
+    *,
+    exam_type: str,
+    summary: str,
+    warnings: list[str],
+    output_language: str,
+    settings: Settings,
+    clinical_indication: str | None,
+    study: StudyInfo,
+    model_name: str | None = None,
+) -> InterpretationResponse:
+    response = InterpretationResponse(
+        exam_type=exam_type,
+        status="REVIEW_REQUIRED",
+        findings=[],
+        critical_alert=False,
+        summary=summary,
+        study=study,
+        ai=AIInfo(
+            model_name=model_name or "unknown",
+            modality_handled="CT",
+            slices_reviewed=0,
+            not_for_medical_use=True,
+        ),
+        warnings=warnings,
+        disclaimer=settings.disclaimer_text,
+    )
+    return _audit(localize_response(response, output_language), clinical_indication)
 
 
 def _audit(response: InterpretationResponse, clinical_indication: str | None) -> InterpretationResponse:
@@ -163,7 +205,15 @@ def build_ct_response(
     max_slices: int = MAX_SLICES,
 ) -> InterpretationResponse:
     warnings: list[str] = []
-    # Require OpenAI key — CT has no local model fallback
+    selected_vision_model = _selected_vision_model(settings)
+    supports_vision = _supports_configured_vision_model(settings)
+    logger.info(
+        "CT interpretation config selected_model=%s supports_vision=%s enable_image_model=%s",
+        selected_vision_model or "<unset>",
+        supports_vision,
+        settings.enable_image_model,
+    )
+    # Require OpenAI key - CT has no local model fallback
     if not settings.openai_api_key:
         study = StudyInfo(modality="CT", body_part=None, view="AXIAL")
         ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
@@ -240,6 +290,74 @@ def build_ct_response(
 
     requested_body_part = (metadata.get("body_part_examined") or "UNKNOWN").upper()
     requested_exam_type = f"CT_{requested_body_part}"
+
+    if not settings.enable_image_model:
+        study = StudyInfo(
+            study_instance_uid=study_uid,
+            modality="CT",
+            body_part=(metadata.get("body_part_examined") or "").upper() or None,
+            view="AXIAL",
+            study_description=metadata.get("study_description"),
+            series_description=metadata.get("series_description"),
+        )
+        return _build_ct_review_required_response(
+            exam_type=requested_exam_type,
+            summary=(
+                "Image interpretation was skipped because the configured local model does not support image input. "
+                "Radiologist review required."
+            ),
+            warnings=["Image interpretation is disabled by ENABLE_IMAGE_MODEL=false."],
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+            model_name=selected_vision_model,
+        )
+
+    if selected_vision_model and supports_vision is False:
+        study = StudyInfo(
+            study_instance_uid=study_uid,
+            modality="CT",
+            body_part=(metadata.get("body_part_examined") or "").upper() or None,
+            view="AXIAL",
+            study_description=metadata.get("study_description"),
+            series_description=metadata.get("series_description"),
+        )
+        return _build_ct_review_required_response(
+            exam_type=requested_exam_type,
+            summary=(
+                "Image interpretation was skipped because the configured local model does not support image input. "
+                "Radiologist review required."
+            ),
+            warnings=["Configured model does not support image input."],
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+            model_name=selected_vision_model,
+        )
+    if not selected_vision_model:
+        study = StudyInfo(
+            study_instance_uid=study_uid,
+            modality="CT",
+            body_part=(metadata.get("body_part_examined") or "").upper() or None,
+            view="AXIAL",
+            study_description=metadata.get("study_description"),
+            series_description=metadata.get("series_description"),
+        )
+        return _build_ct_review_required_response(
+            exam_type=requested_exam_type,
+            summary=(
+                "Image interpretation was skipped because the configured local model does not support image input. "
+                "Radiologist review required."
+            ),
+            warnings=["VISION_MODEL is not configured for image interpretation."],
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+            model_name=None,
+        )
 
     # Validate modality
     modality = (metadata.get("modality") or "").strip().upper()
@@ -322,9 +440,9 @@ def build_ct_response(
             output_language=output_language,
             openai_api_key=settings.openai_api_key,
             openai_base_url=settings.openai_base_url,
-            openai_model=settings.openai_model,
+            openai_model=selected_vision_model,
             vision_image_url_as_string=settings.vision_image_url_as_string,
-            openai_timeout=settings.openai_timeout_seconds,
+            openai_timeout=settings.openai_timeout,
         )
     except Exception as e:
         logger.error("CT model inference failed: %s", e)
@@ -336,18 +454,16 @@ def build_ct_response(
             study_description=metadata.get("study_description"),
             series_description=metadata.get("series_description"),
         )
-        ai = AIInfo(model_name="unknown", modality_handled="CT", slices_reviewed=0, not_for_medical_use=True)
-        return _audit(localize_response(InterpretationResponse(
+        return _build_ct_review_required_response(
             exam_type=exam_type,
-            status="REVIEW_REQUIRED",
-            findings=[],
-            critical_alert=False,
             summary="CT interpretation model inference failed. Radiologist review required.",
-            study=study,
-            ai=ai,
             warnings=[str(e)],
-            disclaimer=settings.disclaimer_text,
-        ), output_language), clinical_indication)
+            output_language=output_language,
+            settings=settings,
+            clinical_indication=clinical_indication,
+            study=study,
+            model_name=selected_vision_model,
+        )
 
     # Reconcile body part + suppress out-of-scope finding families for abdomen
     model_body_part = str(gpt_output.get("body_part", "UNKNOWN") or "UNKNOWN").upper()
@@ -394,7 +510,7 @@ def build_ct_response(
         image_quality=model_meta.get("image_quality"),
     )
     ai = AIInfo(
-        model_name=str(model_meta.get("name", "unknown") or "unknown"),
+        model_name=str(model_meta.get("name") or selected_vision_model or "unknown"),
         modality_handled="CT",
         slices_reviewed=len(slice_png_paths),
         not_for_medical_use=True,

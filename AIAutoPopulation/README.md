@@ -134,7 +134,7 @@ Extracts structured medical data from free-text input.
     "source_trace": [...]
   },
   "metadata": {
-    "model_used": "gpt-4.1",
+    "model_used": "qwen3:1.7b",
     "processing_timestamp": "...",
     "schema_version": "auto_population.v1"
   }

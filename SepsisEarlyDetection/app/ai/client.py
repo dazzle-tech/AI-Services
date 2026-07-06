@@ -20,12 +20,16 @@ class SepsisAIClient:
             raise ValueError("OPENAI_API_KEY must be set")
         self.client = OpenAI(
             api_key=settings.openai_api_key,
+            base_url=settings.openai_base_url or None,
             timeout=settings.openai_timeout,
+            max_retries=settings.openai_max_retries,
         )
+        self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
         self.max_retries = settings.openai_max_retries
         self.retry_delay = settings.openai_retry_delay
+        self.timeout = settings.openai_timeout
 
     def analyze(self, system_prompt: str, user_prompt: str) -> dict:
         """Send prompts to GPT-4o and return the parsed JSON response.
@@ -49,6 +53,14 @@ class SepsisAIClient:
                     attempt + 1,
                     self.max_retries,
                 )
+                prompt_length = len(system_prompt) + len(user_prompt)
+                logger.info(
+                    "Calling sepsis analysis using model %s base_url=%s timeout=%ss prompt_length=%s",
+                    self.model,
+                    self.base_url,
+                    self.timeout,
+                    prompt_length,
+                )
 
                 response = self.client.chat.completions.create(
                     model=self.model,
@@ -58,6 +70,7 @@ class SepsisAIClient:
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt},
                     ],
+                    timeout=self.timeout,
                 )
 
                 raw = response.choices[0].message.content

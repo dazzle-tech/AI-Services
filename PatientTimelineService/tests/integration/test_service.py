@@ -1,4 +1,5 @@
 """Integration tests for service layer."""
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -6,6 +7,8 @@ import pytest
 from app.models.schemas import TimelineEvent, TimelineRequest
 from app.services.timeline_service import TimelineService
 from tests.fixtures.sample_data import SAMPLE_REQUEST_COMPLETE, SAMPLE_REQUEST_MINIMAL
+
+TEST_MODEL = os.getenv("OPENAI_MODEL", "")
 
 
 class TestTimelineService:
@@ -33,7 +36,7 @@ class TestTimelineService:
         assert response.request_id == "test-001"
         assert len(response.timeline) == 1
         assert response.timeline[0].event_type == "diagnosis"
-        assert response.processing_metadata.model == "gpt-4o"
+        assert response.processing_metadata.model == TEST_MODEL
         assert response.processing_metadata.timeline_event_count == 1
 
     @patch("app.services.timeline_service.AIClient")

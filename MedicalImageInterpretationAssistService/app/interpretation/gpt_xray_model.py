@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from ..model_resolver import model_not_found, resolve_fallback_model
 from .findings_schema import make_finding
 from .models import Finding
 
@@ -17,7 +18,6 @@ try:
 except Exception:  # pragma: no cover
     OpenAI = None  # type: ignore[assignment]
 
-MODEL_NAME = "gpt-4o-xray-vision"
 _THINK_BLOCK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
 
 
@@ -33,6 +33,17 @@ def _strip_model_wrappers(raw_text: str) -> str:
         clean = clean.split("\n", 1)[-1]
         clean = clean.rsplit("```", 1)[0]
     return clean.strip()
+
+
+def _raise_timeout_or_original(exc: Exception) -> None:
+    exc_name = type(exc).__name__
+    msg = str(exc).lower()
+    if "Timeout" in exc_name or "timeout" in msg or "timed out" in msg:
+        raise RuntimeError(
+            "Vision model request timed out after 30s. "
+            "Service returned REVIEW_REQUIRED."
+        ) from exc
+    raise exc
 
 def _make_upper_crop(image_path: str, output_path: str) -> None:
     from PIL import Image
@@ -327,9 +338,10 @@ def run_gpt_xray_model(
     exam_type: str,
     openai_api_key: str,
     openai_base_url: str | None = "http://localhost:11434/v1",
-    openai_model: str = "qwen3-vl:8b",
+    openai_model: str = "",
     vision_image_url_as_string: bool = True,
-    openai_timeout: float = 30.0,
+    openai_timeout: float = 120.0,
+    openai_max_retries: int = 1,
     study_description: str | None = None,
     series_description: str | None = None,
     laterality: str | None = None,
@@ -347,6 +359,7 @@ def run_gpt_xray_model(
         api_key=openai_api_key,
         base_url=openai_base_url or None,
         timeout=openai_timeout,
+        max_retries=openai_max_retries,
     )
 
     image_bytes = Path(image_path).read_bytes()
@@ -432,22 +445,42 @@ def run_gpt_xray_model(
         },
     ]
 
+    selected_model = openai_model
+    prompt_length = len(SYSTEM_PROMPT) + len(context_text)
     try:
+        logger.info(
+            "Calling X-ray interpretation using model %s base_url=%s timeout=%ss prompt_length=%s",
+            selected_model,
+            openai_base_url or "https://api.openai.com/v1",
+            openai_timeout,
+            prompt_length,
+        )
         response = client.chat.completions.create(
-            model=openai_model,
+            model=selected_model,
             max_tokens=1500,
             messages=messages,
             temperature=0.1,
+            timeout=openai_timeout,
         )
     except Exception as exc:
-        exc_name = type(exc).__name__
-        msg = str(exc).lower()
-        if "Timeout" in exc_name or "timeout" in msg or "timed out" in msg:
-            raise RuntimeError(
-                "Vision model request timed out after 30s. "
-                "Service returned REVIEW_REQUIRED."
-            ) from exc
-        raise
+        if model_not_found(exc):
+            fallback_model = resolve_fallback_model(client, openai_model, require_vision=True)
+            if fallback_model and fallback_model != openai_model:
+                selected_model = fallback_model
+                try:
+                    response = client.chat.completions.create(
+                        model=selected_model,
+                        max_tokens=1500,
+                        messages=messages,
+                        temperature=0.1,
+                        timeout=openai_timeout,
+                    )
+                except Exception as retry_exc:
+                    _raise_timeout_or_original(retry_exc)
+            else:
+                _raise_timeout_or_original(exc)
+        else:
+            _raise_timeout_or_original(exc)
 
     raw_text = response.choices[0].message.content or ""
     clean = _strip_model_wrappers(raw_text)
@@ -489,8 +522,8 @@ def run_gpt_xray_model(
             continue
 
     model_meta = {
-        "name": MODEL_NAME,
-        "underlying_model": openai_model,
+        "name": selected_model,
+        "underlying_model": selected_model,
         "not_for_medical_use": True,
         "body_part_detected": gpt_output.get("body_part", "UNKNOWN"),
         "view_detected": gpt_output.get("view", "UNKNOWN"),

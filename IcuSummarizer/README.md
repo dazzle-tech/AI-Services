@@ -51,7 +51,12 @@ cp .env.example .env
 ### Environment Variables
 
 - `OPENAI_API_KEY` (required): Your OpenAI API key
-- `MODEL_NAME` (optional): OpenAI model to use (default: `gpt-4o`)
+- `OPENAI_MODEL` (optional): OpenAI-compatible model to use (default: `qwen3:1.7b`)
+
+```bash
+ollama pull qwen3:1.7b
+ollama run qwen3:1.7b
+```
 
 ### Concept Mappings
 

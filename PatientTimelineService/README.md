@@ -201,7 +201,7 @@ The service will be available at `http://localhost:8001`.
   ],
   "summary": "Chronological timeline generated successfully.",
   "processing_metadata": {
-    "model": "gpt-4o",
+    "model": "qwen3:1.7b",
     "timestamp": "2026-03-23T09:00:00",
     "input_fields_count": 9,
     "timeline_event_count": 2

@@ -62,7 +62,7 @@ Create `.env` file:
 # client to another OpenAI-compatible provider such as Ollama.
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_API_KEY=your_openai_api_key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=qwen3:1.7b
 OPENAI_TEMPERATURE=0.2
 OPENAI_MAX_TOKENS=2000
 HOST=0.0.0.0
@@ -233,7 +233,7 @@ Key settings in `config.py`:
 
 - `OPENAI_BASE_URL` - Base URL for the OpenAI cloud endpoint by default; override it only for another OpenAI-compatible server
 - `OPENAI_API_KEY` - OpenAI API key used when calling the default OpenAI cloud endpoint
-- `OPENAI_MODEL` - Model to use (default: `gpt-4o-mini`)
+- `OPENAI_MODEL` - Model to use (default: `qwen3:1.7b`)
 - `OPENAI_TEMPERATURE` - Model temperature (default: 0.2)
 - `OPENAI_MAX_TOKENS` - Max tokens in response (default: 2000)
 - `VALIDATION_CONFIDENCE_THRESHOLD` - Minimum confidence score (default: 0.7)

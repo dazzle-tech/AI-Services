@@ -1,5 +1,6 @@
 """Main entry point for the AI Auto-Population Service."""
 import logging
+import os
 from fastapi import FastAPI
 from app.core.config import settings
 from app.api.routes import router
@@ -29,7 +30,8 @@ app.include_router(router)
 async def startup_event():
     """Startup event handler."""
     logger.info(f"Starting {settings.api_title} v{settings.api_version}")
-    logger.info(f"Using OpenAI model: {settings.openai_model}")
+    logger.info(f"Using local model: {settings.openai_model}")
+    logger.info(f"Loaded from: {__file__} | pid={os.getpid()}")
 
 
 @app.on_event("shutdown")

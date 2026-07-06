@@ -20,13 +20,17 @@ class AIClient:
             raise ValueError("OPENAI_API_KEY must be set")
         self.client = OpenAI(
             api_key=settings.openai_api_key,
-            timeout=settings.openai_timeout
+            base_url=settings.openai_base_url or None,
+            timeout=settings.openai_timeout,
+            max_retries=settings.openai_max_retries,
         )
+        self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
         self.max_tokens = settings.openai_max_tokens
         self.max_retries = settings.openai_max_retries
         self.retry_delay = settings.openai_retry_delay
+        self.timeout = settings.openai_timeout
     
     def generate_summary(self, patient_data: Dict[str, Any]) -> str:
         """
@@ -50,6 +54,14 @@ class AIClient:
         for attempt in range(self.max_retries):
             try:
                 logger.debug(f"OpenAI API call attempt {attempt + 1}/{self.max_retries}")
+                prompt_length = len(json.dumps(messages, ensure_ascii=False))
+                logger.info(
+                    "Calling summary generation using model %s base_url=%s timeout=%ss prompt_length=%s",
+                    self.model,
+                    self.base_url,
+                    self.timeout,
+                    prompt_length,
+                )
                 
                 # Call OpenAI API with GPT-4
                 response = self.client.chat.completions.create(
@@ -57,7 +69,7 @@ class AIClient:
                     messages=messages,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    timeout=settings.openai_timeout
+                    timeout=self.timeout,
                 )
                 
                 # Extract content

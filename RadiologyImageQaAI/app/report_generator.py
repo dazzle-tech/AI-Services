@@ -6,6 +6,7 @@ from enum import Enum
 from typing import Any, Dict
 
 from .config import Settings
+from .model_resolver import model_not_found, resolve_fallback_model
 from .models import QCStatus
 
 _SUPPORTED_OUTPUT_LANGUAGES = {"el", "en", "ar"}
@@ -267,6 +268,8 @@ def generate_explanation_with_openai(
     client = OpenAI(
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url or None,
+        timeout=settings.openai_timeout,
+        max_retries=settings.openai_max_retries,
     )
     prompt = (
         "You are generating a radiology technical quality-control alert for a CT study.\n"
@@ -279,10 +282,30 @@ def generate_explanation_with_openai(
     )
 
     try:
-        resp = client.responses.create(
-            model=settings.openai_model,
-            input=prompt,
+        selected_model = settings.openai_model
+        logger.info(
+            "Calling radiology QC phrasing using model %s base_url=%s timeout=%ss prompt_length=%s",
+            selected_model,
+            settings.openai_base_url or "https://api.openai.com/v1",
+            settings.openai_timeout,
+            len(prompt),
         )
+        try:
+            resp = client.responses.create(
+                model=selected_model,
+                input=prompt,
+            )
+        except Exception as exc:
+            if not model_not_found(exc):
+                raise
+            fallback_model = resolve_fallback_model(client, settings.openai_model)
+            if not fallback_model or fallback_model == settings.openai_model:
+                raise
+            selected_model = fallback_model
+            resp = client.responses.create(
+                model=selected_model,
+                input=prompt,
+            )
         text = getattr(resp, "output_text", None)
         if isinstance(text, str) and text.strip():
             return _strip_model_wrappers(text)

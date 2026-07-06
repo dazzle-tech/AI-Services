@@ -69,7 +69,7 @@ cp .env.example .env
 Edit `.env` and set:
 
 - `OPENAI_API_KEY`: Your OpenAI API key (required)
-- `OPENAI_MODEL`: Model name (default: `gpt-4o`)
+- `OPENAI_MODEL`: Model name (default: `qwen3:1.7b`)
 - `OPENAI_TEMPERATURE`: Temperature for generation (default: `0.2`)
 - `API_PORT`: Server port (default: `8009`)
 
@@ -80,7 +80,7 @@ Edit `.env` and set:
 | Variable             | Description                            | Default   |
 | -------------------- | -------------------------------------- | --------- |
 | `OPENAI_API_KEY`     | Your OpenAI API key (required)         | -         |
-| `OPENAI_MODEL`       | OpenAI model name                      | `gpt-4o`  |
+| `OPENAI_MODEL`       | OpenAI model name                      | `qwen3:1.7b`  |
 | `OPENAI_TEMPERATURE` | Temperature for generation             | `0.2`     |
 | `API_HOST`           | Server host                            | `0.0.0.0` |
 | `API_PORT`           | Server port                            | `8009`    |
@@ -98,7 +98,7 @@ Expected output:
 
 ```
 INFO:     Starting Clinical Summary Service v1.2.0
-INFO:     Using OpenAI model: gpt-4o
+INFO:     Using OpenAI model: qwen3:1.7b
 INFO:     Uvicorn running on http://0.0.0.0:8009
 INFO:     Application startup complete.
 ```
@@ -172,7 +172,7 @@ System health status.
   "status": "healthy",
   "service": "clinical-summary",
   "openai_configured": true,
-  "model": "gpt-4o"
+  "model": "qwen3:1.7b"
 }
 ```
 
@@ -211,7 +211,7 @@ Generate clinical summary from patient data.
   "request_id": "optional-request-id",
   "ClinicalSummary": "A 45-year-old male with Type 2 Diabetes. Symptoms: Polyuria, Polydipsia. Medications: Metformin 500mg BID. Past surgeries: Appendectomy 2010. Allergies: Penicillin. Medical warnings: Renal impairment. Comorbidities: Hypertension. Vital signs: BP 140/90, HR 72 bpm, Temp 98.6 F.",
   "processing_metadata": {
-    "model": "gpt-4o",
+    "model": "qwen3:1.7b",
     "timestamp": "2025-12-24T11:20:00",
     "input_fields_count": 8
   }
@@ -275,10 +275,8 @@ curl -X POST http://localhost:8009/api/v1/summarize \
 ## ⚠️ Important Notes
 
 1. **OpenAI API Key Required:** Ensure you have a valid OpenAI API key set in `.env`
-2. **Model Selection:** Default is `gpt-4o` (recommended) - optimized for speed and quality
-   - Alternative: `gpt-4-turbo-preview` for slightly lower cost
-   - Not recommended: `gpt-3.5-turbo` (lower quality for medical summaries)
-3. **Processing Time:** Summary generation typically takes 1-3 seconds with GPT-4o
+2. **Model Selection:** Default is `qwen3:1.7b` via local Ollama.
+3. **Processing Time:** Summary generation depends on local Ollama throughput and prompt size.
 4. **Accuracy:** Review generated summaries for clinical accuracy (AI is a tool, not a replacement)
 5. **Cost:** Each summary uses ~200-400 tokens with GPT-4o (~$0.005-0.01 per summary)
 6. **Rate Limits:** Service includes automatic retry logic for rate limit handling
@@ -318,8 +316,8 @@ curl -X POST http://localhost:8009/api/v1/summarize \
 
 ## 📈 Performance Tips
 
-- **Recommended:** Use `gpt-4o` for best quality and speed balance (default)
-- **Cost Optimization:** Use `gpt-4-turbo-preview` if cost is a concern (slightly slower)
+- **Recommended:** Use `qwen3:1.7b` with local Ollama for the default setup
+- **Startup:** Run `ollama pull qwen3:1.7b` and `ollama run qwen3:1.7b` before calling the service
 - **Temperature:** Default 0.2 is optimal for factual summaries (lower = more consistent)
 - **Token Usage:** Monitor logs for token usage - typical summaries are 200-400 tokens
 - **Retry Logic:** Service automatically retries on transient failures (rate limits, timeouts)

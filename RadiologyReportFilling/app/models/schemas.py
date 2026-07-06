@@ -7,6 +7,30 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 _SUPPORTED_OUTPUT_LANGUAGES = {"el", "pt", "en", "ar"}
 
 
+class AIInterpretationSummaryModel(BaseModel):
+    """Compact AI interpretation context for report generation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    status: Optional[str] = None
+    critical_alert: bool = False
+    summary: Optional[str] = None
+    findings_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+
+class QCSummaryModel(BaseModel):
+    """Compact QC context for report generation."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    qc_status: Optional[str] = None
+    issue_type: Optional[str] = None
+    recommended_action: Optional[str] = None
+    human_review_required: Optional[bool] = None
+    confidence: Optional[float] = None
+
+
 class RadiologyReportRequest(BaseModel):
     """Public request body for the report filling endpoint."""
 
@@ -23,27 +47,27 @@ class RadiologyReportRequest(BaseModel):
                     "Gender": "",
                     "AccessionNumber": "ACC-10008",
                     "OutputLanguage": "el",
+                    "AIInterpretationSummary": {
+                        "status": "REVIEW_REQUIRED",
+                        "critical_alert": False,
+                        "summary": "Radiologist review is required.",
+                        "findings_count": 0,
+                        "warnings": ["Vision model request timed out after 30s."],
+                    },
+                    "QC": {
+                        "qc_status": "REVIEW_REQUIRED",
+                        "issue_type": "MISSING_METADATA",
+                        "recommended_action": "Verify missing ViewPosition metadata.",
+                        "human_review_required": True,
+                        "confidence": 0.6,
+                    },
                     "DICOM": {
-                        "0008,0050": {
-                            "Name": "AccessionNumber",
-                            "Type": "String",
-                            "Value": "ACC-10008",
-                        },
-                        "0010,0020": {
-                            "Name": "PatientID",
-                            "Type": "String",
-                            "Value": "LIDC-IDRI-0001",
-                        },
-                        "0008,0060": {
-                            "Name": "Modality",
-                            "Type": "String",
-                            "Value": "US",
-                        },
-                        "0018,0015": {
-                            "Name": "BodyPartExamined",
-                            "Type": "String",
-                            "Value": "ABDOMEN",
-                        },
+                        "Modality": "US",
+                        "BodyPartExamined": "ABDOMEN",
+                        "StudyDate": "20260604",
+                        "ViewPosition": None,
+                        "StudyInstanceUID": "1.2.3.4.5",
+                        "DICOMAccessionNumber": "ACC-10008",
                     },
                 }
             ]
@@ -67,9 +91,13 @@ class RadiologyReportRequest(BaseModel):
     RadiologistNotes: Optional[str] = None
     SigningPhysician: Optional[str] = None
     SigningPhysicianCode: Optional[str] = None
+    AIInterpretationSummary: Optional[AIInterpretationSummaryModel] = None
+    QC: Optional[QCSummaryModel] = None
+    DICOM: Optional[Dict[str, Any]] = None
+
+    # Legacy debug/workflow payloads retained for compatibility.
     AIInterpretation: Optional[Dict[str, Any]] = None
     QCResult: Optional[Dict[str, Any]] = None
-    DICOM: Optional[Dict[str, Any]] = None
 
     @field_validator("OutputLanguage", mode="before")
     @classmethod

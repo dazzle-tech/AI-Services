@@ -180,6 +180,10 @@ class Trace(BaseModel):
 
 class Metadata(BaseModel):
     """Processing metadata."""
+    model_config = ConfigDict(
+        protected_namespaces=()
+    )
+
     model_used: str = Field(..., description="AI model used for processing")
     processing_timestamp: datetime = Field(default_factory=datetime.utcnow, description="When processing occurred")
     user_role: str = Field(..., description="User role")

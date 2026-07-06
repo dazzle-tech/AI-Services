@@ -17,16 +17,18 @@ class Settings(BaseSettings):
     API_RELOAD: bool = False
     
     # OpenAI Settings
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1") or "https://api.openai.com/v1"
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1") or "http://localhost:11434/v1"
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "")
     OPENAI_TEMPERATURE: float = 0.2
     OPENAI_MAX_TOKENS: int = 2000
+    OPENAI_TIMEOUT: int = 120
+    OPENAI_MAX_RETRIES: int = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
     
     # Validation Settings
     VALIDATION_CONFIDENCE_THRESHOLD: float = 0.7
-    MAX_RETRY_ATTEMPTS: int = 3
-    REQUEST_TIMEOUT: int = 60  # seconds
+    MAX_RETRY_ATTEMPTS: int = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
+    REQUEST_TIMEOUT: int = int(os.getenv("OPENAI_TIMEOUT", "120"))  # seconds
     
     # System Prompts
     MEDICATION_VALIDATION_SYSTEM_PROMPT: str = """You are an expert clinical pharmacist and medical safety validator. 

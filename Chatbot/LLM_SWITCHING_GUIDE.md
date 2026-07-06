@@ -1,6 +1,6 @@
 # Switching from LLaMA to GPT-4o Guide
 
-This guide explains how to switch from Ollama (LLaMA) to OpenAI (GPT-4o) for better results.
+This guide explains how to use the OpenAI-compatible path with Ollama and `qwen3:1.7b`.
 
 ## Quick Start
 
@@ -20,12 +20,12 @@ LLM_PROVIDER=openai
 
 # OpenAI Configuration
 OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_MODEL=gpt-4o
-OPENAI_SQL_GEN_MODEL=gpt-4o
+OPENAI_MODEL=qwen3:1.7b
+OPENAI_SQL_GEN_MODEL=qwen3:1.7b
 
 # Optional: Use different models for different tasks
-# OPENAI_MODEL=gpt-4o-mini  # For general chat (cheaper)
-# OPENAI_SQL_GEN_MODEL=gpt-4o  # For SQL generation (better accuracy)
+# OPENAI_MODEL=qwen3:1.7b
+# OPENAI_SQL_GEN_MODEL=qwen3:1.7b
 ```
 
 ### 3. Restart Services
@@ -49,24 +49,24 @@ python runners/main_validator.py
 |----------|---------|-------------|
 | `LLM_PROVIDER` | `ollama` | Provider: `"ollama"` or `"openai"` |
 | `OPENAI_API_KEY` | (required) | Your OpenAI API key |
-| `OPENAI_MODEL` | `gpt-4o` | Model for general tasks (chat, formatting, etc.) |
-| `OPENAI_SQL_GEN_MODEL` | `gpt-4o` | Model specifically for SQL generation |
-| `LLM_MODEL` | `llama3:8b` | Ollama model (when using Ollama) |
-| `SQL_GEN_MODEL` | `llama3:8b` | Ollama SQL model (when using Ollama) |
+| `OPENAI_MODEL` | `qwen3:1.7b` | Model for general tasks (chat, formatting, etc.) |
+| `OPENAI_SQL_GEN_MODEL` | `qwen3:1.7b` | Model specifically for SQL generation |
+| `LLM_MODEL` | `qwen3:1.7b` | Ollama model (when using Ollama) |
+| `SQL_GEN_MODEL` | `qwen3:1.7b` | Ollama SQL model (when using Ollama) |
 
 ### Recommended Models
 
 **For Best Results (Higher Cost):**
-- `OPENAI_MODEL=gpt-4o`
-- `OPENAI_SQL_GEN_MODEL=gpt-4o`
+- `OPENAI_MODEL=qwen3:1.7b`
+- `OPENAI_SQL_GEN_MODEL=qwen3:1.7b`
 
 **For Cost Savings (Still Good Quality):**
-- `OPENAI_MODEL=gpt-4o-mini` (for chat, formatting)
-- `OPENAI_SQL_GEN_MODEL=gpt-4o` (for SQL - keep this high quality)
+- `OPENAI_MODEL=qwen3:1.7b`
+- `OPENAI_SQL_GEN_MODEL=qwen3:1.7b`
 
 **For Maximum Cost Savings:**
-- `OPENAI_MODEL=gpt-4o-mini`
-- `OPENAI_SQL_GEN_MODEL=gpt-4o-mini`
+- `OPENAI_MODEL=qwen3:1.7b`
+- `OPENAI_SQL_GEN_MODEL=qwen3:1.7b`
 
 ## What Gets Switched
 
@@ -147,7 +147,7 @@ pip install openai
 ### Error: "Rate limit exceeded"
 - You've hit OpenAI's rate limit
 - Wait a few minutes or upgrade your plan
-- Consider using `gpt-4o-mini` for some tasks to reduce costs
+- Use `qwen3:1.7b` consistently across the OpenAI-compatible and Ollama paths
 
 ### Still using Ollama after switching?
 - Make sure you restarted all services

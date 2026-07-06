@@ -92,7 +92,7 @@ SERVICES: list[ServiceDef] = [
     ServiceDef(
         name="RadiologyReportFilling",
         cwd=ROOT.parent / "RadiologyReportFilling",
-        port=8000,
+        port=8024,
         health_path="/api/v1/health",
         startup_timeout_s=35.0,
     ),
@@ -114,7 +114,6 @@ def print_service_port_map() -> None:
             flush=True,
         )
     print("", flush=True)
-
 
 def _popen_kwargs_for_windows() -> dict[str, Any]:
     if os.name != "nt":
@@ -515,6 +514,43 @@ def _as_str_list(items: Any) -> list[str]:
     return [str(items)]
 
 
+def _clean_compact_warning(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return re.sub(r"^(warning|προειδοποίηση)\s*:\s*", "", text, flags=re.IGNORECASE).strip()
+
+
+def _build_ai_interpretation_summary(ai_interpretation: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(ai_interpretation, dict):
+        return None
+    findings = ai_interpretation.get("findings")
+    warnings = [
+        cleaned
+        for cleaned in (_clean_compact_warning(item) for item in ai_interpretation.get("warnings") or [])
+        if cleaned
+    ]
+    return {
+        "status": ai_interpretation.get("status"),
+        "critical_alert": bool(ai_interpretation.get("critical_alert", False)),
+        "summary": ai_interpretation.get("summary"),
+        "findings_count": len(findings) if isinstance(findings, list) else 0,
+        "warnings": warnings,
+    }
+
+
+def _build_qc_summary(qc_result: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(qc_result, dict):
+        return None
+    return {
+        "qc_status": qc_result.get("qc_status"),
+        "issue_type": qc_result.get("issue_type"),
+        "recommended_action": qc_result.get("recommended_action"),
+        "human_review_required": qc_result.get("human_review_required"),
+        "confidence": qc_result.get("confidence"),
+    }
+
+
 def _print_block(title: str, payload: Any) -> None:
     print(f"\n===== {title} =====", flush=True)
     try:
@@ -525,6 +561,18 @@ def _print_block(title: str, payload: Any) -> None:
 
 def _job_print(job_id: str, title: str, payload: Any) -> None:
     _print_block(f"JOB {job_id} — {title}", payload)
+
+
+def _exception_debug_payload(exc: Exception) -> dict[str, Any]:
+    return {
+        "error": str(exc),
+        "error_type": type(exc).__name__,
+        "error_repr": repr(exc),
+    }
+
+
+def _elapsed_seconds(started_at: float) -> float:
+    return round(time.perf_counter() - started_at, 3)
 
 
 def _build_clinical_report_text(
@@ -604,26 +652,23 @@ def _build_report_filling_body(
     qc_result: dict[str, Any] | None = None,
     dicom_extras: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    dicom_payload = {
-        "PatientID": patient_id,
-        "PatientName": patient_name,
-        "OrderID": order_id,
-        "OrderDate": order_date or None,
-        "DateOfBirth": date_of_birth or None,
-        "NationalID": national_id,
-        "Gender": gender,
-        "AccessionNumber": accession_number,
+    compact_dicom_payload = {
         "Modality": modality,
         "BodyPartExamined": body_part,
         "StudyDate": study_date,
         "ViewPosition": view_position or None,
-        "PatientAge": patient_age or None,
-        "PixelSpacing": pixel_spacing,
+        "StudyInstanceUID": None,
+        "DICOMAccessionNumber": accession_number,
     }
     if isinstance(dicom_extras, dict):
-        dicom_payload.update(dicom_extras)
+        compact_dicom_payload["StudyInstanceUID"] = dicom_extras.get("StudyInstanceUID")
+        compact_dicom_payload["DICOMAccessionNumber"] = (
+            dicom_extras.get("DICOMAccessionNumber")
+            or dicom_extras.get("AccessionNumber")
+            or accession_number
+        )
 
-    return {
+    payload = {
         "PatientID": patient_id,
         "PatientName": patient_name,
         "OrderID": order_id,
@@ -638,10 +683,22 @@ def _build_report_filling_body(
         "RadiologistNotes": radiologist_notes or None,
         "SigningPhysician": signing_physician or None,
         "SigningPhysicianCode": signing_physician_code or None,
-        "AIInterpretation": ai_interpretation or None,
-        "QCResult": qc_result or None,
-        "DICOM": dicom_payload,
+        "AIInterpretationSummary": _build_ai_interpretation_summary(ai_interpretation),
+        "QC": _build_qc_summary(qc_result),
+        "DICOM": compact_dicom_payload,
     }
+    serialized_payload = json.dumps(payload, ensure_ascii=False)
+    logger.info(
+        "Stage 3 compact payload size=%d bytes removed_full_objects=%s",
+        len(serialized_payload.encode("utf-8")),
+        {
+            "ai_interpretation_removed": bool(ai_interpretation) and "AIInterpretation" not in payload,
+            "qc_result_removed": bool(qc_result) and "QCResult" not in payload,
+            "dicom_compacted": set((payload.get("DICOM") or {}).keys())
+            <= {"Modality", "BodyPartExamined", "StudyDate", "ViewPosition", "StudyInstanceUID", "DICOMAccessionNumber"},
+        },
+    )
+    return payload
 
 
 def _empty_final_report() -> dict[str, Any]:
@@ -806,7 +863,7 @@ async def _api_run_pipeline_v2(
     }
     override_enabled = str(qa_override).strip().lower() in {"1", "true", "yes", "y"}
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=None) as client:
         qc_url = qc_endpoint_for_modality(resolved_modality)
         _print_block(
             "STAGE 1 REQUEST (Image QA)",
@@ -820,6 +877,7 @@ async def _api_run_pipeline_v2(
                 "qa_override": override_enabled,
             },
         )
+        stage1_started_at = time.perf_counter()
         qc_resp = await client.post(
             qc_url,
             files={"file": (upload_name, dicom_bytes, content_type)},
@@ -829,7 +887,11 @@ async def _api_run_pipeline_v2(
             qc_json = qc_resp.json()
         except Exception:  # noqa: BLE001
             qc_json = {"raw": qc_resp.text}
-        results["stage_1_image_qa"] = {"status_code": qc_resp.status_code, "response": qc_json}
+        results["stage_1_image_qa"] = {
+            "status_code": qc_resp.status_code,
+            "elapsed_seconds": _elapsed_seconds(stage1_started_at),
+            "response": qc_json,
+        }
         _print_block("STAGE 1 RESPONSE (Image QA)", results["stage_1_image_qa"])
 
         qc_status = (qc_json or {}).get("qc_status")
@@ -842,6 +904,7 @@ async def _api_run_pipeline_v2(
                 "continued_after_stage_1": True,
                 "reason": "QA not PASS/WARNING",
                 "qc_status": qc_status,
+                "qa_override_used": override_enabled,
             }
             _print_block("WORKFLOW CONTINUED AFTER QA", results["workflow"])
 
@@ -856,6 +919,7 @@ async def _api_run_pipeline_v2(
                 "OutputLanguage": OutputLanguage,
             },
         )
+        stage2_started_at = time.perf_counter()
         interp_resp = await client.post(
             interp_url,
             files={"file": (upload_name, dicom_bytes, content_type)},
@@ -865,7 +929,11 @@ async def _api_run_pipeline_v2(
             interp_json = interp_resp.json()
         except Exception:  # noqa: BLE001
             interp_json = {"raw": interp_resp.text}
-        results["stage_2_ai_interpretation"] = {"status_code": interp_resp.status_code, "response": interp_json}
+        results["stage_2_ai_interpretation"] = {
+            "status_code": interp_resp.status_code,
+            "elapsed_seconds": _elapsed_seconds(stage2_started_at),
+            "response": interp_json,
+        }
         _print_block("STAGE 2 RESPONSE (AI Interpretation)", results["stage_2_ai_interpretation"])
 
         stage3_body = _build_report_filling_body(
@@ -893,14 +961,28 @@ async def _api_run_pipeline_v2(
             qc_result=qc_json if isinstance(qc_json, dict) else None,
             dicom_extras=mismatch_context,
         )
-        stage3_url = "http://127.0.0.1:8000/api/v1/report-filling"
-        _print_block("STAGE 3 REQUEST (Final Report Filling)", {"url": stage3_url, "json": stage3_body})
-        report_resp = await client.post(stage3_url, json=stage3_body)
+        stage3_url = "http://127.0.0.1:8024/api/v1/report-filling"
+        _print_block(
+            "STAGE 3 REQUEST (Final Report Filling)",
+            {
+                "url": stage3_url,
+                "json": stage3_body,
+            },
+        )
+        stage3_started_at = time.perf_counter()
+        report_resp = await client.post(
+            stage3_url,
+            json=stage3_body,
+        )
         try:
             report_json = report_resp.json()
         except Exception:  # noqa: BLE001
             report_json = {"raw": report_resp.text}
-        results["stage_3_report_filling"] = {"status_code": report_resp.status_code, "response": report_json}
+        results["stage_3_report_filling"] = {
+            "status_code": report_resp.status_code,
+            "elapsed_seconds": _elapsed_seconds(stage3_started_at),
+            "response": report_json,
+        }
         _print_block("STAGE 3 RESPONSE (Final Report Filling)", results["stage_3_report_filling"])
 
         skipped_reason = "Unified report-filling contract replaces legacy matching/autofill stages."
@@ -997,7 +1079,7 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
         }
         await job.emit("input", p)
 
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=None) as client:
             qc_url = qc_endpoint_for_modality(resolved_modality)
             _job_print(
                 job.job_id,
@@ -1013,6 +1095,7 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
                 },
             )
             await job.emit("stage_start", {"stage": 1, "name": "Image QA", "url": qc_url})
+            stage1_started_at = time.perf_counter()
             qc_resp = await client.post(
                 qc_url,
                 files={"file": (job.upload_name, job.dicom_bytes, job.content_type)},
@@ -1022,7 +1105,11 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
                 qc_json = qc_resp.json()
             except Exception:  # noqa: BLE001
                 qc_json = {"raw": qc_resp.text}
-            results["stage_1_image_qa"] = {"status_code": qc_resp.status_code, "response": qc_json}
+            results["stage_1_image_qa"] = {
+                "status_code": qc_resp.status_code,
+                "elapsed_seconds": _elapsed_seconds(stage1_started_at),
+                "response": qc_json,
+            }
 
             qc_status = (qc_json or {}).get("qc_status")
             qa_pass = qc_status in {"PASS", "WARNING"}
@@ -1036,6 +1123,7 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
                     "continued_after_stage_1": True,
                     "reason": "QA not PASS/WARNING",
                     "qc_status": qc_status,
+                    "qa_override_used": qa_override,
                 }
                 _job_print(job.job_id, "WORKFLOW CONTINUED AFTER QA", results["workflow"])
 
@@ -1052,6 +1140,7 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
                 },
             )
             await job.emit("stage_start", {"stage": 2, "name": "AI Interpretation", "url": interp_url})
+            stage2_started_at = time.perf_counter()
             interp_resp = await client.post(
                 interp_url,
                 files={"file": (job.upload_name, job.dicom_bytes, job.content_type)},
@@ -1061,7 +1150,11 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
                 interp_json = interp_resp.json()
             except Exception:  # noqa: BLE001
                 interp_json = {"raw": interp_resp.text}
-            results["stage_2_ai_interpretation"] = {"status_code": interp_resp.status_code, "response": interp_json}
+            results["stage_2_ai_interpretation"] = {
+                "status_code": interp_resp.status_code,
+                "elapsed_seconds": _elapsed_seconds(stage2_started_at),
+                "response": interp_json,
+            }
             _job_print(job.job_id, "STAGE 2 RESPONSE (AI Interpretation)", results["stage_2_ai_interpretation"])
             await job.emit("stage_result", {"stage": 2, "result": results["stage_2_ai_interpretation"]})
 
@@ -1090,19 +1183,30 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
                 qc_result=qc_json if isinstance(qc_json, dict) else None,
                 dicom_extras=mismatch_context,
             )
-            stage3_url = "http://127.0.0.1:8000/api/v1/report-filling"
+            stage3_url = "http://127.0.0.1:8024/api/v1/report-filling"
             _job_print(
                 job.job_id,
                 "STAGE 3 REQUEST (Final Report Filling)",
-                {"url": stage3_url, "json": stage3_body},
+                {
+                    "url": stage3_url,
+                    "json": stage3_body,
+                },
             )
             await job.emit("stage_start", {"stage": 3, "name": "Final Report Filling", "url": stage3_url})
-            report_resp = await client.post(stage3_url, json=stage3_body)
+            stage3_started_at = time.perf_counter()
+            report_resp = await client.post(
+                stage3_url,
+                json=stage3_body,
+            )
             try:
                 report_json = report_resp.json()
             except Exception:  # noqa: BLE001
                 report_json = {"raw": report_resp.text}
-            results["stage_3_report_filling"] = {"status_code": report_resp.status_code, "response": report_json}
+            results["stage_3_report_filling"] = {
+                "status_code": report_resp.status_code,
+                "elapsed_seconds": _elapsed_seconds(stage3_started_at),
+                "response": report_json,
+            }
             _job_print(job.job_id, "STAGE 3 RESPONSE (Final Report Filling)", results["stage_3_report_filling"])
             await job.emit("stage_result", {"stage": 3, "result": results["stage_3_report_filling"]})
 
@@ -1139,10 +1243,10 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
         )
     except Exception as e:  # noqa: BLE001
         job.status = "failed"
-        job.message = str(e)
-        _job_print(job.job_id, "PIPELINE FAILED", {"error": str(e)})
+        job.message = str(e) or type(e).__name__
+        _job_print(job.job_id, "PIPELINE FAILED", _exception_debug_payload(e))
         await job.emit("job_status", {"status": job.status, "message": job.message})
-        await job.emit("error", {"message": str(e)})
+        await job.emit("error", _exception_debug_payload(e))
         return
 
 
@@ -1341,6 +1445,7 @@ async def api_run_pipeline(
                 "continued_after_stage_1": True,
                 "reason": "QA not PASS/WARNING",
                 "qc_status": qc_status,
+                "qa_override_used": override_enabled,
             }
             _print_block("WORKFLOW CONTINUED AFTER QA", results["workflow"])
 
@@ -1388,9 +1493,9 @@ async def api_run_pipeline(
                 "StudyDate": study_date,
             },
         }
-        _print_block("STAGE 3 REQUEST (Report Correction)", {"url": "http://127.0.0.1:8000/api/v1/report-correction", "json": stage3_body})
+        _print_block("STAGE 3 REQUEST (Report Correction)", {"url": "http://127.0.0.1:8024/api/v1/report-correction", "json": stage3_body})
         rc_resp = await client.post(
-            "http://127.0.0.1:8000/api/v1/report-correction",
+            "http://127.0.0.1:8024/api/v1/report-correction",
             json=stage3_body,
         )
         results["stage_3_report_correction"] = {"status_code": rc_resp.status_code}
@@ -1420,9 +1525,9 @@ async def api_run_pipeline(
                 "StudyDescription": exam_type,
             },
         }
-        _print_block("STAGE 4 REQUEST (Analysis Matching)", {"url": "http://127.0.0.1:8000/api/v1/analysis-matching", "json": stage4_body})
+        _print_block("STAGE 4 REQUEST (Analysis Matching)", {"url": "http://127.0.0.1:8024/api/v1/analysis-matching", "json": stage4_body})
         am_resp = await client.post(
-            "http://127.0.0.1:8000/api/v1/analysis-matching",
+            "http://127.0.0.1:8024/api/v1/analysis-matching",
             json=stage4_body,
         )
         results["stage_4_analysis_matching"] = {"status_code": am_resp.status_code}
@@ -1824,6 +1929,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                     "continued_after_stage_1": True,
                     "reason": "QA not PASS/WARNING",
                     "qc_status": qc_status,
+                    "qa_override_used": qa_override,
                 }
                 _job_print(job.job_id, "WORKFLOW CONTINUED AFTER QA", results["workflow"])
 
@@ -1852,7 +1958,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                 job.job_id,
                 "STAGE 3 REQUEST (Report Correction)",
                 {
-                    "url": "http://127.0.0.1:8000/api/v1/report-correction",
+                    "url": "http://127.0.0.1:8024/api/v1/report-correction",
                     "json": {
                         "doctor_notes": p["doctor_notes"],
                         "radiologist_notes": p["radiologist_notes"],
@@ -1874,7 +1980,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                     },
                 },
             )
-            await job.emit("stage_start", {"stage": 3, "name": "Report Correction", "url": "http://127.0.0.1:8000/api/v1/report-correction"})
+            await job.emit("stage_start", {"stage": 3, "name": "Report Correction", "url": "http://127.0.0.1:8024/api/v1/report-correction"})
             stage3_body = {
                 "doctor_notes": p["doctor_notes"],
                 "radiologist_notes": p["radiologist_notes"],
@@ -1894,7 +2000,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                     "StudyDate": p["study_date"],
                 },
             }
-            rc_resp = await client.post("http://127.0.0.1:8000/api/v1/report-correction", json=stage3_body)
+            rc_resp = await client.post("http://127.0.0.1:8024/api/v1/report-correction", json=stage3_body)
             try:
                 rc_json = rc_resp.json()
             except Exception:  # noqa: BLE001
@@ -1915,7 +2021,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                 job.job_id,
                 "STAGE 4 REQUEST (Analysis Matching)",
                 {
-                    "url": "http://127.0.0.1:8000/api/v1/analysis-matching",
+                    "url": "http://127.0.0.1:8024/api/v1/analysis-matching",
                     "json": {
                         "clinical_report": clinical_report_text or "",
                         "ai_image_analysis": {"findings": (interp_json or {}).get("findings", [])},
@@ -1927,13 +2033,13 @@ async def _run_pipeline_job(job: _Job) -> None:
                     },
                 },
             )
-            await job.emit("stage_start", {"stage": 4, "name": "Analysis Matching", "url": "http://127.0.0.1:8000/api/v1/analysis-matching"})
+            await job.emit("stage_start", {"stage": 4, "name": "Analysis Matching", "url": "http://127.0.0.1:8024/api/v1/analysis-matching"})
             stage4_body = {
                 "clinical_report": clinical_report_text or "",
                 "ai_image_analysis": {"findings": (interp_json or {}).get("findings", [])},
                 "extracted_dicom_metadata": {"Modality": p["modality"], "ViewPosition": "PA", "StudyDescription": p["exam_type"]},
             }
-            am_resp = await client.post("http://127.0.0.1:8000/api/v1/analysis-matching", json=stage4_body)
+            am_resp = await client.post("http://127.0.0.1:8024/api/v1/analysis-matching", json=stage4_body)
             try:
                 am_json = am_resp.json()
             except Exception:  # noqa: BLE001
@@ -2063,10 +2169,10 @@ async def _run_pipeline_job(job: _Job) -> None:
         _job_print(job.job_id, "PIPELINE DONE (Summary)", {"summary": results.get("summary"), "delivery_preview_subject": subject})
     except Exception as e:  # noqa: BLE001
         job.status = "failed"
-        job.message = str(e)
-        _job_print(job.job_id, "PIPELINE FAILED", {"error": str(e)})
+        job.message = str(e) or type(e).__name__
+        _job_print(job.job_id, "PIPELINE FAILED", _exception_debug_payload(e))
         await job.emit("job_status", {"status": job.status, "message": job.message})
-        await job.emit("error", {"message": str(e)})
+        await job.emit("error", _exception_debug_payload(e))
         return
 
 

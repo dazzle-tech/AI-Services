@@ -321,6 +321,22 @@ def _extract_labeled_section(template_text: str, label: str) -> str:
     return "\n".join(line for line in collected if line.strip()).strip()
 
 
+def _extract_section_with_headings(template_text: str, label: str, section_breaks: set[str]) -> str:
+    lines = template_text.replace("\r\n", "\n").replace("\r", "\n").splitlines()
+    collected: list[str] = []
+    capture = False
+    for line in lines:
+        stripped = line.strip().rstrip(":")
+        if stripped == label.rstrip(":"):
+            capture = True
+            continue
+        if capture and stripped in {section.rstrip(":") for section in section_breaks}:
+            break
+        if capture:
+            collected.append(line.rstrip())
+    return "\n".join(line for line in collected if line.strip()).strip()
+
+
 def _append_unique(lines: list[str], line: str) -> None:
     if line and line not in lines:
         lines.append(line)
@@ -393,8 +409,28 @@ def _resolve_greek_chest_template_name(payload: RadiologyReportRequest, selected
     return "ΑΚΤΙΝΟΓΡΑΦΙΑ ΘΩΡΑΚΟΣ"
 
 
+def _qc_context(payload: RadiologyReportRequest) -> dict[str, Any]:
+    if hasattr(payload.QC, "model_dump"):
+        return payload.QC.model_dump(exclude_none=True)
+    if isinstance(payload.QC, dict):
+        return payload.QC
+    if isinstance(payload.QCResult, dict):
+        return payload.QCResult
+    return {}
+
+
+def _ai_context(payload: RadiologyReportRequest) -> Any:
+    if isinstance(payload.AIInterpretation, dict):
+        return payload.AIInterpretation
+    if hasattr(payload.AIInterpretationSummary, "model_dump"):
+        return payload.AIInterpretationSummary.model_dump(exclude_none=True)
+    if isinstance(payload.AIInterpretationSummary, dict):
+        return payload.AIInterpretationSummary
+    return payload.AIInterpretation
+
+
 def _needs_limited_chest_technique(payload: RadiologyReportRequest) -> bool:
-    qc_result = payload.QCResult
+    qc_result = _qc_context(payload)
     if not isinstance(qc_result, dict):
         return False
     qc_status = _normalize_token(qc_result.get("qc_status"))
@@ -407,6 +443,20 @@ def _needs_limited_chest_technique(payload: RadiologyReportRequest) -> bool:
         except (TypeError, ValueError):
             return False
     return False
+
+
+_CHEST_ABNORMAL_TERMS = (
+    "consolidation",
+    "opacity",
+    "infiltrate",
+    "effusion",
+    "pneumothorax",
+    "atelectasis",
+    "fracture",
+    "mass",
+    "nodule",
+    "cardiomegaly",
+)
 
 
 def _resolve_greek_chest_indication(raw: Dict[str, Any], payload: RadiologyReportRequest) -> str:
@@ -572,7 +622,7 @@ def _append_ai_findings_to_template_text(
 
 
 def _resolve_greek_chest_ai_findings(payload: RadiologyReportRequest) -> list[str]:
-    ai_tokens = _collect_ai_interpretation_tokens(payload.AIInterpretation)
+    ai_tokens = _collect_ai_interpretation_tokens(_ai_context(payload))
     if not ai_tokens:
         return []
 
@@ -685,6 +735,236 @@ def _build_greek_chest_template_text(
         f"{conclusion_block}\n\n"
         f"{signature}"
     ).strip()
+
+
+def _is_chest_xray_context(
+    payload: RadiologyReportRequest,
+    resolved_context: Dict[str, Any] | None,
+    selected_template: ReportTemplate | None,
+) -> bool:
+    modality = _normalize_token((resolved_context or {}).get("DICOMSummary", {}).get("Modality"))
+    body_part = _normalize_token((resolved_context or {}).get("DICOMSummary", {}).get("BodyPartExamined"))
+    exam_type = _normalize_token(payload.ExamType)
+    if selected_template and "CHEST" in _normalize_token(selected_template.name):
+        return True
+    return modality in {"XR", "XRY", "CR", "DX"} and "CHEST" in (body_part or exam_type)
+
+
+def _has_abnormal_radiologist_notes(notes: str) -> bool:
+    lowered = notes.lower()
+    return any(term in lowered for term in _CHEST_ABNORMAL_TERMS)
+
+
+def _split_report_sentences(text: str) -> list[str]:
+    normalized = text.replace("\r\n", "\n").replace("\r", "\n")
+    pieces = re.split(r"(?<=[.!?])\s+|\n+", normalized)
+    return [piece.strip() for piece in pieces if piece.strip()]
+
+
+def _strip_chest_note_prefix(text: str) -> str:
+    return re.sub(
+        r"^(?:pa\s*/\s*lateral\s*chest|pa\s+and\s+lateral\s+chest|pa\s*/\s*lateral|pa\s+and\s+lateral|chest)\s*:?\s*",
+        "",
+        text.strip(),
+        flags=re.IGNORECASE,
+    )
+
+
+def _resolve_english_chest_indication(raw: Dict[str, Any], payload: RadiologyReportRequest) -> str:
+    for candidate in (
+        _extract_structured_report_text(raw, "indication"),
+        _extract_section_with_headings(
+            _clean_report_text(raw.get("TEMPLATE_TEXT")),
+            "Clinical indication:",
+            {"Technique", "Findings", "Impression", "QC note"},
+        ),
+    ):
+        if candidate:
+            return candidate
+
+    doctor_notes = _clean_report_text(payload.DoctorNotes)
+    if not doctor_notes:
+        return "Pending referring clinician details."
+
+    notes_lower = doctor_notes.lower()
+    complaint_parts: list[str] = []
+    if "chest pain" in notes_lower:
+        complaint_parts.append("Acute chest pain" if "acute chest pain" in notes_lower else "Chest pain")
+    if "persistent cough" in notes_lower:
+        complaint_parts.append("persistent cough")
+    elif "cough" in notes_lower:
+        complaint_parts.append("cough")
+
+    sentences: list[str] = []
+    if complaint_parts:
+        sentences.append(" and ".join(complaint_parts) + ".")
+    if "pneumonia" in notes_lower:
+        sentences.append("Clinical suspicion of pneumonia.")
+    if sentences:
+        return " ".join(sentences)
+    return doctor_notes
+
+
+def _resolve_english_chest_technique(payload: RadiologyReportRequest) -> str:
+    exam_type = _normalize_token(payload.ExamType)
+    radiologist_notes = _normalize_token(payload.RadiologistNotes)
+    if (
+        "PA/LATERAL" in exam_type
+        or "PA AND LATERAL" in exam_type
+        or "2 VIEWS" in exam_type
+        or "PA/LATERAL" in radiologist_notes
+        or "PA AND LATERAL" in radiologist_notes
+    ):
+        return "PA and lateral chest radiographs were obtained."
+    return "Chest radiographs were obtained."
+
+
+def _resolve_english_qc_note(payload: RadiologyReportRequest, resolved_context: Dict[str, Any] | None) -> str | None:
+    qc_result = _qc_context(payload)
+    if not isinstance(qc_result, dict):
+        return None
+    if _normalize_token(qc_result.get("qc_status")) != "REVIEW_REQUIRED":
+        return None
+
+    dicom_summary = (resolved_context or {}).get("DICOMSummary") or {}
+    view_position = _clean_text(dicom_summary.get("ViewPosition"))
+    recommended_action = _clean_text(qc_result.get("recommended_action"))
+    issue_type = _normalize_token(qc_result.get("issue_type"))
+    if not view_position and (
+        issue_type == "MISSING_METADATA" or "VIEWPOSITION" in recommended_action.upper()
+    ):
+        return "DICOM ViewPosition metadata is missing. Human review is required."
+    if recommended_action:
+        action = recommended_action.rstrip(".")
+        return f"{action}. Human review is required."
+    return "Human review is required."
+
+
+def _resolve_english_chest_findings_and_impression(payload: RadiologyReportRequest) -> tuple[list[str], list[str]]:
+    radiologist_notes = _clean_report_text(payload.RadiologistNotes)
+    notes_lower = radiologist_notes.lower()
+    findings: list[str] = []
+    impression: list[str] = []
+
+    has_right_lower_lobe_opacity = (
+        any(term in notes_lower for term in ("right lower lobe", "rll"))
+        and any(term in notes_lower for term in ("consolidation", "opacity"))
+    )
+    has_negative_pneumothorax = any(
+        phrase in notes_lower
+        for phrase in ("no evidence of pneumothorax", "no pneumothorax", "without pneumothorax", "negative for pneumothorax")
+    )
+
+    if has_right_lower_lobe_opacity:
+        findings.append("Consolidation/opacity is noted in the right lower lobe.")
+        impression.append("Right lower lobe consolidation/opacity, suspicious for pneumonia in the appropriate clinical context.")
+
+    sentences = [_strip_chest_note_prefix(sentence) for sentence in _split_report_sentences(radiologist_notes)]
+    for sentence in sentences:
+        if not sentence:
+            continue
+        sentence_lower = sentence.lower()
+        if has_right_lower_lobe_opacity and "right lower lobe" in sentence_lower and (
+            "consolidation" in sentence_lower or "opacity" in sentence_lower
+        ):
+            continue
+        if any(term in sentence_lower for term in _CHEST_ABNORMAL_TERMS):
+            normalized = sentence if sentence.endswith((".", "!", "?")) else f"{sentence}."
+            if normalized not in findings:
+                findings.append(normalized)
+
+    if has_negative_pneumothorax:
+        if "No evidence of pneumothorax." not in findings:
+            findings.append("No evidence of pneumothorax.")
+        impression.append("No pneumothorax.")
+
+    if not findings:
+        cleaned = _strip_chest_note_prefix(radiologist_notes)
+        if cleaned:
+            findings.append(cleaned if cleaned.endswith((".", "!", "?")) else f"{cleaned}.")
+        else:
+            findings.append("Pending radiologist completion.")
+
+    if not impression:
+        positive_findings = [line for line in findings if "pneumothorax" not in line.lower() or "no evidence" not in line.lower()]
+        if positive_findings and _has_abnormal_radiologist_notes(radiologist_notes):
+            impression.append(positive_findings[0])
+        else:
+            impression.append("Pending radiologist completion.")
+        if has_negative_pneumothorax and "No pneumothorax." not in impression:
+            impression.append("No pneumothorax.")
+
+    return findings, impression
+
+
+def _build_english_chest_template_text(
+    raw: Dict[str, Any],
+    payload: RadiologyReportRequest,
+    resolved_context: Dict[str, Any] | None,
+    selected_template: ReportTemplate | None,
+) -> str:
+    template_name = _clean_report_text(raw.get("TEMPLATE_NAME")) or (
+        selected_template.name if selected_template is not None else "RADIOLOGY REPORT"
+    )
+    indication = _resolve_english_chest_indication(raw, payload)
+    technique = _resolve_english_chest_technique(payload)
+    findings, impression = _resolve_english_chest_findings_and_impression(payload)
+    qc_note = _resolve_english_qc_note(payload, resolved_context)
+
+    sections = [
+        template_name,
+        "",
+        "Clinical indication:",
+        indication,
+        "",
+        "Technique:",
+        technique,
+        "",
+        "Findings:",
+        "\n".join(findings).strip(),
+        "",
+        "Impression:",
+        "\n".join(impression).strip(),
+    ]
+    if qc_note:
+        sections.extend(["", "QC note:", qc_note])
+    return "\n".join(section for section in sections if section is not None).strip()
+
+
+def _should_rebuild_english_chest_template(
+    payload: RadiologyReportRequest,
+    template_text: str,
+    resolved_context: Dict[str, Any] | None,
+    selected_template: ReportTemplate | None,
+) -> bool:
+    if _resolve_output_language(payload) != "en":
+        return False
+    if not _is_chest_xray_context(payload, resolved_context, selected_template):
+        return False
+    radiologist_notes = _clean_report_text(payload.RadiologistNotes)
+    if not radiologist_notes:
+        return False
+
+    lowered_template = template_text.lower()
+    if "studyinstanceuid" in lowered_template or "study instance uid" in lowered_template:
+        return True
+    if _resolve_english_qc_note(payload, resolved_context) and "qc note:" not in lowered_template:
+        return True
+    if _has_abnormal_radiologist_notes(radiologist_notes):
+        if "no significant radiological abnormality" in lowered_template:
+            return True
+        notes_lower = radiologist_notes.lower()
+        if "right lower lobe" in notes_lower and "right lower lobe" not in lowered_template:
+            return True
+        if "consolidation" in notes_lower and "consolidation" not in lowered_template:
+            return True
+        if "opacity" in notes_lower and "opacity" not in lowered_template:
+            return True
+        if "no evidence of pneumothorax" in notes_lower and "no evidence of pneumothorax" not in lowered_template:
+            return True
+        if "impression:" not in lowered_template:
+            return True
+    return False
 
 
 def _format_metadata_line(label: str, value: Any) -> str:
@@ -1017,18 +1297,21 @@ def normalize_report_template(
 ) -> RadiologyTemplateResponse:
     """Normalize model output into the template-only API response."""
     raw = _unwrap_if_wrapped(deepcopy(raw))
+    output_language = _resolve_output_language(payload)
     is_greek_chest_xray = _is_greek_chest_xray_template(payload, resolved_context, selected_template)
     if is_greek_chest_xray:
         template_text = _build_greek_chest_template_text(raw, payload, selected_template)
     else:
         template_text = _resolve_template_text(raw, payload, resolved_context)
+        if _should_rebuild_english_chest_template(payload, template_text, resolved_context, selected_template):
+            template_text = _build_english_chest_template_text(raw, payload, resolved_context, selected_template)
     if not template_text and selected_template is not None:
         template_text = selected_template.text
     if not is_greek_chest_xray:
         template_text = _append_ai_findings_to_template_text(
             template_text,
             payload,
-            _resolve_output_language(payload),
+            output_language,
         )
     template_text = _prepend_report_warning(template_text, build_dicom_order_mismatch_warning_text(payload))
     template_text = _apply_runtime_signature(
@@ -1037,7 +1320,7 @@ def normalize_report_template(
         selected_template.physician if selected_template is not None else None,
     )
     template_name = _resolve_template_name(raw, template_text, payload)
-    if template_name == _localized(_resolve_output_language(payload), "default_title") and selected_template is not None:
+    if template_name == _localized(output_language, "default_title") and selected_template is not None:
         template_name = selected_template.name
     physician = _resolve_signing_physician_name(
         payload,

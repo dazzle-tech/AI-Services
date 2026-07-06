@@ -28,13 +28,16 @@ class Settings(BaseSettings):
     
     # Ollama Configuration
     ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    llm_model: str = os.getenv("LLM_MODEL", "llama3:8b")
-    sql_gen_model: str = os.getenv("SQL_GEN_MODEL", "llama3:8b")
+    llm_model: str = os.getenv("LLM_MODEL", "") or os.getenv("OPENAI_MODEL", "")
+    sql_gen_model: str = os.getenv("SQL_GEN_MODEL", "") or os.getenv("OPENAI_MODEL", "")
     
     # OpenAI Configuration
+    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o")
-    openai_sql_gen_model: str = os.getenv("OPENAI_SQL_GEN_MODEL", "gpt-4o")
+    openai_model: str = os.getenv("OPENAI_MODEL", "")
+    openai_sql_gen_model: str = os.getenv("OPENAI_SQL_GEN_MODEL", "") or os.getenv("OPENAI_MODEL", "")
+    openai_timeout: int = int(os.getenv("OPENAI_TIMEOUT", "120"))
+    openai_max_retries: int = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
     
     # Database Configuration
     # Database Type: "sqlite" or "postgresql"

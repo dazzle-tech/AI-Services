@@ -107,6 +107,14 @@ class RagStore:
             api_key=settings.openai_api_key,
             base_url=settings.openai_base_url or None,
             timeout=settings.openai_timeout,
+            max_retries=settings.openai_max_retries,
+        )
+        logger.info(
+            "Calling RAG embedding model using model %s base_url=%s timeout=%ss prompt_length=%s",
+            settings.openai_embed_model,
+            settings.openai_base_url or "https://api.openai.com/v1",
+            settings.openai_timeout,
+            len(query),
         )
         response = client.embeddings.create(model=settings.openai_embed_model, input=query)
         q_vec = np.array(response.data[0].embedding, dtype=np.float32)
@@ -167,10 +175,19 @@ def build_embeddings() -> None:
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url or None,
         timeout=settings.openai_timeout,
+        max_retries=settings.openai_max_retries,
     )
 
     def _embed_batch(texts: List[str]) -> np.ndarray:
         """Embed a list of strings; return an L2-normalized matrix."""
+        prompt_length = sum(len(text) for text in texts)
+        logger.info(
+            "Calling RAG embedding model using model %s base_url=%s timeout=%ss prompt_length=%s",
+            settings.openai_embed_model,
+            settings.openai_base_url or "https://api.openai.com/v1",
+            settings.openai_timeout,
+            prompt_length,
+        )
         response = client.embeddings.create(model=settings.openai_embed_model, input=texts)
         vecs = np.array([d.embedding for d in response.data], dtype=np.float32)
         norms = np.linalg.norm(vecs, axis=1, keepdims=True) + 1e-12

@@ -36,6 +36,10 @@ EVENT_TYPE_ALIASES = {
     "vitals": "vital",
     "vital_sign": "vital",
     "vital_signs": "vital",
+    "note": "symptom",
+    "notes": "symptom",
+    "clinical_note": "symptom",
+    "admission_note": "admission",
 }
 
 

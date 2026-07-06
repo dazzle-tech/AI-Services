@@ -32,6 +32,7 @@ EVENT SELECTION RULES:
 - Use event_type "admission" for admissions and hospital encounters.
 - Use event_type "vital" for notable vital-sign events from the vitals source.
 - Only include symptoms from notes or encounter reasons if they are explicitly stated.
+- "event_type" MUST be one of the 8 values listed above and nothing else. Never use the input field name (e.g. "note", "encounter") as event_type. For events derived from the notes field, use "symptom" for symptoms described in the note, or "admission" if the note documents a hospital admission.
 - Do not include null facts, empty values, or unsupported interpretations.
 - Return an empty JSON array [] if no timeline-worthy events are present."""
 
@@ -55,7 +56,9 @@ INSTRUCTIONS:
 2. Merge duplicates when they refer to the same event.
 3. Preserve exact dates, terminology, and numeric values.
 4. Return STRICT JSON.
-5. Return only a JSON array of events with no surrounding commentary."""
+5. Return only a JSON array of events with no surrounding commentary.
+
+/no_think"""
 
 
 def build_timeline_prompt(patient_data: Dict[str, Any]) -> List[Dict[str, str]]:

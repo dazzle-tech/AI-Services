@@ -19,7 +19,11 @@ from app.services.validation import (
     apply_role_restrictions,
     check_contradictions,
     validate_json_structure,
-    deduplicate_contradictions
+    deduplicate_contradictions,
+    build_structured_fields,
+    normalize_history_of_present_illness,
+    filter_completed_procedures,
+    build_field_source_trace
 )
 from app.services.field_utils import filter_uncertainty_flags_by_expected
 
@@ -72,17 +76,39 @@ class AutoPopulationService:
                 structured_fields_dict,
                 request.user_context.user_role
             )
-            
-            # Step 4: Validate extracted fields
-            warnings = validate_extracted_fields(
-                filtered_fields,
+
+            # Step 4: Coerce and validate fields individually so one bad field
+            # does not discard the rest of the structured payload.
+            structured_fields, field_warnings = build_structured_fields(filtered_fields)
+
+            # Keep demographic context in HPI and filter planned procedures.
+            structured_fields.history_of_present_illness = normalize_history_of_present_illness(
+                request.user_text,
+                structured_fields.history_of_present_illness
+            )
+            structured_fields.procedures = filter_completed_procedures(
+                structured_fields.procedures,
+                request.user_text
+            )
+            if structured_fields.procedures == []:
+                structured_fields.procedures = None
+            if structured_fields.allergies is None:
+                user_text_lower = request.user_text.lower()
+                if any(marker in user_text_lower for marker in ("no known allergies", "nkda", "no allergies")):
+                    structured_fields.allergies = []
+
+            structured_fields_dict = structured_fields.model_dump(exclude_none=True)
+
+            # Step 5: Validate extracted fields
+            warnings = field_warnings + validate_extracted_fields(
+                structured_fields_dict,
                 request.expected_output,
                 request.user_context.user_role
             )
-            
-            # Step 5: Check for contradictions (backend deterministic checks)
+
+            # Step 6: Check for contradictions (backend deterministic checks)
             backend_contradictions = check_contradictions(
-                filtered_fields,
+                structured_fields_dict,
                 request.patient_data
             )
             
@@ -107,7 +133,7 @@ class AutoPopulationService:
                 # Deduplicate contradictions (prefer backend checks, merge intelligently)
                 contradictions = deduplicate_contradictions(backend_contradictions)
             
-            # Step 6: Process uncertainty flags
+            # Step 7: Process uncertainty flags
             uncertainty_flags_raw = []
             ai_uncertainty = ai_result.get("uncertainty_flags", [])
             for flag in ai_uncertainty:
@@ -116,6 +142,17 @@ class AutoPopulationService:
                         uncertainty_flags_raw.append(UncertaintyFlag(**flag))
                     except Exception as e:
                         logger.warning(f"Failed to parse uncertainty flag: {e}")
+
+            # Every contradiction should have a matching uncertainty flag.
+            existing_uncertainty_fields = {flag.field_name for flag in uncertainty_flags_raw}
+            for contradiction in contradictions:
+                if contradiction.field_name not in existing_uncertainty_fields:
+                    uncertainty_flags_raw.append(UncertaintyFlag(
+                        field_name=contradiction.field_name,
+                        reason=self._build_uncertainty_reason_from_contradiction(contradiction),
+                        confidence="high"
+                    ))
+                    existing_uncertainty_fields.add(contradiction.field_name)
             
             # Filter uncertainty flags based on expected_output (unless completeness audit mode)
             uncertainty_flags = filter_uncertainty_flags_by_expected(
@@ -124,31 +161,56 @@ class AutoPopulationService:
                 completeness_audit=settings.completeness_audit_mode
             )
             
-            # Step 7: Process source trace
-            source_trace = []
+            # Step 8: Process source trace
+            source_trace_map = {}
             ai_trace = ai_result.get("source_trace", [])
             for trace in ai_trace:
                 if isinstance(trace, dict):
                     try:
-                        # Ensure timestamp is set
                         if "timestamp" not in trace:
                             trace["timestamp"] = datetime.utcnow().isoformat()
-                        source_trace.append(SourceTrace(**trace))
+                        parsed_trace = SourceTrace(**trace)
+                        source_trace_map.setdefault(parsed_trace.field_name, []).append(parsed_trace)
                     except Exception as e:
                         logger.warning(f"Failed to parse source trace: {e}")
-            
-            # Step 8: Build structured fields object
-            try:
-                structured_fields = StructuredFields(**filtered_fields)
-            except Exception as e:
-                logger.error(f"Failed to create StructuredFields: {e}")
-                # Create with minimal fields if validation fails
-                structured_fields = StructuredFields()
-                warnings.append(Warning(
-                    level="error",
-                    message=f"Failed to validate structured fields: {e}",
-                    field_name=None
-                ))
+
+            field_sources = {
+                "chief_complaint": "user_text",
+                "history_of_present_illness": "user_text",
+                "diagnosis": "user_text",
+                "medications": "user_text",
+                "vitals": "user_text",
+                "procedures": "user_text",
+                "allergies": "user_text",
+                "assessment": "user_text",
+                "plan": "user_text",
+                "past_medical_history": "patient_record" if request.patient_data.get("past_medical_history") else "user_text",
+                "family_history": "user_text",
+                "social_history": "user_text",
+                "review_of_systems": "user_text",
+            }
+            for field_name, default_source in field_sources.items():
+                if field_name not in structured_fields_dict:
+                    continue
+                trace_payload = build_field_source_trace(
+                    field_name=field_name,
+                    user_text=request.user_text,
+                    patient_data=request.patient_data,
+                    structured_fields=structured_fields_dict,
+                    default_source=default_source
+                )
+                trace_payload["timestamp"] = datetime.utcnow().isoformat()
+                new_trace = SourceTrace(**trace_payload)
+                traces = source_trace_map.setdefault(field_name, [])
+                if new_trace.source == "user_text":
+                    traces = [trace for trace in traces if trace.source == "user_text"]
+                    source_trace_map[field_name] = traces
+                if not any(existing.source == new_trace.source for existing in traces):
+                    traces.append(new_trace)
+
+            source_trace = []
+            for traces in source_trace_map.values():
+                source_trace.extend(traces)
             
             # Step 9: Build response
             response = AutoPopulationResponse(
@@ -192,3 +254,14 @@ class AutoPopulationService:
                 }
             )
 
+    def _build_uncertainty_reason_from_contradiction(self, contradiction: ContradictionFlag) -> str:
+        """Translate a contradiction into a clinician-facing uncertainty reason."""
+        field_name = contradiction.field_name
+        if field_name.startswith("vitals."):
+            vital_name = field_name.split(".", 1)[1].upper()
+            return f"Clinical text states {vital_name} differently than the patient record and requires clinician verification."
+        if field_name == "medications":
+            return "Medication details differ between the clinical text and patient record and require clinician verification."
+        if field_name == "allergies":
+            return "Allergy information differs between the clinical text and patient record and require clinician verification."
+        return f"Clinical text conflicts with the patient record for '{field_name}' and requires clinician verification."

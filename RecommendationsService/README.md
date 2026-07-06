@@ -98,7 +98,7 @@ Edit `.env` and add your OpenAI API key:
 ```env
 # OpenAI Configuration
 OPENAI_API_KEY=sk-your-actual-openai-api-key-here
-OPENAI_MODEL=gpt-4o
+OPENAI_MODEL=qwen3:1.7b
 OPENAI_TEMPERATURE=0.3
 OPENAI_MAX_TOKENS=1500
 
@@ -151,7 +151,7 @@ Returns service status and version information.
 {
   "message": "Clinical Recommendations Service is running!",
   "version": "1.0.0",
-  "model": "gpt-4o",
+  "model": "qwen3:1.7b",
   "docs": "/docs"
 }
 ```
@@ -224,7 +224,7 @@ Generates clinical recommendations from patient context.
     "routine": 0
   },
   "processing_metadata": {
-    "model": "gpt-4o",
+    "model": "qwen3:1.7b",
     "timestamp": "2024-12-24T12:34:56",
     "provider": "openai"
   }
@@ -246,7 +246,7 @@ Returns service health status.
   "provider": "openai",
   "openai_configured": true,
   "api_accessible": true,
-  "model": "gpt-4o",
+  "model": "qwen3:1.7b",
   "version": "1.0.0"
 }
 ```
@@ -321,7 +321,7 @@ The service handles various error scenarios:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `OPENAI_API_KEY` | OpenAI API key (required) | - |
-| `OPENAI_MODEL` | OpenAI model to use | `gpt-4o` |
+| `OPENAI_MODEL` | OpenAI model to use | `qwen3:1.7b` |
 | `OPENAI_TEMPERATURE` | Model temperature | `0.3` |
 | `OPENAI_MAX_TOKENS` | Max tokens in response | `1500` |
 | `API_HOST` | Server host | `0.0.0.0` |

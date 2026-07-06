@@ -63,6 +63,7 @@ class InterpretationResponse(BaseModel):
 
     # --- Clinical output ---
     findings: list[Finding] = Field(default_factory=list)
+    incidental_or_off_target_findings: list[Finding] = Field(default_factory=list)
     summary: str = Field(description="Plain-English summary of AI findings.")
 
     # --- Study context ---

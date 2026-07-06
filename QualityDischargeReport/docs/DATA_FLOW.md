@@ -215,7 +215,7 @@ API Request (POST /discharge/qa/direct)
 
 1. **Initialize OpenAI Client:**
    - Load API key from `.env` file
-   - Set model (default: `gpt-4.1`)
+   - Set model (default: `qwen3:1.7b`)
 
 2. **Send Request:**
    - POST to OpenAI Chat Completions API

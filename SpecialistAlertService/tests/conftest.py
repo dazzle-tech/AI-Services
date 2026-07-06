@@ -5,7 +5,7 @@ import pytest
 
 
 os.environ.setdefault("OPENAI_API_KEY", "sk-test-key-for-testing-only")
-os.environ.setdefault("OPENAI_MODEL", "gpt-4o")
+os.environ.setdefault("OPENAI_MODEL", "")
 os.environ.setdefault("OPENAI_TEMPERATURE", "0.1")
 os.environ.setdefault("API_PORT", "8005")
 os.environ.setdefault("LOG_LEVEL", "INFO")
@@ -15,7 +15,7 @@ os.environ.setdefault("LOG_LEVEL", "INFO")
 def mock_env_vars(monkeypatch):
     """Mock environment variables for testing."""
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key-for-testing-only")
-    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o")
+    monkeypatch.setenv("OPENAI_MODEL", os.getenv("OPENAI_MODEL", ""))
     monkeypatch.setenv("OPENAI_TEMPERATURE", "0.1")
     monkeypatch.setenv("API_PORT", "8005")
     monkeypatch.setenv("LOG_LEVEL", "INFO")

@@ -15,7 +15,7 @@ if settings.llm_provider == "openai":
     )
 else:
     # Fallback to Ollama if OpenAI is not configured
-    LLAMA_MODEL = os.getenv("LLAMA_MODEL", "llama3:8b")
+    LLAMA_MODEL = os.getenv("LLAMA_MODEL", "") or os.getenv("OPENAI_MODEL", "")
     llm = LLM(
         model=f"ollama/{LLAMA_MODEL}",
         temperature=0.2,

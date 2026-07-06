@@ -19,13 +19,14 @@ class Settings(BaseSettings):
     
     # OpenAI Configuration
     openai_api_key: str
-    openai_model: str = "gpt-4o"  # GPT-4o optimized for speed and quality
+    openai_base_url: str | None = "http://localhost:11434/v1"
+    openai_model: str = ""
     openai_temperature: float = 0.2  # Low temperature for consistent, factual summaries
     openai_max_tokens: int = 500  # GPT-4o is efficient, summaries typically 200-400 tokens
     
     # API Configuration
-    openai_timeout: int = 30  # Timeout for OpenAI API calls (seconds)
-    openai_max_retries: int = 3  # Number of retries for transient failures
+    openai_timeout: int = 120  # Timeout for OpenAI API calls (seconds)
+    openai_max_retries: int = 1  # Number of retries for transient failures
     openai_retry_delay: float = 1.0  # Delay between retries (seconds)
     
     # Service Configuration

@@ -19,8 +19,11 @@ class Settings(BaseSettings):
     
     # OpenAI Configuration
     openai_api_key: str
-    openai_model: str = "gpt-4-turbo-preview"  # Using available model, adjust if GPT-4.1-turbo exists
+    openai_base_url: Optional[str] = "http://localhost:11434/v1"
+    openai_model: str = ""
     openai_temperature: float = 0.0  # Deterministic behavior
+    openai_timeout: int = 120
+    openai_max_retries: int = 1
     openai_max_tokens: int = 4000
     openai_max_tokens_vitals_only: int = 500  # Reduced tokens for faster vitals-only extraction (only vitals needed)
     

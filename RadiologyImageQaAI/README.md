@@ -136,8 +136,15 @@ Defaults:
 - `OPENAI_ENABLED=false`
 - `OPENAI_BASE_URL=http://localhost:11434/v1`
 - `OPENAI_API_KEY=ollama`
-- `OPENAI_MODEL=qwen3:8b`
+- `OPENAI_MODEL=qwen3:1.7b`
 - `DEIDENTIFY_BEFORE_GPT=true`
+
+Local Ollama setup:
+
+```bash
+ollama pull qwen3:1.7b
+ollama run qwen3:1.7b
+```
 
 Do not send PHI by default. The service only sends a minimal structured QC summary when de-identification is enabled.
 Leave `OPENAI_BASE_URL` empty and set a real `OPENAI_API_KEY` if you want to

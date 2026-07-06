@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import io
+import os
 import zipfile
 import tempfile
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
+TEST_MODEL = os.getenv("OPENAI_MODEL", "") or "configured-model"
 
 
 def _client():
@@ -57,7 +60,7 @@ def test_ct_endpoint_unsupported_modality(monkeypatch) -> None:
 
     from app.config import Settings
     from unittest.mock import patch
-    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test")):
+    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test", vision_model="llava:7b")):
         response = _client().post(
             "/api/v1/radiology/ct-interpretation/dicom",
             files={"file": ("study.zip", buf.getvalue(), "application/zip")},
@@ -90,7 +93,7 @@ def test_ct_gpt_model_called_and_returns_completed(monkeypatch) -> None:
     monkeypatch.setattr(svc, "run_gpt_ct_model", lambda **kwargs: (
         [stub_finding],
         {"body_part": "CHEST", "findings": []},
-        {"name": "gpt-4o-ct-vision", "body_part_detected": "CHEST", "image_quality": "ADEQUATE", "view_detected": "AXIAL"},
+        {"name": TEST_MODEL, "body_part_detected": "CHEST", "image_quality": "ADEQUATE", "view_detected": "AXIAL"},
     ))
 
     from app.config import Settings
@@ -98,7 +101,7 @@ def test_ct_gpt_model_called_and_returns_completed(monkeypatch) -> None:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("1.dcm", b"FAKE")
-    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test")):
+    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test", vision_model="llava:7b")):
         response = _client().post(
             "/api/v1/radiology/ct-interpretation/dicom",
             files={"file": ("ct.zip", buf.getvalue(), "application/zip")},
@@ -107,10 +110,55 @@ def test_ct_gpt_model_called_and_returns_completed(monkeypatch) -> None:
     assert body["status"] == "COMPLETED"
     assert body["exam_type"] == "CT_CHEST"
     assert any(f["finding_code"] == "PULMONARY_NODULE" for f in body["findings"])
-    assert body["ai"]["model_name"] == "gpt-4o-ct-vision"
+    assert body["ai"]["model_name"] == TEST_MODEL
     assert body["ai"]["modality_handled"] == "CT"
     assert body["study"]["modality"] == "CT"
     assert "Radiologist review required" in body["disclaimer"]
+
+
+def test_ct_text_only_vision_model_returns_review_required(monkeypatch) -> None:
+    import app.ct.ct_service as svc
+
+    monkeypatch.setattr(svc, "run_gpt_ct_model", lambda **_: (_ for _ in ()).throw(AssertionError("CT multimodal model should not be called")))
+    monkeypatch.setattr(svc, "extract_ct_metadata", lambda _: {
+        "modality": "CT",
+        "study_description": "CT CHEST",
+        "series_description": "AXIAL",
+        "body_part_examined": "CHEST",
+        "protocol_name": None,
+        "study_instance_uid": "1.2.100",
+        "patient_position": None,
+        "contrast_bolus_agent": None,
+        "slice_thickness": "1.5",
+        "kvp": "120",
+        "slice_count": 20,
+    })
+    monkeypatch.setattr(svc, "find_dicom_files", lambda _: [Path("/fake/1.dcm")])
+
+    from app.config import Settings
+
+    settings = Settings(openai_api_key="ollama", vision_model="qwen3:1.7b", enable_image_model=True)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        upload_path = Path(tmp) / "ct.zip"
+        with zipfile.ZipFile(upload_path, "w") as zf:
+            zf.writestr("1.dcm", b"FAKE")
+        workdir = Path(tmp) / "work"
+        workdir.mkdir()
+        response = svc.build_ct_response(
+            upload_input_path=upload_path,
+            workdir=workdir,
+            clinical_indication=None,
+            output_language="en",
+            settings=settings,
+        )
+
+    assert response.status == "REVIEW_REQUIRED"
+    assert response.summary == (
+        "Image interpretation was skipped because the configured local model does not support image input. "
+        "Radiologist review required."
+    )
+    assert "Configured model does not support image input." in response.warnings
 
 
 def test_ct_abdomen_lung_window_series_flags_mismatch_and_suppresses_chest_findings(monkeypatch) -> None:
@@ -168,7 +216,7 @@ def test_ct_abdomen_lung_window_series_flags_mismatch_and_suppresses_chest_findi
         lambda **kwargs: (
             [chest_finding],
             {"body_part": "CHEST", "findings": []},
-            {"name": "gpt-4o-ct-vision", "body_part_detected": "CHEST", "image_quality": "ADEQUATE", "view_detected": "AXIAL"},
+            {"name": TEST_MODEL, "body_part_detected": "CHEST", "image_quality": "ADEQUATE", "view_detected": "AXIAL"},
         ),
     )
 
@@ -177,7 +225,7 @@ def test_ct_abdomen_lung_window_series_flags_mismatch_and_suppresses_chest_findi
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("1.dcm", b"FAKE")
-    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test")):
+    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test", vision_model="llava:7b")):
         response = _client().post(
             "/api/v1/radiology/ct-interpretation/dicom",
             files={"file": ("ct.zip", buf.getvalue(), "application/zip")},
@@ -215,7 +263,7 @@ def test_ct_endpoint_accepts_output_language_and_localizes_human_text(monkeypatc
     monkeypatch.setattr(svc, "run_gpt_ct_model", lambda **kwargs: (
         [stub_finding],
         {"body_part": "CHEST", "findings": []},
-        {"name": "gpt-4o-ct-vision", "body_part_detected": "CHEST", "image_quality": "ADEQUATE", "view_detected": "AXIAL"},
+        {"name": TEST_MODEL, "body_part_detected": "CHEST", "image_quality": "ADEQUATE", "view_detected": "AXIAL"},
     ))
 
     from app.config import Settings
@@ -224,7 +272,7 @@ def test_ct_endpoint_accepts_output_language_and_localizes_human_text(monkeypatc
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("1.dcm", b"FAKE")
-    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test")):
+    with patch("app.config.get_settings", return_value=Settings(openai_api_key="sk-test", vision_model="llava:7b")):
         response = _client().post(
             "/api/v1/radiology/ct-interpretation/dicom",
             files={"file": ("ct.zip", buf.getvalue(), "application/zip")},

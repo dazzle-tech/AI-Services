@@ -1,4 +1,6 @@
 """Unit tests for Pydantic schemas."""
+import os
+
 import pytest
 from pydantic import ValidationError
 
@@ -11,6 +13,8 @@ from app.models.schemas import (
     TimelineRequest,
     TimelineResponse,
 )
+
+TEST_MODEL = os.getenv("OPENAI_MODEL", "")
 
 
 class TestPatientDataInput:
@@ -106,7 +110,7 @@ class TestTimelineResponse:
             ],
             summary="Chronological timeline generated successfully.",
             processing_metadata=ProcessingMetadata(
-                model="gpt-4o",
+                model=TEST_MODEL,
                 timestamp="2026-03-23T09:00:00",
                 input_fields_count=3,
                 timeline_event_count=1
@@ -114,7 +118,7 @@ class TestTimelineResponse:
         )
         assert response.request_id == "test-123"
         assert response.timeline[0].event_type == "diagnosis"
-        assert response.processing_metadata.model == "gpt-4o"
+        assert response.processing_metadata.model == TEST_MODEL
 
     def test_invalid_event_type_rejected(self):
         """Test that invalid event types are rejected."""
@@ -157,7 +161,7 @@ class TestTimelineResponse:
                 request_id="test-123",
                 timeline=[],
                 processing_metadata=ProcessingMetadata(
-                    model="gpt-4o",
+                    model=TEST_MODEL,
                     timestamp="2026-03-23T09:00:00",
                     input_fields_count=1,
                     timeline_event_count=0

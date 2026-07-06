@@ -29,13 +29,17 @@ class AIClient:
             raise ValueError("OPENAI_API_KEY must be set")
         self.client = OpenAI(
             api_key=settings.openai_api_key,
-            timeout=settings.openai_timeout
+            base_url=settings.openai_base_url or None,
+            timeout=settings.openai_timeout,
+            max_retries=settings.openai_max_retries,
         )
+        self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
         self.max_tokens = settings.openai_max_tokens
         self.max_retries = settings.openai_max_retries
         self.retry_delay = settings.openai_retry_delay
+        self.timeout = settings.openai_timeout
 
     def generate_timeline(self, patient_data: Dict[str, Any]) -> List[TimelineEvent]:
         """
@@ -56,17 +60,50 @@ class AIClient:
         for attempt in range(self.max_retries):
             try:
                 logger.debug(f"OpenAI API call attempt {attempt + 1}/{self.max_retries}")
+                prompt_length = len(json.dumps(messages, ensure_ascii=False))
+                logger.info(
+                    "Calling patient timeline using model %s base_url=%s timeout=%ss prompt_length=%s",
+                    self.model,
+                    self.base_url,
+                    self.timeout,
+                    prompt_length,
+                )
 
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
-                    timeout=settings.openai_timeout
+                    timeout=self.timeout,
+                    # NOTE: `chat_template_kwargs.enable_thinking` is the vLLM
+                    # convention and is silently ignored by Ollama's
+                    # OpenAI-compatible endpoint. Ollama maps `reasoning_effort`
+                    # to its internal `think` flag instead; "none" disables
+                    # thinking so the model doesn't burn max_tokens on <think>
+                    # reasoning and leave no room for the JSON answer.
+                    extra_body={"reasoning_effort": "none"},
                 )
 
-                content = response.choices[0].message.content
+                message = response.choices[0].message
+                content = message.content
+                logger.info(
+                    "Raw model content received (%d chars); preview: %r",
+                    len(content or ""), (content or "")[:200],
+                )
                 if not content:
+                    # Some OpenAI-compatible servers (notably Ollama with
+                    # reasoning-capable models like Qwen3) surface chain-of-thought
+                    # text in a separate `reasoning_content` field and leave
+                    # `content` empty if generation is cut off mid-thought before
+                    # reaching the actual answer. Fall back to it for visibility,
+                    # but treat it as a signal, not a valid payload.
+                    reasoning = getattr(message, "reasoning_content", None) or getattr(message, "reasoning", None)
+                    if reasoning:
+                        logger.warning(
+                            "Model returned only reasoning content (%d chars) and no final "
+                            "answer, likely truncated by max_tokens=%s while thinking.",
+                            len(reasoning), self.max_tokens,
+                        )
                     raise TimelineParsingError("Empty response from model")
 
                 timeline = self._parse_timeline(content)
@@ -150,6 +187,9 @@ class AIClient:
         cleaned = raw_output.strip()
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
         cleaned = re.sub(r"\s*```$", "", cleaned)
+        # Strip any reasoning block some servers inline into `content`
+        # (e.g. Qwen3 on Ollama emits `<think>...</think>` before the answer).
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL | re.IGNORECASE).strip()
 
         if cleaned.startswith("[") and cleaned.endswith("]"):
             return cleaned
