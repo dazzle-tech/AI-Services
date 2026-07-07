@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     openai_base_url: str | None = "http://localhost:11434/v1"
     openai_model: str = ""
     openai_temperature: float = 0.2  # Low temperature for consistent, factual summaries
-    openai_max_tokens: int = 500  # GPT-4o is efficient, summaries typically 200-400 tokens
+    openai_max_tokens: int = 1200  # Headroom for reasoning-model overhead (see /no_think in prompts.py); summaries themselves are typically 100-300 tokens
     
     # API Configuration
     openai_timeout: int = 120  # Timeout for OpenAI API calls (seconds)

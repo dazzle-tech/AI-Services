@@ -84,6 +84,34 @@ class TestPromptGeneration:
         assert "scheduled" in formatted
         assert "Knee" in formatted or "replacement" in formatted
     
+    def test_sparse_data_prompt_has_no_empty_categories(self):
+        """Regression test: with only Age/Gender/Diagnosis, the prompt should
+        not mention Symptoms/Medications/Vitals/Lab_Results/etc. at all, and
+        should instruct the model to keep the summary short rather than pad it."""
+        patient_dict = {
+            "Age": "45 years",
+            "Gender": "Male",
+            "Diagnosis": "Type 2 Diabetes",
+            "Symptoms": [],
+            "Medications": [],
+            "Surgeries": [],
+            "Allergies": [],
+            "Medical_Warnings": [],
+            "Problems": [],
+            "Vitals": {},
+            "Lab_Results": {},
+        }
+        formatted = format_patient_data(patient_dict)
+        prompt = get_user_prompt(patient_dict)
+
+        # None of the empty categories should leak into the formatted data
+        for label in ["Symptoms:", "Medications:", "Vital signs:", "Lab results:",
+                      "Allergies:", "Medical warnings:", "Comorbidities:", "Surgeries:"]:
+            assert label not in formatted
+
+        # The prompt should explicitly tell the model not to invent extra detail
+        assert "do not invent" in prompt.lower() or "brief 1-2 sentence" in prompt.lower()
+
     def test_get_user_prompt_structure(self):
         """Test user prompt structure."""
         patient_dict = SAMPLE_PATIENT_MINIMAL.dict()
@@ -116,3 +144,78 @@ class TestPromptGeneration:
         assert "Aspirin" in prompt or "aspirin" in prompt.lower()
         assert "Penicillin" in prompt or "penicillin" in prompt.lower()
 
+
+
+class TestHallucinationGuard:
+    """Test the post-generation fabrication check in summarization_service."""
+
+    def test_flags_numbers_not_in_source(self):
+        from app.services.summarization_service import find_hallucinated_numbers
+
+        patient_data = {"Age": "45 years", "Gender": "Male", "Diagnosis": "Type 2 Diabetes"}
+        fabricated_summary = (
+            "A 45-year-old male with type 2 diabetes, HbA1c of 8.2%, "
+            "BP 135/82, on metformin 500 mg."
+        )
+        suspects = find_hallucinated_numbers(patient_data, fabricated_summary)
+        # 8.2, 135/82, 500 were never in the source data
+        assert "8.2%" in suspects or "8.2" in suspects
+        assert "500" in suspects
+
+    def test_no_false_positive_when_values_match_source(self):
+        from app.services.summarization_service import find_hallucinated_numbers
+
+        patient_data = {
+            "Age": "45 years",
+            "Gender": "Male",
+            "Diagnosis": "Type 2 Diabetes",
+            "Vitals": {"BP": "120/80", "HR": "72"},
+        }
+        summary = "A 45-year-old male with type 2 diabetes, BP 120/80, HR 72."
+        suspects = find_hallucinated_numbers(patient_data, summary)
+        assert suspects == set()
+
+
+class TestSparseInputBypass:
+    """Regression tests for skipping the LLM entirely on demographics-only input."""
+
+    SPARSE_PATIENT = {
+        "Age": "45 years", "Gender": "Male", "Diagnosis": "Type 2 Diabetes",
+        "Symptoms": [], "Medications": [], "Surgeries": [], "Allergies": [],
+        "Medical_Warnings": [], "Problems": [], "Vitals": {}, "Lab_Results": {},
+    }
+
+    def test_detects_sparse_input(self):
+        from app.services.summarization_service import is_sparse_input
+        assert is_sparse_input(self.SPARSE_PATIENT) is True
+
+    def test_not_sparse_when_any_field_populated(self):
+        from app.services.summarization_service import is_sparse_input
+        patient = dict(self.SPARSE_PATIENT, Symptoms=["fatigue"])
+        assert is_sparse_input(patient) is False
+
+    def test_template_summary_has_no_fabricated_content(self):
+        from app.services.summarization_service import build_sparse_summary, find_hallucinated_categories
+        summary = build_sparse_summary(self.SPARSE_PATIENT)
+        assert "45 years" in summary
+        assert "Type 2 Diabetes" in summary
+        # The template itself must never trip its own fabrication guard
+        assert find_hallucinated_categories(self.SPARSE_PATIENT, summary) == set()
+
+    def test_category_guard_catches_reported_hallucination(self):
+        """The exact fabricated output seen in production for the sparse case."""
+        from app.services.summarization_service import find_hallucinated_categories
+        bad_summary = (
+            "A 45-year-old male with Type 2 Diabetes presents with a history of "
+            "hyperglycemia and a family history of cardiovascular disease. "
+            "No additional clinical details are provided."
+        )
+        flagged = find_hallucinated_categories(self.SPARSE_PATIENT, bad_summary)
+        assert "Problems" in flagged  # "family history of...", "history of..."
+        assert "Symptoms" in flagged  # "presents with"
+
+    def test_category_guard_no_false_positive_on_legit_data(self):
+        from app.services.summarization_service import find_hallucinated_categories
+        patient = dict(self.SPARSE_PATIENT, Symptoms=["fatigue", "polyuria"])
+        summary = "A 45-year-old male with Type 2 Diabetes presents with fatigue and polyuria."
+        assert find_hallucinated_categories(patient, summary) == set()

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "smart-discharge-planner-service",
     "name": "SmartDischargePlannerService",
-    "description": "Postman collection for Smart Discharge Planner Service REST API",
+    "description": "Postman collection for Smart Discharge Planner Service REST API.\n\nThis service accepts clinical and operational patient data and returns an AI-generated, structured discharge readiness assessment (readiness status, blockers, medication reconciliation concerns, follow-up considerations, and a draft discharge summary).\n\nThe collection includes:\n- Health Check\n- Plan Discharge (Minimal) \u2014 smallest valid payload\n- Plan Discharge (Full Example) \u2014 every optional field populated with a single representative entry per list\n- Plan Discharge (Comprehensive Example) \u2014 a realistic, fully-populated multi-condition patient encounter with multiple entries across every list field, plus a saved example response showing the full shape of a real AI-generated discharge plan\n- Plan Discharge (Invalid Payload) \u2014 demonstrates 422 validation error shape\n\nEach request includes a saved example response under its \"Examples\" tab in Postman so you can see expected output without needing a live OpenAI-backed server running.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -22,6 +22,14 @@
             "exec": [
               "pm.test('Status code equals 200', function() {",
               "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has field status', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('status');",
+              "});",
+              "pm.test('Response has field openai_configured', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('openai_configured');",
               "});"
             ],
             "type": "text/javascript"
@@ -33,12 +41,48 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "health"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
         },
-        "description": "Check service health and OpenAI API status"
+        "description": "Check service health and OpenAI API configuration/connectivity status."
       },
-      "response": []
+      "response": [
+        {
+          "name": "Healthy",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"status\": \"healthy\",\n  \"service\": \"smart-discharge-planner\",\n  \"provider\": \"openai\",\n  \"openai_configured\": true,\n  \"api_accessible\": true,\n  \"model\": \"gpt-4o-mini\",\n  \"version\": \"1.0.0\"\n}"
+        }
+      ]
     },
     {
       "name": "Plan Discharge (Minimal)",
@@ -77,12 +121,57 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/plan-discharge",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "plan-discharge"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "plan-discharge"
+          ]
         },
-        "description": "Plan discharge with minimal required data"
+        "description": "Plan discharge with the smallest valid payload: only patient_id and primary_diagnosis are required; clinical_data and operational_data may be empty objects since all of their fields default to empty lists/None."
       },
-      "response": []
+      "response": [
+        {
+          "name": "Success - Unclear Readiness (minimal data)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan-discharge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plan-discharge"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_id\": \"req-discharge-minimal\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"primary_diagnosis\": \"Pneumonia\"\n  },\n  \"clinical_data\": {},\n  \"operational_data\": {}\n}"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"request_id\": \"req-discharge-minimal\",\n  \"discharge_plan\": {\n    \"readiness_status\": \"unclear\",\n    \"readiness_reason\": \"Insufficient clinical and operational data were provided (no vitals, medications, follow-up, or education status) to make a confident discharge readiness determination.\",\n    \"blockers\": [\n      {\n        \"category\": \"data_completeness\",\n        \"title\": \"Missing clinical data\",\n        \"reason\": \"No vitals, medications, or active problems were supplied, so clinical stability cannot be assessed.\"\n      },\n      {\n        \"category\": \"data_completeness\",\n        \"title\": \"Missing operational data\",\n        \"reason\": \"No transport, home support, or follow-up information was supplied, so discharge logistics cannot be assessed.\"\n      }\n    ],\n    \"medication_reconciliation_concerns\": [\n      \"No current or discharge medication list was provided; medication reconciliation cannot be performed.\"\n    ],\n    \"follow_up_considerations\": [\n      \"Provide clinical vitals, active problems, and medication lists to enable a complete assessment.\",\n      \"Provide operational data such as transport status, home support, and follow-up appointments.\"\n    ],\n    \"draft_discharge_summary\": \"Patient P-1001 admitted with a primary diagnosis of pneumonia. Insufficient clinical and operational data were supplied to generate a complete discharge summary; please resubmit with vitals, medications, and operational details for a full assessment.\",\n    \"disclaimer\": \"This output supports discharge planning and does not replace clinician judgment. Final discharge decisions must be made by the treating care team.\"\n  },\n  \"summary\": \"Discharge planning assessment generated successfully.\",\n  \"processing_metadata\": {\n    \"model\": \"gpt-4o-mini\",\n    \"timestamp\": \"2026-03-16T08:02:11.093488\",\n    \"blocker_count\": 2,\n    \"provider\": \"openai\",\n    \"api_version\": \"v1\"\n  }\n}"
+        }
+      ]
     },
     {
       "name": "Plan Discharge (Full Example)",
@@ -117,16 +206,170 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request_id\": \"req-discharge-001\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"admission_date\": \"2026-03-10\",\n    \"primary_diagnosis\": \"Pneumonia\",\n    \"secondary_diagnoses\": [\"Type 2 Diabetes\", \"Hypertension\"],\n    \"current_status\": \"improving\"\n  },\n  \"clinical_data\": {\n    \"latest_vitals\": [\n      {\"name\": \"temperature\", \"value\": \"37.1\", \"unit\": \"C\", \"timestamp\": \"2026-03-16T08:00:00Z\"},\n      {\"name\": \"oxygen_saturation\", \"value\": \"95\", \"unit\": \"%\", \"timestamp\": \"2026-03-16T08:00:00Z\"}\n    ],\n    \"pending_tests\": [{\"name\": \"blood culture\", \"status\": \"pending\"}],\n    \"active_problems\": [\"Needs home oxygen assessment\"],\n    \"medications_current\": [\"Amoxicillin\", \"Metformin\"],\n    \"medications_planned_for_discharge\": [\"Amoxicillin\", \"Metformin\", \"Prednisone\"],\n    \"notes\": [{\"type\": \"progress_note\", \"timestamp\": \"2026-03-16T07:30:00Z\", \"text\": \"Patient clinically improved. May be ready for discharge if home oxygen not required.\"}]\n  },\n  \"operational_data\": {\n    \"follow_up_appointments\": [{\"service\": \"Pulmonology\", \"scheduled\": false}],\n    \"patient_education\": [\n      {\"topic\": \"antibiotic adherence\", \"completed\": true},\n      {\"topic\": \"warning signs and return precautions\", \"completed\": false}\n    ],\n    \"transport_status\": \"available\",\n    \"home_support\": \"family_available\",\n    \"equipment_needs\": [{\"name\": \"home oxygen\", \"confirmed\": false}]\n  }\n}"
+          "raw": "{\n  \"request_id\": \"req-discharge-001\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"admission_date\": \"2026-03-10\",\n    \"primary_diagnosis\": \"Pneumonia\",\n    \"secondary_diagnoses\": [\n      \"Type 2 Diabetes\",\n      \"Hypertension\"\n    ],\n    \"current_status\": \"improving\"\n  },\n  \"clinical_data\": {\n    \"latest_vitals\": [\n      {\n        \"name\": \"temperature\",\n        \"value\": \"37.1\",\n        \"unit\": \"C\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"oxygen_saturation\",\n        \"value\": \"95\",\n        \"unit\": \"%\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      }\n    ],\n    \"pending_tests\": [\n      {\n        \"name\": \"blood culture\",\n        \"status\": \"pending\"\n      }\n    ],\n    \"active_problems\": [\n      \"Needs home oxygen assessment\"\n    ],\n    \"medications_current\": [\n      \"Amoxicillin\",\n      \"Metformin\"\n    ],\n    \"medications_planned_for_discharge\": [\n      \"Amoxicillin\",\n      \"Metformin\",\n      \"Prednisone\"\n    ],\n    \"notes\": [\n      {\n        \"type\": \"progress_note\",\n        \"timestamp\": \"2026-03-16T07:30:00Z\",\n        \"text\": \"Patient clinically improved. May be ready for discharge if home oxygen not required.\"\n      }\n    ]\n  },\n  \"operational_data\": {\n    \"follow_up_appointments\": [\n      {\n        \"service\": \"Pulmonology\",\n        \"scheduled\": false\n      }\n    ],\n    \"patient_education\": [\n      {\n        \"topic\": \"antibiotic adherence\",\n        \"completed\": true\n      },\n      {\n        \"topic\": \"warning signs and return precautions\",\n        \"completed\": false\n      }\n    ],\n    \"transport_status\": \"available\",\n    \"home_support\": \"family_available\",\n    \"equipment_needs\": [\n      {\n        \"name\": \"home oxygen\",\n        \"confirmed\": false\n      }\n    ]\n  }\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/plan-discharge",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "plan-discharge"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "plan-discharge"
+          ]
         },
-        "description": "Plan discharge with full clinical and operational data"
+        "description": "Plan discharge with every field populated, one representative entry per list. Good starting point for exploring the full request shape."
       },
-      "response": []
+      "response": [
+        {
+          "name": "Success - Needs Review",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan-discharge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plan-discharge"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_id\": \"req-discharge-001\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"admission_date\": \"2026-03-10\",\n    \"primary_diagnosis\": \"Pneumonia\",\n    \"secondary_diagnoses\": [\n      \"Type 2 Diabetes\",\n      \"Hypertension\"\n    ],\n    \"current_status\": \"improving\"\n  },\n  \"clinical_data\": {\n    \"latest_vitals\": [\n      {\n        \"name\": \"temperature\",\n        \"value\": \"37.1\",\n        \"unit\": \"C\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"oxygen_saturation\",\n        \"value\": \"95\",\n        \"unit\": \"%\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      }\n    ],\n    \"pending_tests\": [\n      {\n        \"name\": \"blood culture\",\n        \"status\": \"pending\"\n      }\n    ],\n    \"active_problems\": [\n      \"Needs home oxygen assessment\"\n    ],\n    \"medications_current\": [\n      \"Amoxicillin\",\n      \"Metformin\"\n    ],\n    \"medications_planned_for_discharge\": [\n      \"Amoxicillin\",\n      \"Metformin\",\n      \"Prednisone\"\n    ],\n    \"notes\": [\n      {\n        \"type\": \"progress_note\",\n        \"timestamp\": \"2026-03-16T07:30:00Z\",\n        \"text\": \"Patient clinically improved. May be ready for discharge if home oxygen not required.\"\n      }\n    ]\n  },\n  \"operational_data\": {\n    \"follow_up_appointments\": [\n      {\n        \"service\": \"Pulmonology\",\n        \"scheduled\": false\n      }\n    ],\n    \"patient_education\": [\n      {\n        \"topic\": \"antibiotic adherence\",\n        \"completed\": true\n      },\n      {\n        \"topic\": \"warning signs and return precautions\",\n        \"completed\": false\n      }\n    ],\n    \"transport_status\": \"available\",\n    \"home_support\": \"family_available\",\n    \"equipment_needs\": [\n      {\n        \"name\": \"home oxygen\",\n        \"confirmed\": false\n      }\n    ]\n  }\n}"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"request_id\": \"req-discharge-001\",\n  \"discharge_plan\": {\n    \"readiness_status\": \"needs_review\",\n    \"readiness_reason\": \"Patient is clinically improving but a pending blood culture and unconfirmed home oxygen need remain before discharge is appropriate.\",\n    \"blockers\": [\n      {\n        \"category\": \"equipment\",\n        \"title\": \"Home oxygen not confirmed\",\n        \"reason\": \"It is not yet confirmed whether the patient will require home oxygen; equipment need is unconfirmed.\"\n      },\n      {\n        \"category\": \"diagnostics\",\n        \"title\": \"Pending blood culture\",\n        \"reason\": \"Blood culture results are still pending and could affect antibiotic choice prior to discharge.\"\n      }\n    ],\n    \"medication_reconciliation_concerns\": [\n      \"Prednisone added to discharge regimen; confirm patient understands new medication and taper if applicable.\"\n    ],\n    \"follow_up_considerations\": [\n      \"Schedule Pulmonology follow-up given respiratory diagnosis.\",\n      \"Complete warning signs and return precautions education before discharge.\"\n    ],\n    \"draft_discharge_summary\": \"Patient admitted 2026-03-10 with pneumonia, with history of Type 2 Diabetes and Hypertension. Clinically improving. Discharge planning is reasonable to begin, pending confirmation of home oxygen need and finalization of blood culture results. Family support and transport are available.\",\n    \"disclaimer\": \"This output supports discharge planning and does not replace clinician judgment. Final discharge decisions must be made by the treating care team.\"\n  },\n  \"summary\": \"Discharge planning assessment generated successfully.\",\n  \"processing_metadata\": {\n    \"model\": \"gpt-4o-mini\",\n    \"timestamp\": \"2026-03-16T08:05:44.221190\",\n    \"blocker_count\": 2,\n    \"provider\": \"openai\",\n    \"api_version\": \"v1\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Plan Discharge (Comprehensive Example)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function() {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has field discharge_plan', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('discharge_plan');",
+              "});",
+              "pm.test('discharge_plan has field readiness_status', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.discharge_plan).to.have.property('readiness_status');",
+              "});",
+              "pm.test('discharge_plan has field blockers as array', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.discharge_plan.blockers).to.be.an('array');",
+              "});",
+              "pm.test('discharge_plan has field medication_reconciliation_concerns as array', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.discharge_plan.medication_reconciliation_concerns).to.be.an('array');",
+              "});",
+              "pm.test('discharge_plan has field follow_up_considerations as array', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.discharge_plan.follow_up_considerations).to.be.an('array');",
+              "});",
+              "pm.test('discharge_plan has non-empty draft_discharge_summary', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.discharge_plan.draft_discharge_summary.length).to.be.above(0);",
+              "});",
+              "pm.test('processing_metadata has field blocker_count', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.processing_metadata).to.have.property('blocker_count');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"req-discharge-comprehensive-001\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"admission_date\": \"2026-03-10\",\n    \"primary_diagnosis\": \"Community-acquired pneumonia\",\n    \"secondary_diagnoses\": [\n      \"Type 2 Diabetes Mellitus\",\n      \"Hypertension\",\n      \"Chronic Obstructive Pulmonary Disease (COPD)\",\n      \"Stage 3 Chronic Kidney Disease\"\n    ],\n    \"current_status\": \"improving\"\n  },\n  \"clinical_data\": {\n    \"latest_vitals\": [\n      {\n        \"name\": \"temperature\",\n        \"value\": \"37.1\",\n        \"unit\": \"C\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"oxygen_saturation\",\n        \"value\": \"95\",\n        \"unit\": \"%\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"heart_rate\",\n        \"value\": \"82\",\n        \"unit\": \"bpm\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"blood_pressure_systolic\",\n        \"value\": \"128\",\n        \"unit\": \"mmHg\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"blood_pressure_diastolic\",\n        \"value\": \"78\",\n        \"unit\": \"mmHg\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"respiratory_rate\",\n        \"value\": \"18\",\n        \"unit\": \"breaths/min\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"blood_glucose\",\n        \"value\": \"142\",\n        \"unit\": \"mg/dL\",\n        \"timestamp\": \"2026-03-16T06:30:00Z\"\n      }\n    ],\n    \"pending_tests\": [\n      {\n        \"name\": \"blood culture\",\n        \"status\": \"pending\"\n      },\n      {\n        \"name\": \"chest x-ray follow-up\",\n        \"status\": \"pending\"\n      },\n      {\n        \"name\": \"basic metabolic panel\",\n        \"status\": \"resulted\"\n      },\n      {\n        \"name\": \"sputum culture\",\n        \"status\": \"in_progress\"\n      }\n    ],\n    \"active_problems\": [\n      \"Needs home oxygen assessment\",\n      \"Blood glucose control suboptimal, requires dose adjustment\",\n      \"Renal function requires monitoring on new antibiotic regimen\"\n    ],\n    \"medications_current\": [\n      \"Amoxicillin-Clavulanate 875mg PO BID\",\n      \"Metformin 500mg PO BID\",\n      \"Lisinopril 10mg PO daily\",\n      \"Albuterol inhaler PRN\",\n      \"Insulin glargine 12 units subcutaneous nightly\"\n    ],\n    \"medications_planned_for_discharge\": [\n      \"Amoxicillin-Clavulanate 875mg PO BID x 5 more days\",\n      \"Metformin 500mg PO BID\",\n      \"Lisinopril 10mg PO daily\",\n      \"Albuterol inhaler PRN\",\n      \"Insulin glargine 15 units subcutaneous nightly (dose increased)\",\n      \"Prednisone 20mg PO daily x 5 days, taper per protocol\"\n    ],\n    \"notes\": [\n      {\n        \"type\": \"progress_note\",\n        \"timestamp\": \"2026-03-16T07:30:00Z\",\n        \"text\": \"Patient clinically improved, afebrile x 24 hours, oxygen requirement weaning. May be ready for discharge pending home oxygen assessment and confirmation of stable renal function.\"\n      },\n      {\n        \"type\": \"nursing_note\",\n        \"timestamp\": \"2026-03-16T06:00:00Z\",\n        \"text\": \"Patient ambulating independently in hallway without desaturation below 92%. Reports improved appetite and energy overnight.\"\n      },\n      {\n        \"type\": \"pharmacy_note\",\n        \"timestamp\": \"2026-03-15T16:45:00Z\",\n        \"text\": \"Medication reconciliation performed. Insulin dose adjusted for improved glycemic control. Recommend outpatient follow-up within 1 week for further titration.\"\n      },\n      {\n        \"type\": \"social_work_note\",\n        \"timestamp\": \"2026-03-15T14:00:00Z\",\n        \"text\": \"Family confirmed available to assist with transport and home care. No concerns identified regarding home safety or support network.\"\n      }\n    ]\n  },\n  \"operational_data\": {\n    \"follow_up_appointments\": [\n      {\n        \"service\": \"Pulmonology\",\n        \"scheduled\": false\n      },\n      {\n        \"service\": \"Primary Care Physician\",\n        \"scheduled\": true\n      },\n      {\n        \"service\": \"Endocrinology\",\n        \"scheduled\": false\n      },\n      {\n        \"service\": \"Nephrology\",\n        \"scheduled\": true\n      }\n    ],\n    \"patient_education\": [\n      {\n        \"topic\": \"antibiotic adherence\",\n        \"completed\": true\n      },\n      {\n        \"topic\": \"warning signs and return precautions\",\n        \"completed\": false\n      },\n      {\n        \"topic\": \"home oxygen equipment use\",\n        \"completed\": false\n      },\n      {\n        \"topic\": \"insulin administration and glucose monitoring\",\n        \"completed\": true\n      },\n      {\n        \"topic\": \"incentive spirometry technique\",\n        \"completed\": true\n      }\n    ],\n    \"transport_status\": \"available\",\n    \"home_support\": \"family_available\",\n    \"equipment_needs\": [\n      {\n        \"name\": \"home oxygen concentrator\",\n        \"confirmed\": false\n      },\n      {\n        \"name\": \"pulse oximeter\",\n        \"confirmed\": true\n      },\n      {\n        \"name\": \"blood glucose monitoring kit\",\n        \"confirmed\": true\n      },\n      {\n        \"name\": \"walker\",\n        \"confirmed\": false\n      }\n    ]\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/plan-discharge",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "plan-discharge"
+          ]
+        },
+        "description": "A realistic, fully-populated multi-condition patient encounter exercising every field in the request schema with multiple entries per list (7 vitals, 4 pending tests, 3 active problems, 5 current and 6 discharge medications, 4 clinical notes of different types, 4 follow-up appointments across specialties, 5 patient education topics, and 4 equipment needs).\n\nPatient profile: pneumonia with diabetes, hypertension, COPD, and CKD stage 3 comorbidities, improving but with several unresolved discharge blockers (pending cultures, unconfirmed home oxygen, unscheduled specialist follow-up). This is the best example to use for understanding the full range of realistic input the service can accept and reason over."
+      },
+      "response": [
+        {
+          "name": "Success - Needs Review (comprehensive multi-condition patient)",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan-discharge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plan-discharge"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"request_id\": \"req-discharge-comprehensive-001\",\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\",\n    \"admission_date\": \"2026-03-10\",\n    \"primary_diagnosis\": \"Community-acquired pneumonia\",\n    \"secondary_diagnoses\": [\n      \"Type 2 Diabetes Mellitus\",\n      \"Hypertension\",\n      \"Chronic Obstructive Pulmonary Disease (COPD)\",\n      \"Stage 3 Chronic Kidney Disease\"\n    ],\n    \"current_status\": \"improving\"\n  },\n  \"clinical_data\": {\n    \"latest_vitals\": [\n      {\n        \"name\": \"temperature\",\n        \"value\": \"37.1\",\n        \"unit\": \"C\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"oxygen_saturation\",\n        \"value\": \"95\",\n        \"unit\": \"%\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"heart_rate\",\n        \"value\": \"82\",\n        \"unit\": \"bpm\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"blood_pressure_systolic\",\n        \"value\": \"128\",\n        \"unit\": \"mmHg\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"blood_pressure_diastolic\",\n        \"value\": \"78\",\n        \"unit\": \"mmHg\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"respiratory_rate\",\n        \"value\": \"18\",\n        \"unit\": \"breaths/min\",\n        \"timestamp\": \"2026-03-16T08:00:00Z\"\n      },\n      {\n        \"name\": \"blood_glucose\",\n        \"value\": \"142\",\n        \"unit\": \"mg/dL\",\n        \"timestamp\": \"2026-03-16T06:30:00Z\"\n      }\n    ],\n    \"pending_tests\": [\n      {\n        \"name\": \"blood culture\",\n        \"status\": \"pending\"\n      },\n      {\n        \"name\": \"chest x-ray follow-up\",\n        \"status\": \"pending\"\n      },\n      {\n        \"name\": \"basic metabolic panel\",\n        \"status\": \"resulted\"\n      },\n      {\n        \"name\": \"sputum culture\",\n        \"status\": \"in_progress\"\n      }\n    ],\n    \"active_problems\": [\n      \"Needs home oxygen assessment\",\n      \"Blood glucose control suboptimal, requires dose adjustment\",\n      \"Renal function requires monitoring on new antibiotic regimen\"\n    ],\n    \"medications_current\": [\n      \"Amoxicillin-Clavulanate 875mg PO BID\",\n      \"Metformin 500mg PO BID\",\n      \"Lisinopril 10mg PO daily\",\n      \"Albuterol inhaler PRN\",\n      \"Insulin glargine 12 units subcutaneous nightly\"\n    ],\n    \"medications_planned_for_discharge\": [\n      \"Amoxicillin-Clavulanate 875mg PO BID x 5 more days\",\n      \"Metformin 500mg PO BID\",\n      \"Lisinopril 10mg PO daily\",\n      \"Albuterol inhaler PRN\",\n      \"Insulin glargine 15 units subcutaneous nightly (dose increased)\",\n      \"Prednisone 20mg PO daily x 5 days, taper per protocol\"\n    ],\n    \"notes\": [\n      {\n        \"type\": \"progress_note\",\n        \"timestamp\": \"2026-03-16T07:30:00Z\",\n        \"text\": \"Patient clinically improved, afebrile x 24 hours, oxygen requirement weaning. May be ready for discharge pending home oxygen assessment and confirmation of stable renal function.\"\n      },\n      {\n        \"type\": \"nursing_note\",\n        \"timestamp\": \"2026-03-16T06:00:00Z\",\n        \"text\": \"Patient ambulating independently in hallway without desaturation below 92%. Reports improved appetite and energy overnight.\"\n      },\n      {\n        \"type\": \"pharmacy_note\",\n        \"timestamp\": \"2026-03-15T16:45:00Z\",\n        \"text\": \"Medication reconciliation performed. Insulin dose adjusted for improved glycemic control. Recommend outpatient follow-up within 1 week for further titration.\"\n      },\n      {\n        \"type\": \"social_work_note\",\n        \"timestamp\": \"2026-03-15T14:00:00Z\",\n        \"text\": \"Family confirmed available to assist with transport and home care. No concerns identified regarding home safety or support network.\"\n      }\n    ]\n  },\n  \"operational_data\": {\n    \"follow_up_appointments\": [\n      {\n        \"service\": \"Pulmonology\",\n        \"scheduled\": false\n      },\n      {\n        \"service\": \"Primary Care Physician\",\n        \"scheduled\": true\n      },\n      {\n        \"service\": \"Endocrinology\",\n        \"scheduled\": false\n      },\n      {\n        \"service\": \"Nephrology\",\n        \"scheduled\": true\n      }\n    ],\n    \"patient_education\": [\n      {\n        \"topic\": \"antibiotic adherence\",\n        \"completed\": true\n      },\n      {\n        \"topic\": \"warning signs and return precautions\",\n        \"completed\": false\n      },\n      {\n        \"topic\": \"home oxygen equipment use\",\n        \"completed\": false\n      },\n      {\n        \"topic\": \"insulin administration and glucose monitoring\",\n        \"completed\": true\n      },\n      {\n        \"topic\": \"incentive spirometry technique\",\n        \"completed\": true\n      }\n    ],\n    \"transport_status\": \"available\",\n    \"home_support\": \"family_available\",\n    \"equipment_needs\": [\n      {\n        \"name\": \"home oxygen concentrator\",\n        \"confirmed\": false\n      },\n      {\n        \"name\": \"pulse oximeter\",\n        \"confirmed\": true\n      },\n      {\n        \"name\": \"blood glucose monitoring kit\",\n        \"confirmed\": true\n      },\n      {\n        \"name\": \"walker\",\n        \"confirmed\": false\n      }\n    ]\n  }\n}"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"request_id\": \"req-discharge-comprehensive-001\",\n  \"discharge_plan\": {\n    \"readiness_status\": \"needs_review\",\n    \"readiness_reason\": \"Patient shows clear clinical improvement (afebrile, ambulating, improving oxygenation) but discharge is contingent on unresolved items: home oxygen assessment, confirmation of two unscheduled follow-up appointments, and pending culture results that could affect antibiotic duration.\",\n    \"blockers\": [\n      {\n        \"category\": \"equipment\",\n        \"title\": \"Home oxygen not yet confirmed\",\n        \"reason\": \"Patient's oxygen saturation remains borderline at 95% on room air; home oxygen concentrator has been ordered but not yet confirmed as delivered or set up.\"\n      },\n      {\n        \"category\": \"diagnostics\",\n        \"title\": \"Pending blood and sputum cultures\",\n        \"reason\": \"Blood culture and sputum culture results are not yet finalized; results could alter antibiotic selection or duration prior to discharge.\"\n      },\n      {\n        \"category\": \"follow_up\",\n        \"title\": \"Pulmonology and Endocrinology follow-up not scheduled\",\n        \"reason\": \"Given COPD and diabetes management changes made during this admission, outpatient follow-up should be confirmed before discharge to avoid gaps in care.\"\n      }\n    ],\n    \"medication_reconciliation_concerns\": [\n      \"Insulin glargine dose increased from 12 to 15 units; ensure patient and family are educated on new dose before discharge.\",\n      \"Prednisone taper added to regimen; confirm patient has a written taper schedule to avoid dosing errors.\",\n      \"Amoxicillin-Clavulanate course extends beyond discharge; confirm outpatient supply and adherence plan.\"\n    ],\n    \"follow_up_considerations\": [\n      \"Schedule Pulmonology follow-up within 1-2 weeks given COPD exacerbation risk.\",\n      \"Schedule Endocrinology follow-up within 1 week for insulin dose titration.\",\n      \"Confirm Nephrology follow-up given CKD stage 3 and recent antibiotic course.\",\n      \"Provide return precautions education prior to discharge, as this topic is not yet marked complete.\"\n    ],\n    \"draft_discharge_summary\": \"Patient admitted 2026-03-10 with community-acquired pneumonia on a background of Type 2 Diabetes, Hypertension, COPD, and CKD stage 3. Clinical course notable for steady improvement with antibiotic therapy; vitals stable and afebrile x24 hours at time of this assessment. Discharge is reasonable to plan for in the near term, contingent on confirming home oxygen setup, finalizing pending culture results, and securing outpatient Pulmonology and Endocrinology follow-up. Medication regimen at discharge includes an increased insulin glargine dose and a new prednisone taper; patient and family education on these changes should be completed and documented prior to discharge. Family support and transport are confirmed available.\",\n    \"disclaimer\": \"This output supports discharge planning and does not replace clinician judgment. Final discharge decisions must be made by the treating care team.\"\n  },\n  \"summary\": \"Discharge planning assessment generated successfully.\",\n  \"processing_metadata\": {\n    \"model\": \"gpt-4o-mini\",\n    \"timestamp\": \"2026-03-16T08:15:22.481203\",\n    \"blocker_count\": 3,\n    \"provider\": \"openai\",\n    \"api_version\": \"v1\"\n  }\n}"
+        }
+      ]
     },
     {
       "name": "Plan Discharge (Invalid Payload)",
@@ -135,8 +378,12 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test('Status code equals 400 or 422', function() {",
-              "    pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+              "pm.test('Status code equals 422', function() {",
+              "    pm.response.to.have.status(422);",
+              "});",
+              "pm.test('Response has field detail', function() {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('detail');",
               "});"
             ],
             "type": "text/javascript"
@@ -157,12 +404,57 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/plan-discharge",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "plan-discharge"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "plan-discharge"
+          ]
         },
-        "description": "Test invalid payload - missing required fields (clinical_data, operational_data, primary_diagnosis)"
+        "description": "Demonstrates FastAPI/Pydantic's automatic 422 validation error response when required fields are missing: clinical_data, operational_data, and patient_context.primary_diagnosis."
       },
-      "response": []
+      "response": [
+        {
+          "name": "422 Unprocessable Entity - Missing required fields",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/plan-discharge",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "plan-discharge"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_context\": {\n    \"patient_id\": \"P-1001\"\n  }\n}"
+            }
+          },
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"detail\": [\n    {\n      \"type\": \"missing\",\n      \"loc\": [\n        \"body\",\n        \"clinical_data\"\n      ],\n      \"msg\": \"Field required\",\n      \"input\": {\n        \"patient_context\": {\n          \"patient_id\": \"P-1001\"\n        }\n      }\n    },\n    {\n      \"type\": \"missing\",\n      \"loc\": [\n        \"body\",\n        \"operational_data\"\n      ],\n      \"msg\": \"Field required\",\n      \"input\": {\n        \"patient_context\": {\n          \"patient_id\": \"P-1001\"\n        }\n      }\n    },\n    {\n      \"type\": \"missing\",\n      \"loc\": [\n        \"body\",\n        \"patient_context\",\n        \"primary_diagnosis\"\n      ],\n      \"msg\": \"Field required\",\n      \"input\": {\n        \"patient_id\": \"P-1001\"\n      }\n    }\n  ]\n}"
+        }
+      ]
     }
   ]
 }

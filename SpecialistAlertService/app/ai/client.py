@@ -60,32 +60,72 @@ class AIClient:
         """
         messages = build_alert_prompt(patient_record, risk_signals=risk_signals)
 
+        # Adaptive token budget: starts at the configured max_tokens, but grows if a
+        # response gets cut off by finish_reason="length" so the retry actually has
+        # a chance of completing the JSON instead of truncating in the same place.
+        current_max_tokens = self.max_tokens
+        token_budget_cap = max(self.max_tokens * 4, 8000)
+        truncated_last_attempt = False
+
         last_exception: Optional[Exception] = None
         for attempt in range(self.max_retries):
             try:
                 logger.debug("OpenAI API call attempt %s/%s", attempt + 1, self.max_retries)
                 prompt_length = len(json.dumps(messages, ensure_ascii=False))
                 logger.info(
-                    "Calling specialist alerts using model %s base_url=%s timeout=%ss prompt_length=%s",
+                    "Calling specialist alerts using model %s base_url=%s timeout=%ss "
+                    "prompt_length=%s max_tokens=%s",
                     self.model,
                     self.base_url,
                     self.timeout,
                     prompt_length,
+                    current_max_tokens,
                 )
+
+                extra_body = {}
+                if settings.openai_disable_thinking:
+                    # Qwen3 (and some other locally-hosted reasoning models) emit a
+                    # <think>...</think> reasoning block by default, which eats into
+                    # max_tokens and can leave the actual JSON answer truncated.
+                    # chat_template_kwargs.enable_thinking is honored by Ollama/vLLM's
+                    # OpenAI-compatible endpoint for Qwen3; harmless no-op elsewhere.
+                    extra_body["chat_template_kwargs"] = {"enable_thinking": False}
 
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
-                    max_tokens=self.max_tokens,
+                    max_tokens=current_max_tokens,
                     timeout=self.timeout,
+                    extra_body=extra_body or None,
                 )
 
-                content = response.choices[0].message.content
+                choice = response.choices[0]
+                content = choice.message.content
+                finish_reason = getattr(choice, "finish_reason", None)
+                truncated_last_attempt = finish_reason == "length"
+                if truncated_last_attempt:
+                    logger.warning(
+                        "Model response was truncated by max_tokens (%s); "
+                        "the reasoning trace may be consuming most of the budget.",
+                        current_max_tokens,
+                    )
+
                 if not content:
                     raise AlertParsingError("Empty response from OpenAI model")
 
-                alerts = self._parse_alerts(content)
+                content = self._strip_thinking(content)
+
+                try:
+                    alerts = self._parse_alerts(content)
+                except AlertParsingError:
+                    logger.warning(
+                        "Raw model output that failed parsing (finish_reason=%s, len=%s): %s",
+                        finish_reason,
+                        len(content),
+                        content[:2000],
+                    )
+                    raise
 
                 if settings.enable_usage_tracking:
                     usage = response.usage
@@ -101,7 +141,19 @@ class AIClient:
             except AlertParsingError as e:
                 last_exception = e
                 wait_time = self.retry_delay * (attempt + 1)
-                logger.warning("Alert parsing failed, retrying in %ss: %s", wait_time, e)
+                if truncated_last_attempt and current_max_tokens < token_budget_cap:
+                    previous_budget = current_max_tokens
+                    current_max_tokens = min(int(current_max_tokens * 1.75), token_budget_cap)
+                    logger.warning(
+                        "Alert parsing failed after truncation, retrying in %ss with max_tokens "
+                        "raised from %s to %s: %s",
+                        wait_time,
+                        previous_budget,
+                        current_max_tokens,
+                        e,
+                    )
+                else:
+                    logger.warning("Alert parsing failed, retrying in %ss: %s", wait_time, e)
                 if attempt < self.max_retries - 1:
                     time.sleep(wait_time)
                 else:
@@ -172,6 +224,23 @@ class AIClient:
         if not alerts and payload:
             raise AlertParsingError("Model returned alert payload, but no items passed validation")
         return alerts
+
+    def _strip_thinking(self, raw_output: str) -> str:
+        """Remove <think>...</think> reasoning blocks emitted by reasoning models.
+
+        Handles both a properly closed block and a block left open because the
+        response was truncated by max_tokens before the model finished thinking.
+        """
+        text = raw_output
+        text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
+        # If a <think> tag was never closed (truncated mid-reasoning), there is no
+        # JSON to recover from this response at all.
+        if re.search(r"<think>", text, flags=re.IGNORECASE):
+            raise AlertParsingError(
+                "Model response was truncated inside its reasoning block before any "
+                "JSON was produced; increase max_tokens or disable thinking mode"
+            )
+        return text.strip()
 
     def _extract_json_payload(self, raw_output: str) -> Any:
         """Extract JSON payload from raw model output."""

@@ -1,6 +1,7 @@
 """OpenAI client for clinical summary generation - optimized for GPT-4."""
 import json
 import logging
+import re
 import time
 from typing import Dict, Any, Optional
 from openai import OpenAI
@@ -74,11 +75,32 @@ class AIClient:
                 
                 # Extract content
                 content = response.choices[0].message.content
-                
+
                 if not content:
-                    raise ValueError("Empty response from GPT-4 model")
+                    # If a model with hybrid reasoning (e.g. Qwen3 family)
+                    # spends its entire max_tokens budget on the internal
+                    # <think> block, content comes back empty even though
+                    # the API call itself succeeded (HTTP 200). See
+                    # app.ai.prompts._uses_qwen3_thinking_model / /no_think.
+                    reasoning = getattr(response.choices[0].message, "reasoning_content", None) \
+                        or getattr(response.choices[0].message, "reasoning", None)
+                    if reasoning:
+                        logger.error(
+                            "Model '%s' returned only reasoning content and no "
+                            "final answer (likely exhausted max_tokens=%s while "
+                            "thinking). Reasoning preview: %.200s",
+                            self.model, self.max_tokens, reasoning
+                        )
+                    raise ValueError(
+                        f"Empty response from model '{self.model}' - the model may have "
+                        f"exhausted max_tokens on internal reasoning before producing "
+                        f"an answer; consider raising OPENAI_MAX_TOKENS"
+                    )
                 
-                # GPT-4 is reliable, minimal cleaning needed
+                # NOTE: reliability depends on the configured model (see OPENAI_MODEL).
+                # Small/local models are more prone to ignoring the fidelity
+                # instructions in the system prompt (see find_hallucinated_numbers
+                # in summarization_service.py for a post-hoc fabrication check).
                 summary = self._clean_summary(content)
                 
                 if not summary:
@@ -129,7 +151,9 @@ class AIClient:
     def _clean_summary(self, raw_output: str) -> str:
         """
         Clean and format the generated summary.
-        GPT-4 is generally reliable, so minimal cleaning is needed.
+        Note: cleaning needs scale with model reliability - smaller/local
+        models (see OPENAI_MODEL) may need more aggressive post-processing
+        than a frontier model like GPT-4o would.
         """
         # Remove common prefixes that GPT-4 might add
         prefixes_to_remove = [
@@ -141,6 +165,14 @@ class AIClient:
         ]
         
         cleaned = raw_output.strip()
+
+        # Strip any leftover <think>...</think> reasoning block. Some
+        # reasoning models/servers include the thinking block inline in
+        # `content` alongside the real answer rather than omitting it -
+        # /no_think in the prompt (see app.ai.prompts) should prevent this,
+        # but we defend against it here too rather than surfacing raw
+        # reasoning to callers.
+        cleaned = re.sub(r"<think>.*?</think>", "", cleaned, flags=re.DOTALL | re.IGNORECASE).strip()
         
         # Remove prefixes (case-insensitive)
         for prefix in prefixes_to_remove:
@@ -151,10 +183,12 @@ class AIClient:
                     cleaned = cleaned[1:].strip()
         
         # Remove any trailing meta-commentary
-        lines = cleaned.splitlines()
+        lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
         if len(lines) > 1:
-            # Take the first substantial line (usually the summary)
-            cleaned = lines[0].strip()
+            # Take the first substantial (non-blank) line - usually the summary
+            cleaned = lines[0]
+        elif lines:
+            cleaned = lines[0]
         
         # Ensure it's a complete sentence/paragraph
         if cleaned and not cleaned.endswith(('.', '!', '?')):
