@@ -1,13 +1,12 @@
 """Sample patient data for testing."""
 from app.models.schemas import (
     AllergyEntry,
-    Demographics,
     DiagnosisEntry,
     EncounterEntry,
     LabResultEntry,
     MedicationEntry,
     NoteEntry,
-    PatientDataInput,
+    PatientContext,
     ProcedureEntry,
     TimelineEvent,
     TimelineRequest,
@@ -15,17 +14,17 @@ from app.models.schemas import (
 )
 
 
-SAMPLE_PATIENT_MINIMAL = PatientDataInput(
-    patient_id="12345",
-    demographics=Demographics(age="58 years", gender="Male"),
+SAMPLE_REQUEST_MINIMAL = TimelineRequest(
+    request_id="test-001",
+    patient_context=PatientContext(age="58 years", sex="Male"),
     diagnoses=[
         DiagnosisEntry(name="Hypertension", date="2021-03-10")
     ]
 )
 
-SAMPLE_PATIENT_COMPLETE = PatientDataInput(
-    patient_id="12345",
-    demographics=Demographics(age="58 years", gender="Male"),
+SAMPLE_REQUEST_COMPLETE = TimelineRequest(
+    request_id="test-002",
+    patient_context=PatientContext(age="58 years", sex="Male"),
     diagnoses=[
         DiagnosisEntry(name="Type 2 Diabetes", date="2022-05-01"),
         DiagnosisEntry(name="Hypertension", date="2021-03-10")
@@ -35,7 +34,7 @@ SAMPLE_PATIENT_COMPLETE = PatientDataInput(
         MedicationEntry(name="Insulin", start_date="2023-11-18", end_date=None, status="active")
     ],
     lab_results=[
-        LabResultEntry(name="Troponin", value="0.8", unit="ng/mL", date="2026-03-13", flag="high")
+        LabResultEntry(name="Troponin", value="0.8", unit="ng/mL", timestamp="2026-03-13", flag="high")
     ],
     vitals=[
         VitalEntry(name="BP", value="160/100", date="2026-03-12")
@@ -59,18 +58,16 @@ SAMPLE_PATIENT_COMPLETE = PatientDataInput(
     ]
 )
 
-SAMPLE_REQUEST_MINIMAL = TimelineRequest(
-    request_id="test-001",
-    patient_data=SAMPLE_PATIENT_MINIMAL
-)
-
-SAMPLE_REQUEST_COMPLETE = TimelineRequest(
-    request_id="test-002",
-    patient_data=SAMPLE_PATIENT_COMPLETE
-)
-
 SAMPLE_REQUEST_NO_ID = TimelineRequest(
-    patient_data=SAMPLE_PATIENT_COMPLETE
+    patient_context=SAMPLE_REQUEST_COMPLETE.patient_context,
+    diagnoses=SAMPLE_REQUEST_COMPLETE.diagnoses,
+    medications=SAMPLE_REQUEST_COMPLETE.medications,
+    lab_results=SAMPLE_REQUEST_COMPLETE.lab_results,
+    vitals=SAMPLE_REQUEST_COMPLETE.vitals,
+    procedures=SAMPLE_REQUEST_COMPLETE.procedures,
+    encounters=SAMPLE_REQUEST_COMPLETE.encounters,
+    notes=SAMPLE_REQUEST_COMPLETE.notes,
+    allergies=SAMPLE_REQUEST_COMPLETE.allergies,
 )
 
 SAMPLE_TIMELINE_EVENTS = [

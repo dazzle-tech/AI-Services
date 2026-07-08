@@ -46,7 +46,10 @@ class TestTimelineService:
         mock_client_instance.generate_timeline.return_value = []
         mock_ai_client.return_value = mock_client_instance
 
-        request = TimelineRequest(patient_data=SAMPLE_REQUEST_MINIMAL.patient_data)
+        request = TimelineRequest(
+            patient_context=SAMPLE_REQUEST_MINIMAL.patient_context,
+            diagnoses=SAMPLE_REQUEST_MINIMAL.diagnoses,
+        )
         service = TimelineService()
         response = service.process_request(request)
 
