@@ -36,7 +36,7 @@ class TimelineService:
             request_id = request.request_id or f"req_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             logger.info(f"Processing timeline request {request_id}")
 
-            patient_data_dict = request.model_dump(exclude={"request_id"})
+            patient_data_dict = request.patient_data.model_dump()
             logger.info(f"Patient timeline input: {patient_data_dict}")
 
             logger.info("Generating patient timeline with OpenAI...")

@@ -1,15 +1,7 @@
 """Pydantic models for patient timeline request and response schemas."""
-from typing import Any, Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
-from pydantic import (
-    AliasChoices,
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_validator,
-    model_serializer,
-    model_validator,
-)
+from pydantic import BaseModel, Field, field_validator
 
 
 def _strip_required(value: str, field_name: str) -> str:
@@ -51,39 +43,19 @@ EVENT_TYPE_ALIASES = {
 }
 
 
-class PatientContext(BaseModel):
-    """Patient demographic / context details."""
-
-    model_config = ConfigDict(populate_by_name=True)
+class Demographics(BaseModel):
+    """Patient demographic details."""
 
     age: Optional[str] = Field(None, description="Patient age as provided")
-    sex: Optional[str] = Field(
-        None,
-        description="Patient sex/gender",
-        validation_alias=AliasChoices("sex", "gender"),
-    )
-    known_conditions: List[str] = Field(
-        default_factory=list,
-        description="Known patient conditions",
-    )
+    gender: Optional[str] = Field(None, description="Patient gender")
 
-    @field_validator("age", "sex")
+    @field_validator("age", "gender")
     @classmethod
     def normalize_optional_strings(cls, value: Optional[str]) -> Optional[str]:
         """Trim optional strings."""
         if value is None:
             return None
         return value.strip()
-
-    @field_validator("known_conditions")
-    @classmethod
-    def normalize_known_conditions(cls, value: List[str]) -> List[str]:
-        """Trim and drop empty known-condition entries."""
-        return [item.strip() for item in value if item and item.strip()]
-
-
-# Backward-compatible alias for callers still importing the old name.
-Demographics = PatientContext
 
 
 class DiagnosisEntry(BaseModel):
@@ -121,38 +93,23 @@ class MedicationEntry(BaseModel):
             return None
         return value.strip()
 
-    @model_serializer(mode="wrap")
-    def serialize_model(self, handler):
-        """Omit status from output when it wasn't provided, keep end_date."""
-        data = handler(self)
-        if data.get("status") is None:
-            data.pop("status", None)
-        return data
-
 
 class LabResultEntry(BaseModel):
     """Laboratory result record."""
 
-    model_config = ConfigDict(populate_by_name=True)
-
     name: str = Field(..., description="Lab name")
     value: str = Field(..., description="Lab value")
     unit: Optional[str] = Field(None, description="Lab unit")
-    reference_range: Optional[str] = Field(None, description="Lab reference range")
+    date: str = Field(..., description="Lab result date")
     flag: Optional[str] = Field(None, description="Lab result flag")
-    timestamp: str = Field(
-        ...,
-        description="Lab result timestamp",
-        validation_alias=AliasChoices("timestamp", "date"),
-    )
 
-    @field_validator("name", "value", "timestamp")
+    @field_validator("name", "value", "date")
     @classmethod
     def validate_required_strings(cls, value: str, info) -> str:
         """Validate required lab fields."""
         return _strip_required(value, info.field_name)
 
-    @field_validator("unit", "reference_range", "flag")
+    @field_validator("unit", "flag")
     @classmethod
     def normalize_optional_strings(cls, value: Optional[str]) -> Optional[str]:
         """Trim optional strings."""
@@ -255,6 +212,27 @@ class AllergyEntry(BaseModel):
         return _strip_required(value, info.field_name)
 
 
+class PatientDataInput(BaseModel):
+    """Input schema for patient timeline generation."""
+
+    patient_id: str = Field(..., description="Unique patient identifier")
+    demographics: Optional[Demographics] = Field(None, description="Patient demographics")
+    diagnoses: List[DiagnosisEntry] = Field(default_factory=list, description="Diagnoses")
+    medications: List[MedicationEntry] = Field(default_factory=list, description="Medications")
+    lab_results: List[LabResultEntry] = Field(default_factory=list, description="Lab results")
+    vitals: List[VitalEntry] = Field(default_factory=list, description="Vitals")
+    procedures: List[ProcedureEntry] = Field(default_factory=list, description="Procedures")
+    encounters: List[EncounterEntry] = Field(default_factory=list, description="Encounters")
+    notes: List[NoteEntry] = Field(default_factory=list, description="Clinical notes")
+    allergies: List[AllergyEntry] = Field(default_factory=list, description="Allergies")
+
+    @field_validator("patient_id")
+    @classmethod
+    def validate_patient_id(cls, value: str) -> str:
+        """Validate patient identifier."""
+        return _strip_required(value, "patient_id")
+
+
 class TimelineEvent(BaseModel):
     """Single patient timeline event."""
 
@@ -300,73 +278,11 @@ class ProcessingMetadata(BaseModel):
     timeline_event_count: int = Field(..., description="Number of timeline events returned")
 
 
-PATIENT_DATA_LIST_FIELDS = (
-    "diagnoses",
-    "medications",
-    "lab_results",
-    "vitals",
-    "procedures",
-    "encounters",
-    "notes",
-    "allergies",
-)
-
-
 class TimelineRequest(BaseModel):
-    """Request schema for patient timeline generation.
-
-    Canonical (flat) shape:
-        {
-            "request_id": "...",
-            "patient_context": {"age": "...", "sex": "...", "known_conditions": []},
-            "lab_results": [{"name": "...", "value": "...", "unit": "...",
-                              "reference_range": "...", "flag": "...", "timestamp": "..."}],
-            "medications": [{"name": "...", "start_date": "...", "end_date": null}],
-            ... (diagnoses, vitals, procedures, encounters, notes, allergies)
-        }
-
-    For backward compatibility, the legacy nested shape
-    {"request_id": ..., "patient_data": {"patient_id": ..., "demographics": {...}, ...}}
-    is also accepted and adapted into the canonical shape above.
-    """
+    """Request schema for patient timeline generation."""
 
     request_id: Optional[str] = Field(None, description="Optional unique identifier for this request")
-    patient_context: Optional[PatientContext] = Field(None, description="Patient demographic/context details")
-    diagnoses: List[DiagnosisEntry] = Field(default_factory=list, description="Diagnoses")
-    medications: List[MedicationEntry] = Field(default_factory=list, description="Medications")
-    lab_results: List[LabResultEntry] = Field(default_factory=list, description="Lab results")
-    vitals: List[VitalEntry] = Field(default_factory=list, description="Vitals")
-    procedures: List[ProcedureEntry] = Field(default_factory=list, description="Procedures")
-    encounters: List[EncounterEntry] = Field(default_factory=list, description="Encounters")
-    notes: List[NoteEntry] = Field(default_factory=list, description="Clinical notes")
-    allergies: List[AllergyEntry] = Field(default_factory=list, description="Allergies")
-
-    @model_validator(mode="before")
-    @classmethod
-    def adapt_legacy_nested_shape(cls, data: Any) -> Any:
-        """Adapt the legacy {"patient_data": {...}} request shape into the flat, canonical shape."""
-        if not isinstance(data, dict) or "patient_data" not in data:
-            return data
-
-        adapted: Dict[str, Any] = {key: value for key, value in data.items() if key != "patient_data"}
-
-        patient_data = data.get("patient_data") or {}
-        if hasattr(patient_data, "model_dump"):
-            patient_data = patient_data.model_dump()
-        else:
-            patient_data = dict(patient_data)
-
-        demographics = patient_data.get("demographics")
-        if demographics is not None:
-            if hasattr(demographics, "model_dump"):
-                demographics = demographics.model_dump()
-            adapted["patient_context"] = demographics
-
-        for field in PATIENT_DATA_LIST_FIELDS:
-            if field in patient_data:
-                adapted[field] = patient_data[field]
-
-        return adapted
+    patient_data: PatientDataInput = Field(..., description="Patient data to convert to a timeline")
 
 
 class TimelineResponse(BaseModel):

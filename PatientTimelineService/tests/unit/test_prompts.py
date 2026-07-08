@@ -5,7 +5,7 @@ from app.ai.prompts import (
     get_system_prompt,
     get_user_prompt,
 )
-from tests.fixtures.sample_data import SAMPLE_REQUEST_COMPLETE, SAMPLE_REQUEST_MINIMAL
+from tests.fixtures.sample_data import SAMPLE_PATIENT_COMPLETE, SAMPLE_PATIENT_MINIMAL
 
 
 class TestPromptGeneration:
@@ -21,15 +21,16 @@ class TestPromptGeneration:
 
     def test_format_patient_data_minimal(self):
         """Test formatting minimal patient data."""
-        patient_dict = SAMPLE_REQUEST_MINIMAL.model_dump(exclude={"request_id"})
+        patient_dict = SAMPLE_PATIENT_MINIMAL.model_dump()
         formatted = format_patient_data(patient_dict)
 
+        assert "12345" in formatted
         assert "58 years" in formatted
         assert "Hypertension" in formatted
 
     def test_format_patient_data_complete(self):
         """Test formatting complete patient data."""
-        patient_dict = SAMPLE_REQUEST_COMPLETE.model_dump(exclude={"request_id"})
+        patient_dict = SAMPLE_PATIENT_COMPLETE.model_dump()
         formatted = format_patient_data(patient_dict)
 
         assert "Coronary angiography" in formatted
@@ -39,17 +40,17 @@ class TestPromptGeneration:
 
     def test_get_user_prompt_structure(self):
         """Test user prompt structure."""
-        patient_dict = SAMPLE_REQUEST_MINIMAL.model_dump(exclude={"request_id"})
+        patient_dict = SAMPLE_PATIENT_MINIMAL.model_dump()
         prompt = get_user_prompt(patient_dict)
 
         assert isinstance(prompt, str)
         assert "PATIENT DATA" in prompt
         assert "STRICT JSON" in prompt
-        assert "Hypertension" in prompt
+        assert "12345" in prompt
 
     def test_build_timeline_prompt_structure(self):
         """Test complete prompt structure."""
-        patient_dict = SAMPLE_REQUEST_MINIMAL.model_dump(exclude={"request_id"})
+        patient_dict = SAMPLE_PATIENT_MINIMAL.model_dump()
         messages = build_timeline_prompt(patient_dict)
 
         assert isinstance(messages, list)
@@ -61,7 +62,7 @@ class TestPromptGeneration:
 
     def test_prompt_includes_required_instructions(self):
         """Test that prompt includes timeline extraction instructions."""
-        patient_dict = SAMPLE_REQUEST_COMPLETE.model_dump(exclude={"request_id"})
+        patient_dict = SAMPLE_PATIENT_COMPLETE.model_dump()
         prompt = get_user_prompt(patient_dict)
 
         assert "Merge duplicates" in prompt
