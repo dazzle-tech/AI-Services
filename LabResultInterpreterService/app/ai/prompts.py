@@ -68,13 +68,30 @@ def format_patient_context(patient_context: Optional[Dict[str, Any]]) -> str:
     if patient_context.get("patient_id"):
         parts.append(f"Patient ID: {patient_context['patient_id']}")
     if patient_context.get("age") is not None:
-        parts.append(f"Age: {patient_context['age']} years")
+        age_value = patient_context["age"]
+        if isinstance(age_value, (int, float)):
+            parts.append(f"Age: {age_value} years")
+        else:
+            parts.append(f"Age: {age_value}")
     if patient_context.get("sex"):
         parts.append(f"Sex: {patient_context['sex']}")
     if patient_context.get("known_conditions"):
-        parts.append("Known conditions: " + ", ".join(patient_context["known_conditions"]))
+        conditions = [str(condition) for condition in patient_context["known_conditions"] if condition]
+        parts.append("Known conditions: " + ", ".join(conditions))
     if patient_context.get("medications"):
-        parts.append("Medications: " + ", ".join(patient_context["medications"]))
+        meds = []
+        for medication in patient_context["medications"]:
+            if isinstance(medication, str):
+                meds.append(medication)
+            elif isinstance(medication, dict):
+                name = medication.get("name") or medication.get("medication") or medication.get("drug")
+                if name:
+                    meds.append(str(name))
+                else:
+                    meds.append(json.dumps(medication, ensure_ascii=False))
+            else:
+                meds.append(str(medication))
+        parts.append("Medications: " + ", ".join(meds))
     if patient_context.get("clinical_context"):
         parts.append("Clinical context: " + patient_context["clinical_context"])
     return "\n".join(parts) if parts else "None provided."

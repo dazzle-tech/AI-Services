@@ -61,39 +61,67 @@ Interpret lab results with optional patient context and historical comparison.
 
 ```json
 {
-  "request_id": "req-lab-001",
+  "request_id": "bce95302-cfc9-4a76-9cb0-e5013ed2710b",
   "patient_context": {
-    "patient_id": "P-1001",
-    "age": 58,
-    "sex": "male",
-    "known_conditions": ["Type 2 Diabetes", "Hypertension"],
-    "medications": ["Metformin", "Lisinopril"],
-    "clinical_context": "Admitted with fever and shortness of breath"
+    "age": "10 Years 9 Months 7 Days",
+    "sex": "FEMALE",
+    "known_conditions": []
   },
   "lab_results": [
     {
-      "name": "WBC",
-      "value": "18.2",
-      "unit": "10^9/L",
-      "reference_range": "4.0-11.0",
-      "flag": "high",
-      "timestamp": "2026-03-16T08:00:00Z"
-    }
-  ],
-  "historical_lab_results": [
-    {
-      "name": "Creatinine",
-      "value": "1.0",
-      "unit": "mg/dL",
-      "flag": "normal",
-      "timestamp": "2026-03-14T08:00:00Z"
+      "name": "CBC2",
+      "value": "Days",
+      "unit": "",
+      "reference_range": "Hours",
+      "flag": "abnormal_marker",
+      "timestamp": "2026-04-20T13:31:12.799330Z"
     },
     {
-      "name": "Creatinine",
-      "value": "1.8",
-      "unit": "mg/dL",
-      "flag": "high",
-      "timestamp": "2026-03-16T08:00:00Z"
+      "name": "CBC1",
+      "value": "25.00",
+      "unit": "Ratio",
+      "reference_range": "5.0 - 10.0",
+      "flag": "critical_upper",
+      "timestamp": "2026-04-20T13:31:06.908451Z"
+    },
+    {
+      "name": "CBC2",
+      "value": "Hours",
+      "unit": "",
+      "reference_range": "Hours",
+      "flag": "normal_marker",
+      "timestamp": "2026-05-03T07:16:54.051299Z"
+    },
+    {
+      "name": "CBC1",
+      "value": "4.00",
+      "unit": "Ratio",
+      "reference_range": "5.0 - 10.0",
+      "flag": "lower_limit",
+      "timestamp": "2026-05-03T07:16:51.752292Z"
+    },
+    {
+      "name": "فحص دم",
+      "value": "8.00",
+      "unit": "INR",
+      "reference_range": " ",
+      "flag": "unknown",
+      "timestamp": "2026-06-10T13:24:19.517946Z"
+    },
+    {
+      "name": "cc",
+      "value": "8.00",
+      "unit": "INR",
+      "reference_range": " ",
+      "flag": "unknown",
+      "timestamp": "2026-06-10T13:24:15.933330Z"
+    }
+  ],
+  "medications": [
+    {
+      "name": "nexium",
+      "start_date": "2026-07-07T21:00:00.000Z",
+      "end_date": null
     }
   ]
 }

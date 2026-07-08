@@ -1,5 +1,5 @@
 """Pydantic models for request and response schemas."""
-from typing import Optional, Dict, List, Any
+from typing import Optional, Dict, List, Any, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -8,10 +8,13 @@ class PatientContext(BaseModel):
     """Optional patient context for interpretation."""
 
     patient_id: Optional[str] = Field(None, description="Patient identifier")
-    age: Optional[int] = Field(None, description="Patient age in years")
+    age: Optional[Union[int, str]] = Field(None, description="Patient age in years or a free-text age description")
     sex: Optional[str] = Field(None, description="Patient sex (e.g., male, female)")
     known_conditions: List[str] = Field(default_factory=list, description="Known medical conditions")
-    medications: List[str] = Field(default_factory=list, description="Current medications")
+    medications: List[Union[str, Dict[str, Any]]] = Field(
+        default_factory=list,
+        description="Current medications as names or structured medication objects"
+    )
     clinical_context: Optional[str] = Field(None, description="Clinical presentation or context")
 
 
@@ -31,6 +34,10 @@ class LabInterpretationRequest(BaseModel):
 
     request_id: Optional[str] = Field(None, description="Optional unique identifier for this request")
     patient_context: Optional[PatientContext] = Field(None, description="Optional patient context")
+    medications: List[Union[str, Dict[str, Any]]] = Field(
+        default_factory=list,
+        description="Current medications as names or structured medication objects"
+    )
     lab_results: List[LabResultItem] = Field(
         default_factory=list,
         description="Current lab results to interpret"
@@ -39,6 +46,27 @@ class LabInterpretationRequest(BaseModel):
         default_factory=list,
         description="Historical lab results for trend analysis"
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_top_level_medications(cls, data: Any) -> Any:
+        """Copy top-level medications into patient_context when provided."""
+        if isinstance(data, dict):
+            normalized = dict(data)
+            medications = normalized.get("medications")
+            patient_context = normalized.get("patient_context")
+
+            if medications and isinstance(medications, list) and not patient_context:
+                normalized["patient_context"] = {"medications": medications}
+            elif medications and isinstance(medications, list) and isinstance(patient_context, dict):
+                normalized_patient_context = dict(patient_context)
+                if not normalized_patient_context.get("medications"):
+                    normalized_patient_context["medications"] = medications
+                    normalized["patient_context"] = normalized_patient_context
+
+            return normalized
+
+        return data
 
     @field_validator("lab_results")
     @classmethod
