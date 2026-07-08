@@ -60,6 +60,25 @@ class TestPatientContext:
         assert ctx.known_conditions == []
         assert ctx.medications == []
 
+    def test_context_accepts_string_age_and_medication_objects(self):
+        """Test patient context accepts string age values and medication objects."""
+        ctx = PatientContext(
+            age="10 Years 9 Months 7 Days",
+            sex="FEMALE",
+            known_conditions=[],
+            medications=[
+                {
+                    "name": "nexium",
+                    "start_date": "2026-07-07T21:00:00.000Z",
+                    "end_date": None,
+                }
+            ],
+        )
+        assert ctx.age == "10 Years 9 Months 7 Days"
+        assert ctx.sex == "FEMALE"
+        assert len(ctx.medications) == 1
+        assert ctx.medications[0]["name"] == "nexium"
+
 
 class TestLabInterpretationRequest:
     """Test LabInterpretationRequest schema."""
@@ -92,6 +111,22 @@ class TestLabInterpretationRequest:
         )
         assert len(req.lab_results) == 1
         assert len(req.historical_lab_results) == 2
+
+    def test_request_accepts_top_level_medications(self):
+        """Test that top-level medications are accepted and copied into patient context."""
+        req = LabInterpretationRequest(
+            request_id="req-004",
+            medications=[
+                {
+                    "name": "nexium",
+                    "start_date": "2026-07-07T21:00:00.000Z",
+                    "end_date": None,
+                }
+            ],
+            lab_results=[LabResultItem(name="CBC1", value="4.00")],
+        )
+        assert req.patient_context is not None
+        assert req.patient_context.medications[0]["name"] == "nexium"
 
     def test_lab_results_required(self):
         """Test that lab_results is required and cannot be empty."""

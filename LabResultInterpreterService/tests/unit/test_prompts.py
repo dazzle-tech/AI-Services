@@ -40,6 +40,25 @@ class TestPromptGeneration:
         assert "Diabetes" in formatted or "Hypertension" in formatted
         assert "Metformin" in formatted
 
+    def test_format_patient_context_supports_string_age_and_medication_objects(self):
+        """Test formatting supports string age values and medication objects."""
+        ctx = {
+            "age": "10 Years 9 Months 7 Days",
+            "sex": "FEMALE",
+            "known_conditions": [],
+            "medications": [
+                {
+                    "name": "nexium",
+                    "start_date": "2026-07-07T21:00:00.000Z",
+                    "end_date": None,
+                }
+            ],
+        }
+        formatted = format_patient_context(ctx)
+        assert "10 Years 9 Months 7 Days" in formatted
+        assert "FEMALE" in formatted
+        assert "nexium" in formatted
+
     def test_format_lab_results_empty(self):
         """Test formatting empty lab results."""
         formatted = format_lab_results([], "Current labs")
