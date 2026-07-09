@@ -10,12 +10,38 @@ class PatientContext(BaseModel):
     patient_id: Optional[str] = Field(None, description="Patient identifier")
     age: Optional[Union[int, str]] = Field(None, description="Patient age in years or a free-text age description")
     sex: Optional[str] = Field(None, description="Patient sex (e.g., male, female)")
-    known_conditions: List[str] = Field(default_factory=list, description="Known medical conditions")
+    known_conditions: List[Union[str, Dict[str, Any]]] = Field(
+        default_factory=list,
+        description="Known medical conditions as strings or structured condition objects"
+    )
     medications: List[Union[str, Dict[str, Any]]] = Field(
         default_factory=list,
         description="Current medications as names or structured medication objects"
     )
     clinical_context: Optional[str] = Field(None, description="Clinical presentation or context")
+
+    @field_validator("known_conditions", mode="before")
+    @classmethod
+    def normalize_known_conditions(cls, value: Any) -> Any:
+        """Accept structured condition objects and normalize them into readable strings."""
+        if not isinstance(value, list):
+            return value
+
+        normalized: List[Union[str, Dict[str, Any]]] = []
+        for item in value:
+            if isinstance(item, str):
+                normalized.append(item)
+            elif isinstance(item, dict):
+                name = item.get("name") or item.get("condition") or item.get("text")
+                date_value = item.get("date") or item.get("onset_date") or item.get("diagnosed_on")
+                if isinstance(name, str) and name.strip():
+                    normalized.append(f"{name} ({date_value})" if date_value else name)
+                else:
+                    normalized.append(str(item))
+            else:
+                normalized.append(str(item))
+
+        return normalized
 
 
 class LabResultItem(BaseModel):

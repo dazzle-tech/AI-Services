@@ -79,6 +79,20 @@ class TestPatientContext:
         assert len(ctx.medications) == 1
         assert ctx.medications[0]["name"] == "nexium"
 
+    def test_context_accepts_condition_objects_in_known_conditions(self):
+        """Test patient context accepts structured condition objects in known_conditions."""
+        ctx = PatientContext(
+            age=10,
+            sex="FEMALE",
+            known_conditions=[
+                {"name": "Other specified bursopathies (M71.8)", "date": "2026-04-20"},
+                {"name": "Calcium deposit in bursa (M71.4)", "date": "2026-05-04"},
+            ],
+        )
+        assert len(ctx.known_conditions) == 2
+        assert ctx.known_conditions[0] == "Other specified bursopathies (M71.8) (2026-04-20)"
+        assert ctx.known_conditions[1] == "Calcium deposit in bursa (M71.4) (2026-05-04)"
+
 
 class TestLabInterpretationRequest:
     """Test LabInterpretationRequest schema."""

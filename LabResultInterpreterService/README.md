@@ -61,11 +61,29 @@ Interpret lab results with optional patient context and historical comparison.
 
 ```json
 {
-  "request_id": "bce95302-cfc9-4a76-9cb0-e5013ed2710b",
+  "request_id": "d54bef27-142d-4cef-ada8-5bdc2099c9e9",
   "patient_context": {
-    "age": "10 Years 9 Months 7 Days",
+    "age": 10,
     "sex": "FEMALE",
-    "known_conditions": []
+    "known_conditions": [
+      {
+        "name": "Other specified bursopathies (M71.8)",
+        "date": "2026-04-20"
+      },
+      {
+        "name": "Calcium deposit in bursa (M71.4)",
+        "date": "2026-04-29"
+      },
+      {
+        "name": "Calcium deposit in bursa (M71.4)",
+        "date": "2026-05-04"
+      },
+      {
+        "name": "Calcium deposit in bursa (M71.4)",
+        "date": "2026-05-04"
+      }
+    ],
+    "clinical_context": "Other specified bursopathies (M71.8), Calcium deposit in bursa (M71.4)"
   },
   "lab_results": [
     {
