@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_DISCLAIMER = "This output is interpretation support and not a diagnosis."
 VALID_SEVERITIES = {"low", "moderate", "high", "critical"}
 VALID_DIRECTIONS = {"rising", "falling", "stable"}
+NORMALCY_CLAIM_PATTERN = re.compile(
+    r"\b(within (the )?(normal |reference )?range|within (normal )?limits|"
+    r"normal (range|level|result|value)s?|unremarkable|reassuring|"
+    r"no(t)? (a )?concern(ing)?|nothing concerning)\b",
+    re.IGNORECASE,
+)
+NORMAL_FLAG_KEYWORDS = ("normal", "in_range", "within_range", "within_limits")
 
 
 class LabInterpreterService:
@@ -165,7 +172,12 @@ class LabInterpreterService:
             elif isinstance(candidate, str):
                 finding_text = candidate
 
-            match = self._find_best_lab_match(lab_name, finding_text, current_records, all_records)
+            candidate_timestamp = (
+                self._coerce_text(candidate.get("timestamp")) if isinstance(candidate, dict) else None
+            )
+            match = self._find_best_lab_match(
+                lab_name, finding_text, current_records, all_records, timestamp_hint=candidate_timestamp
+            )
             if not match and not lab_name:
                 continue
 
@@ -173,28 +185,73 @@ class LabInterpreterService:
             if not finding_text and match:
                 finding_text = self._build_finding_text(match)
 
+            resolved_lab_name = lab_name or (match or {}).get("name")
+            resolved_value = self._first_non_empty(
+                self._coerce_text(candidate.get("value")) if isinstance(candidate, dict) else None,
+                (match or {}).get("value"),
+            )
+            resolved_unit = self._first_non_empty(
+                self._coerce_text(candidate.get("unit")) if isinstance(candidate, dict) else None,
+                (match or {}).get("unit"),
+            )
+            resolved_reference_range = self._first_non_empty(
+                self._coerce_text(candidate.get("reference_range")) if isinstance(candidate, dict) else None,
+                (match or {}).get("reference_range"),
+            )
+            resolved_flag = self._first_non_empty(
+                self._coerce_text(candidate.get("flag")) if isinstance(candidate, dict) else None,
+                (match or {}).get("flag"),
+            )
+            resolved_timestamp = self._first_non_empty(
+                self._coerce_text(candidate.get("timestamp")) if isinstance(candidate, dict) else None,
+                (match or {}).get("timestamp"),
+            )
+
+            # Guard against the model writing a finding sentence that cites a
+            # different timestamped record of the same lab (e.g. two CBC1
+            # entries where the narrative text for both mentions only one
+            # of the two values). Structured fields are preserved as-is;
+            # only the free-text sentence is rebuilt when it conflicts.
+            if self._finding_text_cites_sibling_value(
+                finding_text, resolved_lab_name, resolved_value, current_records, all_records
+            ):
+                finding_text = self._build_finding_text({
+                    "name": resolved_lab_name,
+                    "value": resolved_value,
+                    "unit": resolved_unit,
+                    "reference_range": resolved_reference_range,
+                    "flag": resolved_flag,
+                })
+
+            # Guard against the model asserting a value is "within range" /
+            # "normal" / "unremarkable" when the record has no reference
+            # range to compare against and no resolved flag supporting that —
+            # an unsupported reassurance is worse than no comment at all.
+            resolved_record_for_check = {
+                "reference_range": resolved_reference_range,
+                "flag": resolved_flag,
+            }
+            checked_finding_text = self._strip_unsupported_normalcy_claim(
+                finding_text, [resolved_record_for_check]
+            )
+            if checked_finding_text is None:
+                finding_text = self._build_finding_text({
+                    "name": resolved_lab_name,
+                    "value": resolved_value,
+                    "unit": resolved_unit,
+                    "reference_range": resolved_reference_range,
+                    "flag": resolved_flag,
+                })
+            else:
+                finding_text = checked_finding_text
+
             normalized.append({
-                "lab_name": lab_name or (match or {}).get("name"),
-                "value": self._first_non_empty(
-                    self._coerce_text(candidate.get("value")) if isinstance(candidate, dict) else None,
-                    (match or {}).get("value"),
-                ),
-                "unit": self._first_non_empty(
-                    self._coerce_text(candidate.get("unit")) if isinstance(candidate, dict) else None,
-                    (match or {}).get("unit"),
-                ),
-                "reference_range": self._first_non_empty(
-                    self._coerce_text(candidate.get("reference_range")) if isinstance(candidate, dict) else None,
-                    (match or {}).get("reference_range"),
-                ),
-                "flag": self._first_non_empty(
-                    self._coerce_text(candidate.get("flag")) if isinstance(candidate, dict) else None,
-                    (match or {}).get("flag"),
-                ),
-                "timestamp": self._first_non_empty(
-                    self._coerce_text(candidate.get("timestamp")) if isinstance(candidate, dict) else None,
-                    (match or {}).get("timestamp"),
-                ),
+                "lab_name": resolved_lab_name,
+                "value": resolved_value,
+                "unit": resolved_unit,
+                "reference_range": resolved_reference_range,
+                "flag": resolved_flag,
+                "timestamp": resolved_timestamp,
                 "finding": finding_text,
             })
 
@@ -231,6 +288,16 @@ class LabInterpreterService:
             direction = self._normalize_direction(candidate.get("direction"), from_record, to_record)
             if not summary:
                 summary = self._build_trend_summary(lab_name, direction, from_record, to_record)
+
+            # If the model asserted the value is "within range" / "normal" /
+            # "unremarkable" but the underlying records have no reference
+            # range to compare against and no explicit normal flag, that
+            # claim isn't grounded in the input data — rebuild deterministically.
+            checked_summary = self._strip_unsupported_normalcy_claim(summary, [from_record, to_record])
+            if checked_summary is None:
+                summary = self._build_trend_summary(lab_name, direction, from_record, to_record)
+            else:
+                summary = checked_summary
 
             normalized.append({
                 "lab_name": lab_name,
@@ -299,30 +366,59 @@ class LabInterpreterService:
         text: Optional[str],
         current_records: List[Dict[str, Any]],
         all_records: List[Dict[str, Any]],
+        timestamp_hint: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         normalized_name = self._normalize_lab_name(lab_name)
         if normalized_name:
             current_matches = self._records_for_lab(normalized_name, current_records, by_normalized_name=True)
             if current_matches:
-                return self._order_records(current_matches)[-1]
+                return self._select_record(current_matches, timestamp_hint)
 
             all_matches = self._records_for_lab(normalized_name, all_records, by_normalized_name=True)
             if all_matches:
-                return self._order_records(all_matches)[-1]
+                return self._select_record(all_matches, timestamp_hint)
 
         extracted_name = self._extract_lab_name_from_text(text, current_records)
         if extracted_name:
             matches = self._records_for_lab(extracted_name, current_records)
             if matches:
-                return self._order_records(matches)[-1]
+                return self._select_record(matches, timestamp_hint)
 
         extracted_name = self._extract_lab_name_from_text(text, all_records)
         if extracted_name:
             matches = self._records_for_lab(extracted_name, all_records)
             if matches:
-                return self._order_records(matches)[-1]
+                return self._select_record(matches, timestamp_hint)
 
         return None
+
+    def _select_record(
+        self,
+        records: List[Dict[str, Any]],
+        timestamp_hint: Optional[str],
+    ) -> Dict[str, Any]:
+        """Pick a single record out of several same-named matches.
+
+        If a usable timestamp hint is provided (e.g. the timestamp the model
+        itself attached to this finding), prefer whichever candidate record is
+        closest to it in time, since multiple lab results can share a name but
+        differ by date. Otherwise fall back to the most recent record, which
+        preserves prior behavior when no hint is available.
+        """
+        ordered = self._order_records(records)
+        if len(ordered) == 1:
+            return ordered[0]
+
+        hint_dt = self._parse_timestamp(timestamp_hint)
+        if hint_dt is not None:
+            timestamped = [r for r in ordered if r.get("_parsed_timestamp") is not None]
+            if timestamped:
+                return min(
+                    timestamped,
+                    key=lambda r: abs((r["_parsed_timestamp"] - hint_dt).total_seconds()),
+                )
+
+        return ordered[-1]
 
     def _records_for_lab(
         self,
@@ -372,6 +468,80 @@ class LabInterpreterService:
         if to_value < from_value:
             return "falling"
         return "stable"
+
+    def _finding_text_cites_sibling_value(
+        self,
+        finding_text: Optional[str],
+        lab_name: Optional[str],
+        resolved_value: Optional[str],
+        current_records: List[Dict[str, Any]],
+        all_records: List[Dict[str, Any]],
+    ) -> bool:
+        """Detect when the model's free-text finding names a numeric value that
+        belongs to a different timestamped record of the same lab, rather than
+        the value actually attached to this finding."""
+        if not finding_text or not lab_name or not resolved_value:
+            return False
+
+        resolved_num = self._to_float(resolved_value)
+        if resolved_num is None:
+            return False
+
+        mentioned_numbers = {self._to_float(n) for n in re.findall(r"-?\d+\.?\d*", finding_text)}
+        mentioned_numbers.discard(None)
+        if not mentioned_numbers or resolved_num in mentioned_numbers:
+            return False
+
+        normalized_target = self._normalize_lab_name(lab_name)
+        sibling_values = {
+            self._to_float(record.get("value"))
+            for record in current_records + all_records
+            if self._normalize_lab_name(record.get("name")) == normalized_target
+        }
+        sibling_values.discard(None)
+        sibling_values.discard(resolved_num)
+
+        return bool(mentioned_numbers & sibling_values)
+
+    def _has_reference_range(self, record: Optional[Dict[str, Any]]) -> bool:
+        if not record:
+            return False
+        text = record.get("reference_range")
+        return bool(text and str(text).strip())
+
+    def _flag_indicates_normal(self, record: Optional[Dict[str, Any]]) -> bool:
+        if not record:
+            return False
+        flag = (record.get("flag") or "").strip().lower()
+        if not flag or flag in ("unknown", "n/a", "none"):
+            return False
+        return any(keyword in flag for keyword in NORMAL_FLAG_KEYWORDS)
+
+    def _normalcy_claim_is_supported(self, records: List[Optional[Dict[str, Any]]]) -> bool:
+        """A 'within range' / 'normal' claim is only supportable when at least
+        one underlying record actually has a reference range to compare
+        against, or an explicit normal-type flag. A blank reference_range and
+        an unresolved flag (e.g. "unknown") give no basis for that claim."""
+        return any(
+            self._has_reference_range(record) or self._flag_indicates_normal(record)
+            for record in records
+            if record
+        )
+
+    def _strip_unsupported_normalcy_claim(
+        self,
+        text: Optional[str],
+        records: List[Optional[Dict[str, Any]]],
+    ) -> Optional[str]:
+        """Return None if `text` asserts normalcy ("within range", "normal",
+        "unremarkable", etc.) that the underlying records don't actually
+        support, signaling the caller to rebuild the text deterministically.
+        Returns `text` unchanged otherwise."""
+        if not text or not NORMALCY_CLAIM_PATTERN.search(text):
+            return text
+        if self._normalcy_claim_is_supported(records):
+            return text
+        return None
 
     def _build_finding_text(self, record: Dict[str, Any]) -> str:
         name = record.get("name") or "This lab"
