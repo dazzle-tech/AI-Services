@@ -4,7 +4,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from openai import OpenAI
 from app.core.config import settings
-from app.core.constants import UserRole, SupportedLanguage
+from app.core.constants import SupportedLanguage
 from app.ai.prompts import build_complete_prompt
 
 logger = logging.getLogger(__name__)
@@ -33,8 +33,6 @@ class AIClient:
         self,
         user_text: str,
         patient_data: Dict[str, Any],
-        user_role: UserRole,
-        department: str,
         expected_fields: List[str],
         input_language: SupportedLanguage,
         output_language: SupportedLanguage,
@@ -51,8 +49,6 @@ class AIClient:
             messages = build_complete_prompt(
                 user_text=user_text,
                 patient_data=patient_data,
-                user_role=user_role,
-                department=department,
                 expected_fields=expected_fields,
                 input_language=input_language,
                 output_language=output_language

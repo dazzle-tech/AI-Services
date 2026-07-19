@@ -1,15 +1,15 @@
 """Chat API routes."""
+import os
 import time
 import logging
 import sys
-import os
 from pathlib import Path
-from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from app.models.schemas import ChatRequest, ChatResponse
 from app.services.chat_orchestrator import ChatOrchestratorService
 from app.services.session_memory import SessionMemoryService
-from app.infrastructure.config.access_control_repo import AccessControlRepository
+from app.services.identity import get_identity_resolver
+from app.services.rate_limiter import get_rate_limiter
 
 logger = logging.getLogger(__name__)
 # Ensure logger propagates to root logger (which has file handler)
@@ -22,26 +22,29 @@ router = APIRouter()
 # Initialize services
 _orchestrator = ChatOrchestratorService()
 _session_memory = SessionMemoryService()
-_access_control = AccessControlRepository()
+_identity_resolver = get_identity_resolver()
+_rate_limiter = get_rate_limiter()
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest) -> ChatResponse:
+def chat(request: Request, req: ChatRequest) -> ChatResponse:
     """Main chat endpoint."""
     raw_message = (req.message or "").strip()
     if not raw_message:
         raise HTTPException(status_code=400, detail="Empty message.")
-    
-    user_id = req.user_id or "default_user"
-    role = req.role or _access_control.get_user_role(user_id)
+
+    resolved = _identity_resolver.resolve_from_web(request, user_id_hint=req.user_id)
+    _rate_limiter.check(resolved.user_id, channel=resolved.channel)
     session_id = req.session_id or f"session_{int(time.time())}"
+    user_id = resolved.user_id
+    role = resolved.role
     
     # Force log to ensure visibility - write directly to file as backup
     try:
         # Calculate path: chat.py is in chatbot/app/api/routes/, need to go up 3 levels to chatbot/
         log_file = Path(__file__).parent.parent.parent / "orchestrator.log"
         with open(log_file, 'a', encoding='utf-8') as f:
-            f.write(f"\n[{time.time()}] [ROUTE] /chat called: message='{raw_message}', user_id={user_id}\n")
+            f.write(f"\n[{time.time()}] [ROUTE] /chat called: message='{raw_message}', user_id={user_id}, channel={resolved.channel}\n")
             f.flush()
             os.fsync(f.fileno())  # Force write to disk
     except Exception as e:
@@ -75,7 +78,7 @@ def chat(req: ChatRequest) -> ChatResponse:
 
 
 @router.post("/chat_crewai", response_model=ChatResponse)
-def chat_crewai(req: ChatRequest) -> ChatResponse:
+def chat_crewai(request: Request, req: ChatRequest) -> ChatResponse:
     """CrewAI-powered chat endpoint."""
     from app.crewai.crew import build_medai_crew
     from app.infrastructure.db.audit_repo import AuditRepository
@@ -83,10 +86,12 @@ def chat_crewai(req: ChatRequest) -> ChatResponse:
     raw_message = (req.message or "").strip()
     if not raw_message:
         raise HTTPException(status_code=400, detail="Empty message.")
-    
-    user_id = req.user_id or "default_user"
-    role = req.role or _access_control.get_user_role(user_id)
+
+    resolved = _identity_resolver.resolve_from_web(request, user_id_hint=req.user_id)
+    _rate_limiter.check(resolved.user_id, channel=resolved.channel)
     session_id = req.session_id or f"session_{int(time.time())}"
+    user_id = resolved.user_id
+    role = resolved.role
     
     audit_repo = AuditRepository()
     interaction_id = audit_repo.insert_interaction(
@@ -100,7 +105,7 @@ def chat_crewai(req: ChatRequest) -> ChatResponse:
     )
     
     try:
-        crew = build_medai_crew(raw_message, user_id)
+        crew = build_medai_crew(raw_message, user_id, role)
         result = crew.kickoff(inputs={"message": raw_message, "user_id": user_id, "role": role})
         reply = str(result)
         audit_repo.update_interaction(interaction_id, reply_text=reply, row_count=0)

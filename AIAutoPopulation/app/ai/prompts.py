@@ -1,11 +1,9 @@
 """Prompt templates for AI model interactions."""
 from typing import Dict, Any, List
-from app.core.constants import UserRole, SupportedLanguage
+from app.core.constants import SupportedLanguage
 
 
 def get_system_prompt(
-    user_role: UserRole,
-    department: str,
     expected_fields: List[str],
     input_language: SupportedLanguage,
     output_language: SupportedLanguage,
@@ -24,17 +22,9 @@ Rules:
 - Use path notation for flags: vitals.temp, vitals.rr, etc.
 - Return valid JSON with ONLY vitals in structured_fields"""
     
-    role_context = {
-        UserRole.DOCTOR: "You are extracting data for a physician. All clinical fields are accessible.",
-        UserRole.NURSE: "You are extracting data for a nurse. Some restricted fields (diagnosis, procedures) should not be included.",
-        UserRole.ADMIN: "You are extracting data for an administrator. Only basic documentation fields are accessible."
-    }
-    
     return f"""You are a medical AI assistant specialized in extracting structured clinical data from free-text clinical documentation.
 
 CONTEXT:
-- User Role: {user_role.value} ({role_context.get(user_role, '')})
-- Department: {department}
 - Input Language: {input_language.value}
 - Output Language: {output_language.value}
 - Expected Output Fields: {', '.join(expected_fields)}
@@ -165,8 +155,6 @@ INSTRUCTIONS:
 def build_complete_prompt(
     user_text: str,
     patient_data: Dict[str, Any],
-    user_role: UserRole,
-    department: str,
     expected_fields: List[str],
     input_language: SupportedLanguage,
     output_language: SupportedLanguage,
@@ -177,7 +165,7 @@ def build_complete_prompt(
         {
             "role": "system",
             "content": get_system_prompt(
-                user_role, department, expected_fields, input_language, output_language, vitals_only
+                expected_fields, input_language, output_language, vitals_only
             )
         },
         {"role": "user", "content": get_user_prompt(user_text, patient_data, vitals_only)}

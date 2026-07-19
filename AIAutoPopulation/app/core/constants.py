@@ -2,13 +2,6 @@
 from enum import Enum
 
 
-class UserRole(str, Enum):
-    """User roles with access levels."""
-    DOCTOR = "doctor"
-    NURSE = "nurse"
-    ADMIN = "admin"
-
-
 class TaskType(str, Enum):
     """Supported task types."""
     AUTO_POPULATION = "auto_population"
@@ -24,11 +17,4 @@ class SupportedLanguage(str, Enum):
     FR = "fr"
     DE = "de"
 
-
-# Role-based field access restrictions
-ROLE_FIELD_RESTRICTIONS = {
-    UserRole.DOCTOR: [],  # Doctors can access all fields
-    UserRole.NURSE: ["diagnosis", "procedures"],  # Nurses cannot access these
-    UserRole.ADMIN: ["diagnosis", "medications", "procedures", "vitals"]  # Admins have limited access
-}
 

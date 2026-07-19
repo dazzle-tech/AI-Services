@@ -23,7 +23,7 @@ auto_population_service_v2 = AutoPopulationServiceV2()
     description="""
     Extracts structured medical data from clinician free-text input.
     Cross-checks extracted data against onsite patient records.
-    Returns safe, auditable, role-aware JSON output.
+    Returns safe, auditable JSON output.
     """
 )
 async def auto_populate(request: AutoPopulationRequest) -> AutoPopulationResponse:

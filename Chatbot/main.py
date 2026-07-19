@@ -40,6 +40,13 @@ SERVICES = [
         "default_port": 8020,
     },
     {
+        "name": "whatsapp_adapter",
+        "script": BASE_DIR / "runners" / "main_whatsapp.py",
+        "port_env": "WHATSAPP_ADAPTER_PORT",
+        "host_env": "API_HOST",
+        "default_port": 8021,
+    },
+    {
         "name": "frontend",
         "script": BASE_DIR / "runners" / "main_frontend.py",
         "port_env": "FRONTEND_PORT",

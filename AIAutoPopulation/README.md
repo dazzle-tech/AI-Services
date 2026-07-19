@@ -1,12 +1,11 @@
 # AI Auto-Population Service
 
-A production-ready backend service for extracting structured medical data from clinician free-text input, with cross-checking against patient records and role-based access control.
+A production-ready backend service for extracting structured medical data from clinician free-text input, with cross-checking against patient records.
 
 ## Features
 
 - **Structured Data Extraction**: Extracts medical data (diagnoses, medications, vitals, procedures, etc.) from free-text clinical documentation
 - **Safety First**: Never hallucinates medical data, flags uncertainties, and identifies contradictions
-- **Role-Based Access**: Respects user roles (doctor, nurse, admin) with appropriate field restrictions
 - **Audit Trail**: Complete source trace for all extracted data
 - **Validation**: Strict JSON validation and field checking
 - **Decision Support Only**: Provides structured data extraction, no autonomous medical decisions
@@ -83,11 +82,6 @@ Extracts structured medical data from free-text input.
 {
   "request_id": "req_123",
   "task_type": "auto_population",
-  "user": {
-    "user_id": "u_12345",
-    "role": "doctor",
-    "department": "cardiology"
-  },
   "languages": {
     "input": "en",
     "output": "en"
@@ -146,14 +140,7 @@ Extracts structured medical data from free-text input.
 1. **No Hallucination**: Only extracts data explicitly mentioned in input
 2. **Uncertainty Flags**: Flags fields where evidence is insufficient
 3. **Contradiction Detection**: Identifies mismatches between user text and patient records
-4. **Role Restrictions**: Limits accessible fields based on user role
-5. **Source Trace**: Tracks origin of every extracted field
-
-## Role-Based Access
-
-- **Doctor**: Access to all fields
-- **Nurse**: Restricted from diagnosis and procedures
-- **Admin**: Limited to basic documentation fields
+4. **Source Trace**: Tracks origin of every extracted field
 
 ## Development
 

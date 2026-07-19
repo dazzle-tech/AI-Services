@@ -1,9 +1,19 @@
 # medai_crewai_crew.py
+import json
+import logging
 import os
 from typing import Optional
+
 from crewai import Agent, Task, Crew, Process, LLM
 from app.core.config import settings
-from app.crewai.tools import SQLGenTool, ValidatorTool, FormatterTool
+from app.crewai.tools import (
+    SQLGenTool,
+    ValidatorTool,
+    FormatterTool,
+    DraftPrescriptionTool,
+    SubmitPrescriptionTool,
+    get_tools_for_role,
+)
 
 # Use OpenAI as the LLM provider for CrewAI
 # Configure based on settings
@@ -21,10 +31,21 @@ else:
         temperature=0.2,
     )
 
+logger = logging.getLogger(__name__)
+
 # Shared tools that talk to your FastAPI microservices
 sql_tool = SQLGenTool()
 validator_tool = ValidatorTool()
 formatter_tool = FormatterTool()
+
+# Advanced write tools
+try:
+    draft_prescription_tool = DraftPrescriptionTool()
+    submit_prescription_tool = SubmitPrescriptionTool()
+except Exception as e:
+    logger.warning("⚠️ Failed to initialize prescription tools: %s", e)
+    draft_prescription_tool = None
+    submit_prescription_tool = None
 
 # Agent 1: planner / triage
 planner_agent = Agent(
@@ -60,83 +81,82 @@ db_agent = Agent(
     allow_delegation=False,
 )
 
+# Agent 3: Prescription assistant (role-gated)
+prescription_agent = Agent(
+    role="Prescription Assistant",
+    goal=(
+        "Help clinical users draft and submit prescriptions safely. "
+        "Only use prescription tools when the user explicitly requests a new order or prescription."
+    ),
+    backstory=(
+        "You are a clinical prescription assistant. You never submit medications without explicit confirmation. "
+        "If the user asks to draft a prescription, create a draft. If they want to submit, require a confirmation token."
+    ),
+    tools=[tool for tool in [draft_prescription_tool, submit_prescription_tool] if tool],
+    llm=llm,
+    allow_delegation=False,
+)
+
 def build_medai_crew(
-    user_message: str, 
-    user_id: str, 
+    user_message: str,
+    user_id: str,
+    role: str,
     enhanced_query: Optional[str] = None,
     entities: Optional[dict] = None,
-    is_specific: bool = False
+    is_specific: bool = False,
 ) -> Crew:
     """
     Build a CrewAI pipeline for a single user message.
 
-    - planner_agent: decides if it's data or just chat, and if data,
-      rewrites the question clearly.
-    - db_agent: uses the SQL generator, validator, and formatter tools
-      to actually query hospital.db and summarize the results.
-
-    Args:
-        user_message: Original user message
-        user_id: User ID
-        enhanced_query: Enhanced query with context (optional)
-        entities: Extracted entities (optional)
-        is_specific: Whether query is about a specific patient (optional)
-
-    Returns:
-        Crew instance ready to execute
+    The crew uses role-aware tool availability and enforces confirmation for
+    protected write actions.
     """
-    # Build context string for the planner
     context_parts = [f"User message: {user_message}"]
-    
     if enhanced_query:
         context_parts.append(f"\nEnhanced context: {enhanced_query}")
-    
     if entities:
-        import json
         context_parts.append(f"\nExtracted entities: {json.dumps(entities, ensure_ascii=False)}")
-    
+
     if is_specific:
-        context_parts.append("\n⚠️ IMPORTANT: This query is about a SPECIFIC patient. Use medical_record_number (MRN) if provided in entities.")
+        context_parts.append(
+            "\n⚠️ IMPORTANT: This query is about a SPECIFIC patient. Use medical_record_number (MRN) if provided in entities."
+        )
     else:
-        context_parts.append("\n⚠️ IMPORTANT: This is a GENERAL query (not about a specific patient). Do NOT restrict by MRN unless explicitly requested.")
-    
+        context_parts.append(
+            "\n⚠️ IMPORTANT: This is a GENERAL query (not about a specific patient). Do NOT restrict by MRN unless explicitly requested."
+        )
+
     context = "\n".join(context_parts)
-    
-    # Task 1: planner decides how to phrase the DB question
+
     plan_task = Task(
         description=(
             f"{context}\n\n"
-            "If this is NOT a data question (for example, a casual greeting), "
-            "just answer the user directly and STOP.\n"
-            "If it IS a data question, return ONLY a short, clear text "
-            "that describes the data to fetch (who/what/when) in one paragraph. "
-            "Use MRNs if they are provided in the entities."
+            "If this is NOT a data question, just answer directly and STOP.\n"
+            "If it IS a data question, rewrite it into a clear query that can be converted into SQL.\n"
+            "If the user is requesting a prescription, route to the prescription tools with the required patient MRN and medication details."
         ),
         agent=planner_agent,
-        expected_output="A clear, concise text description of what data to fetch from the database, or a direct answer if it's not a data question.",
+        expected_output=(
+            "A clear decision whether this is a casual/chat question, a data query, or a prescription request. "
+            "When appropriate, produce a concise target query for the database or a prescription drafting action."
+        ),
     )
 
-    # Task 2: db_agent uses tools to actually hit DB
+    tool_list = get_tools_for_role(role)
+
+    # Build DB / write agent
     db_task = Task(
         description=(
-            "Using the planner's clarified question, do the following:\n"
-            "1. Call sql_generator to get SQL (pass the clarified question as 'text' and the user_id).\n"
-            "2. Call sql_validator with that SQL and the same user_id.\n"
-            "3. If validation is not allowed or fails, respond with a short explanation.\n"
-            "4. If valid, call result_formatter with:\n"
-            "   - user_intent = the original user question (e.g., 'who was that patient'),\n"
-            "   - rows = the rows from the validator,\n"
-            "   - columns = the columns from the validator if provided.\n"
-            "5. IMPORTANT: The result_formatter will return a dictionary with 'summary' and 'json' fields.\n"
-            "   - Use the 'summary' field as your final text response (it's human-readable)\n"
-            "   - Use the 'json' field as your 'data_json' (it contains the table structure)\n"
-            "6. Return a dictionary with keys: 'summary' (the formatter's summary text), 'data_json' (the formatter's 'json' field), "
-            "and 'sql' (the SQL you executed or attempted).\n"
-            "7. CRITICAL: For questions like 'who was that patient', make sure the summary includes the patient's name and key details, not just a count."
+            "When the planner decides this is a data request, use the SQL generator, validator, and formatter tools.\n"
+            "When the planner decides this is a prescription draft request, use the draft_prescription tool.\n"
+            "When the planner decides this is a prescription submit request, use the submit_prescription tool only if a confirmation token is provided.\n"
+            "If a protected write action is detected, require an explicit confirmation token and do not execute without it."
         ),
         agent=db_agent,
-        tools=[sql_tool, validator_tool, formatter_tool],
-        expected_output="A dictionary with 'summary' (human-readable text describing the results with patient names/details when relevant), 'data_json' (formatted data with table structure), and 'sql' (the executed SQL query).",
+        tools=[tool for tool in tool_list if tool],
+        expected_output=(
+            "A dictionary that either contains a formatted query result, a prescription draft, or a submission confirmation."
+        ),
     )
 
     crew = Crew(

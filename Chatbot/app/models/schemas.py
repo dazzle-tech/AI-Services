@@ -9,7 +9,7 @@ class ChatRequest(BaseModel):
     """Chat request model."""
     message: str
     session_id: str = Field(default="session_default")
-    user_id: str = Field(default="default_user")
+    user_id: Optional[str] = None
     role: Optional[str] = None
     approved: bool = Field(default=False)
     correction_rejected: bool = Field(default=False)

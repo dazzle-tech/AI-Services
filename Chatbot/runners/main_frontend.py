@@ -21,6 +21,15 @@ class FrontendHandler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(web_dir), **kwargs)
 
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok": true, "service": "Frontend Service", "status": "healthy"}')
+            return
+        super().do_GET()
+
     def log_message(self, fmt, *args):
         logger.info("%s - %s", self.address_string(), fmt % args)
 

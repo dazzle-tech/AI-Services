@@ -30,6 +30,15 @@ app = FastAPI(
 app.include_router(sql_generator.router)
 
 
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "service": "SQL Generator Service",
+        "status": "healthy",
+    }
+
+
 @app.get("/")
 def root():
     """Root endpoint."""
