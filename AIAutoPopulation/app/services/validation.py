@@ -1,7 +1,7 @@
 """Validation and safety checks for extracted data."""
 from typing import Dict, Any, List, Optional, Tuple
 from app.models.schemas import StructuredFields, UncertaintyFlag, ContradictionFlag, Warning
-from app.core.constants import UserRole, ROLE_FIELD_RESTRICTIONS
+
 from datetime import datetime
 import json
 from pydantic import BaseModel
@@ -575,14 +575,13 @@ def build_structured_fields(
 
 def validate_extracted_fields(
     structured_fields: Dict[str, Any],
-    expected_fields: List[str],
-    user_role: UserRole
+    expected_fields: List[str]
 ) -> List[Warning]:
     """
-    Validate extracted fields against expected fields and role restrictions.
+    Validate extracted fields against expected fields.
     
     Returns:
-        List of warnings for missing or restricted fields
+        List of warnings for missing fields
     """
     warnings = []
     
@@ -595,37 +594,7 @@ def validate_extracted_fields(
                 field_name=field
             ))
     
-    # Check role-based restrictions
-    restricted_fields = ROLE_FIELD_RESTRICTIONS.get(user_role, [])
-    for field in restricted_fields:
-        if field in structured_fields and structured_fields[field] is not None:
-            warnings.append(Warning(
-                level="error",
-                message=f"Field '{field}' is restricted for role '{user_role.value}' and should not be included",
-                field_name=field
-            ))
-    
     return warnings
-
-
-def apply_role_restrictions(
-    structured_fields: Dict[str, Any],
-    user_role: UserRole
-) -> Dict[str, Any]:
-    """
-    Remove restricted fields based on user role.
-    
-    Returns:
-        Filtered structured_fields dict
-    """
-    restricted_fields = ROLE_FIELD_RESTRICTIONS.get(user_role, [])
-    filtered_fields = structured_fields.copy()
-    
-    for field in restricted_fields:
-        if field in filtered_fields:
-            del filtered_fields[field]
-    
-    return filtered_fields
 
 
 def check_contradictions(

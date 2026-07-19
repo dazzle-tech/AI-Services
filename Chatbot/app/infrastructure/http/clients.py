@@ -42,6 +42,7 @@ def post_json_logged(
     url: str,
     payload: Dict[str, Any],
     audit_service: Optional[Any] = None,
+    timeout: Optional[int] = None,
 ) -> Tuple[bool, Dict[str, Any], str]:
     """
     Make a POST request with audit logging.
@@ -52,12 +53,13 @@ def post_json_logged(
         url: Target URL
         payload: JSON payload
         audit_service: Audit service instance (optional, for dependency injection)
+        timeout: Request timeout in seconds
         
     Returns:
         Tuple of (success, response_body, error_message)
     """
-    ok, body, err, status_code, latency_ms = post_json_raw(url, payload)
-    
+    ok, body, err, status_code, latency_ms = post_json_raw(url, payload, timeout=timeout)
+
     if interaction_id is not None and audit_service is not None:
         audit_service.insert_service_call(
             interaction_id=interaction_id,
@@ -70,7 +72,7 @@ def post_json_logged(
             response_json=body if ok else {"error": err},
             error=err,
         )
-    
+
     return ok, body, err
 
 

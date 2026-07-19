@@ -228,6 +228,53 @@ class HospitalRepository:
             logger.warning(f"Failed to fetch patient ID by medical record number '{medical_record_number}': {e}")
             return None
 
+    def fetch_phone_by_mrn(self, medical_record_number: str) -> Optional[str]:
+        """
+        Fetch the phone number on file for a patient MRN.
+
+        Checks common phone column names on the patients table.
+        """
+        mrn = str(medical_record_number).strip()
+        phone_columns = [
+            "primary_mobile_number",
+            "mobile_number",
+            "phone_number",
+            "home_phone",
+            "work_phone",
+        ]
+        for col in phone_columns:
+            try:
+                if self.db_type == "postgresql":
+                    sql = (
+                        f"SELECT {col} FROM patients "
+                        "WHERE CAST(medical_record_number AS TEXT) = %s "
+                        f"AND {col} IS NOT NULL AND TRIM(CAST({col} AS TEXT)) != '' "
+                        "LIMIT 1"
+                    )
+                    conn = self._get_postgresql_connection()
+                    cur = conn.cursor()
+                    cur.execute(sql, (mrn,))
+                    row = cur.fetchone()
+                    conn.close()
+                else:
+                    sql = (
+                        f"SELECT {col} FROM patients "
+                        "WHERE CAST(medical_record_number AS TEXT) = ? "
+                        f"AND {col} IS NOT NULL AND TRIM({col}) != '' "
+                        "LIMIT 1"
+                    )
+                    conn = self._get_sqlite_connection()
+                    cur = conn.cursor()
+                    cur.execute(sql, (mrn,))
+                    row = cur.fetchone()
+                    conn.close()
+                if row and row[0]:
+                    return str(row[0]).strip()
+            except Exception as exc:
+                logger.debug("Phone lookup via %s failed for MRN %s: %s", col, mrn, exc)
+                continue
+        return None
+
 
 # Global instance
 _hospital_repo = HospitalRepository()

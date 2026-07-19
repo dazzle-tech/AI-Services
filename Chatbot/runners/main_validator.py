@@ -29,6 +29,15 @@ app = FastAPI(
 app.include_router(validator.router)
 
 
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "service": "Validator Service",
+        "status": "healthy",
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     

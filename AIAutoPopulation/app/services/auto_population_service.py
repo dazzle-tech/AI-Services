@@ -16,7 +16,6 @@ from app.ai.client import AIClient
 from app.core.config import settings
 from app.services.validation import (
     validate_extracted_fields,
-    apply_role_restrictions,
     check_contradictions,
     validate_json_structure,
     deduplicate_contradictions,
@@ -49,7 +48,7 @@ class AutoPopulationService:
         """
         try:
             # Step 1: Call AI client to extract structured data
-            logger.info(f"Processing request {request.request_id} for user {request.user_context.user_id}")
+            logger.info(f"Processing request {request.request_id}")
             
             # Check if only vitals are requested (for optimization)
             # Use passed flag or determine from expected_output
@@ -59,8 +58,6 @@ class AutoPopulationService:
             ai_result = self.ai_client.extract_structured_data(
                 user_text=request.user_text,
                 patient_data=request.patient_data,
-                user_role=request.user_context.user_role,
-                department=request.user_context.department,
                 expected_fields=request.expected_output,
                 input_language=request.input_language,
                 output_language=request.output_language,
@@ -70,16 +67,10 @@ class AutoPopulationService:
             # Step 2: Validate JSON structure
             validate_json_structure(ai_result)
             
-            # Step 3: Apply role-based restrictions
-            structured_fields_dict = ai_result.get("structured_fields", {})
-            filtered_fields = apply_role_restrictions(
-                structured_fields_dict,
-                request.user_context.user_role
-            )
-
-            # Step 4: Coerce and validate fields individually so one bad field
+            # Step 3: Coerce and validate fields individually so one bad field
             # does not discard the rest of the structured payload.
-            structured_fields, field_warnings = build_structured_fields(filtered_fields)
+            structured_fields_dict = ai_result.get("structured_fields", {})
+            structured_fields, field_warnings = build_structured_fields(structured_fields_dict)
 
             # Keep demographic context in HPI and filter planned procedures.
             structured_fields.history_of_present_illness = normalize_history_of_present_illness(
@@ -99,14 +90,13 @@ class AutoPopulationService:
 
             structured_fields_dict = structured_fields.model_dump(exclude_none=True)
 
-            # Step 5: Validate extracted fields
+            # Step 4: Validate extracted fields
             warnings = field_warnings + validate_extracted_fields(
                 structured_fields_dict,
-                request.expected_output,
-                request.user_context.user_role
+                request.expected_output
             )
 
-            # Step 6: Check for contradictions (backend deterministic checks)
+            # Step 5: Check for contradictions (backend deterministic checks)
             backend_contradictions = check_contradictions(
                 structured_fields_dict,
                 request.patient_data
@@ -133,7 +123,7 @@ class AutoPopulationService:
                 # Deduplicate contradictions (prefer backend checks, merge intelligently)
                 contradictions = deduplicate_contradictions(backend_contradictions)
             
-            # Step 7: Process uncertainty flags
+            # Step 6: Process uncertainty flags
             uncertainty_flags_raw = []
             ai_uncertainty = ai_result.get("uncertainty_flags", [])
             for flag in ai_uncertainty:
@@ -161,7 +151,7 @@ class AutoPopulationService:
                 completeness_audit=settings.completeness_audit_mode
             )
             
-            # Step 8: Process source trace
+            # Step 7: Process source trace
             source_trace_map = {}
             ai_trace = ai_result.get("source_trace", [])
             for trace in ai_trace:
@@ -212,7 +202,7 @@ class AutoPopulationService:
             for traces in source_trace_map.values():
                 source_trace.extend(traces)
             
-            # Step 9: Build response
+            # Step 8: Build response
             response = AutoPopulationResponse(
                 request_id=request.request_id,
                 task_type="auto_population",
@@ -224,9 +214,7 @@ class AutoPopulationService:
                 warnings=warnings,
                 processing_metadata={
                     "model_used": self.ai_client.model,
-                    "processing_timestamp": datetime.utcnow().isoformat(),
-                    "user_role": request.user_context.user_role.value,
-                    "department": request.user_context.department
+                    "processing_timestamp": datetime.utcnow().isoformat()
                 }
             )
             

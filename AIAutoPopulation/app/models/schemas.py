@@ -2,14 +2,7 @@
 from pydantic import BaseModel, Field, field_validator
 from typing import Optional, Dict, List, Any, Literal
 from datetime import datetime
-from app.core.constants import UserRole, TaskType, SupportedLanguage
-
-
-class UserContext(BaseModel):
-    """User context information."""
-    user_id: str = Field(..., description="Unique identifier for the user")
-    user_role: UserRole = Field(..., description="Role of the user (doctor, nurse, admin)")
-    department: str = Field(..., description="Department where the user works")
+from app.core.constants import TaskType, SupportedLanguage
 
 
 class StructuredFields(BaseModel):
@@ -72,7 +65,6 @@ class Warning(BaseModel):
 class AutoPopulationRequest(BaseModel):
     """Request schema for auto-population task."""
     request_id: str = Field(..., description="Unique identifier for this request")
-    user_context: UserContext = Field(..., description="User context information")
     input_language: SupportedLanguage = Field(default=SupportedLanguage.EN, description="Language of input text")
     output_language: SupportedLanguage = Field(default=SupportedLanguage.EN, description="Language of output")
     user_text: str = Field(..., min_length=1, max_length=10000, description="Free-text clinical input from user")

@@ -1,5 +1,5 @@
-from app.core.constants import SupportedLanguage, UserRole
-from app.models.schemas import AutoPopulationRequest, UserContext
+from app.core.constants import SupportedLanguage
+from app.models.schemas import AutoPopulationRequest
 from app.services.auto_population_service import AutoPopulationService
 from app.services.validation import (
     build_structured_fields,
@@ -11,11 +11,6 @@ from app.services.validation import (
 def make_request() -> AutoPopulationRequest:
     return AutoPopulationRequest(
         request_id="req_postman_001",
-        user_context=UserContext(
-            user_id="doctor_123",
-            user_role=UserRole.DOCTOR,
-            department="cardiology",
-        ),
         input_language=SupportedLanguage.EN,
         output_language=SupportedLanguage.EN,
         user_text=(

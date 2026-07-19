@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from app.core.config import settings
-from app.api.routes import chat, admin, patient_details, interaction_details
+from app.api.routes import chat, admin, patient_details, interaction_details, registration
 
 # Configure logging - use both console and file
 log_format = "%(asctime)s | %(levelname)s | %(name)s | %(message)s"
@@ -128,6 +128,16 @@ app.include_router(chat.router)
 app.include_router(admin.router)
 app.include_router(patient_details.router)
 app.include_router(interaction_details.router)
+app.include_router(registration.router)
+
+
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "service": "MedAI Orchestrator",
+        "status": "healthy",
+    }
 
 
 @app.get("/")

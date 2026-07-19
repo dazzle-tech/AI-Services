@@ -564,6 +564,7 @@ Reply naturally and concisely:
                 crew = build_medai_crew(
                     user_message=message,
                     user_id=user_id,
+                    role=role,
                     enhanced_query=enhanced_query,
                     entities=entities_for_prompt,
                     is_specific=is_specific

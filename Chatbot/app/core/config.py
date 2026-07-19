@@ -81,6 +81,45 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
 
+    # Web authentication (Phase 1)
+    # JSON map: {"token-value": "user_id"} — never commit real production tokens
+    web_auth_tokens: str = os.getenv("WEB_AUTH_TOKENS", "")
+    web_auth_dev_mode: bool = os.getenv("WEB_AUTH_DEV_MODE", "false").lower() == "true"
+    internal_service_token: str = os.getenv("INTERNAL_SERVICE_TOKEN", "")
+    environment: str = os.getenv("ENVIRONMENT", "development")
+
+    # Rate limiting (Phase 1)
+    rate_limit_max_requests: int = int(os.getenv("RATE_LIMIT_MAX_REQUESTS", "60"))
+    rate_limit_window_seconds: int = int(os.getenv("RATE_LIMIT_WINDOW_SECONDS", "60"))
+
+    # Registration / WhatsApp (Phase 2–3)
+    registered_users_db_path: str = os.getenv("REGISTERED_USERS_DB_PATH", "data/registered_users.db")
+    default_phone_country_code: str = os.getenv("DEFAULT_PHONE_COUNTRY_CODE", "+1")
+    hospital_admin_contact: str = os.getenv("HOSPITAL_ADMIN_CONTACT", "your hospital IT administrator")
+    otp_ttl_seconds: int = int(os.getenv("OTP_TTL_SECONDS", "600"))
+    otp_length: int = int(os.getenv("OTP_LENGTH", "6"))
+
+    # WhatsApp Business Cloud API (Phase 3)
+    whatsapp_adapter_port: int = int(os.getenv("WHATSAPP_ADAPTER_PORT", "8021"))
+    whatsapp_verify_token: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+    whatsapp_app_secret: str = os.getenv("WHATSAPP_APP_SECRET", "")
+    whatsapp_access_token: str = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+    whatsapp_phone_number_id: str = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+    whatsapp_api_version: str = os.getenv("WHATSAPP_API_VERSION", "v21.0")
+    orchestrator_url: str = os.getenv("ORCHESTRATOR_URL", "http://localhost:8017")
+    whatsapp_pipeline_timeout_secs: int = int(os.getenv("WHATSAPP_PIPELINE_TIMEOUT_SECS", "15"))
+    whatsapp_max_message_length: int = int(os.getenv("WHATSAPP_MAX_MESSAGE_LENGTH", "4096"))
+
+    # EMR / pharmacy API (Phase 4 — stub until vendor contract is finalized)
+    emr_api_base_url: str = os.getenv("EMR_API_BASE_URL", "")
+    emr_api_key: str = os.getenv("EMR_API_KEY", "")
+
+    # Confirmation tokens for write actions (Phase 4)
+    confirmation_token_ttl_seconds: int = int(os.getenv("CONFIRMATION_TOKEN_TTL_SECONDS", "300"))
+
+    # Agent routing (Phase 4)
+    use_agent_router: bool = os.getenv("USE_AGENT_ROUTER", "true").lower() == "true"
+
 
 settings = Settings()
 

@@ -2,7 +2,7 @@
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 from typing import Optional, Dict, List, Any, Literal
 from datetime import datetime
-from app.core.constants import UserRole, TaskType, SupportedLanguage
+from app.core.constants import TaskType, SupportedLanguage
 
 
 # Reuse existing models
@@ -11,13 +11,6 @@ from app.models.schemas import (
     UncertaintyFlag,
     Warning
 )
-
-
-class User(BaseModel):
-    """User information."""
-    user_id: str = Field(..., description="Unique identifier for the user")
-    role: UserRole = Field(..., description="Role of the user (doctor, nurse, admin)")
-    department: str = Field(..., description="Department where the user works")
 
 
 class Languages(BaseModel):
@@ -96,7 +89,6 @@ class AutoPopulationRequestV2(BaseModel):
         default=TaskType.AUTO_POPULATION,
         description="Type of task"
     )
-    user: User = Field(..., description="User information")
     languages: Languages = Field(default_factory=Languages, description="Input and output languages")
     inputs: Inputs = Field(..., description="Input data")
     requested_outputs: RequestedOutputs = Field(..., description="Requested output types")
@@ -186,8 +178,6 @@ class Metadata(BaseModel):
 
     model_used: str = Field(..., description="AI model used for processing")
     processing_timestamp: datetime = Field(default_factory=datetime.utcnow, description="When processing occurred")
-    user_role: str = Field(..., description="User role")
-    department: str = Field(..., description="Department")
     schema_version: str = Field(default="auto_population.v1", description="Schema version")
 
 

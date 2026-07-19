@@ -43,10 +43,10 @@ class AutoPopulationServiceV2:
             Auto-population response in V2 format
         """
         try:
-            logger.info(f"Processing V2 request {request.request_id} for user {request.user.user_id}")
+            logger.info(f"Processing V2 request {request.request_id}")
             
             # Convert V2 request to V1 format for processing
-            from app.models.schemas import AutoPopulationRequest, UserContext
+            from app.models.schemas import AutoPopulationRequest
             
             expected_fields = request.get_expected_fields()
             vitals_only = (
@@ -70,11 +70,6 @@ class AutoPopulationServiceV2:
             
             v1_request = AutoPopulationRequest(
                 request_id=request.request_id,
-                user_context=UserContext(
-                    user_id=request.user.user_id,
-                    user_role=request.user.role,
-                    department=request.user.department
-                ),
                 input_language=request.languages.input,
                 output_language=request.languages.output,
                 user_text=corrected_user_text,  # Use spell-corrected text
@@ -123,9 +118,7 @@ class AutoPopulationServiceV2:
                 ),
                 trace=None if not request.requested_outputs.include_trace else Trace(),
                 metadata=Metadata(
-                    model_used=settings.openai_model,
-                    user_role=request.user.role.value,
-                    department=request.user.department
+                    model_used=settings.openai_model
                 )
             )
     
@@ -225,8 +218,6 @@ class AutoPopulationServiceV2:
             processing_timestamp=datetime.fromisoformat(
                 v1_response.processing_metadata.get("processing_timestamp", datetime.utcnow().isoformat())
             ),
-            user_role=v1_response.processing_metadata.get("user_role", v2_request.user.role.value),
-            department=v1_response.processing_metadata.get("department", v2_request.user.department),
             schema_version="auto_population.v1"
         )
         

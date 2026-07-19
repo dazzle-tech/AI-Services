@@ -37,6 +37,7 @@ class AuditRepository:
               user_id TEXT NOT NULL,
               session_id TEXT NOT NULL,
               role TEXT,
+              channel TEXT DEFAULT 'web',
               intent TEXT,
               approved INTEGER DEFAULT 0,
               raw_message TEXT,
@@ -45,6 +46,44 @@ class AuditRepository:
               sql_query TEXT,
               row_count INTEGER,
               ok INTEGER DEFAULT 1,
+              error TEXT
+            );
+        """)
+        # Migrate existing DBs: add channel column if missing
+        try:
+            cur.execute("SELECT channel FROM interactions LIMIT 1")
+        except sqlite3.OperationalError:
+            cur.execute("ALTER TABLE interactions ADD COLUMN channel TEXT DEFAULT 'web';")
+        
+        # Tool execution audit log (Phase 4)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS tool_executions (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              ts_utc TEXT NOT NULL,
+              interaction_id INTEGER,
+              tool_name TEXT NOT NULL,
+              user_id TEXT NOT NULL,
+              role TEXT,
+              is_write_action INTEGER DEFAULT 0,
+              arguments_json TEXT,
+              result_json TEXT,
+              error TEXT,
+              confirmation_token_id TEXT,
+              ok INTEGER DEFAULT 1,
+              FOREIGN KEY(interaction_id) REFERENCES interactions(id)
+            );
+        """)
+        
+        # WhatsApp message audit log (Phase 3)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS whatsapp_messages (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              ts_utc TEXT NOT NULL,
+              direction TEXT NOT NULL,
+              phone_number TEXT NOT NULL,
+              user_id TEXT,
+              message_text TEXT,
+              status TEXT,
               error TEXT
             );
         """)
@@ -139,14 +178,25 @@ class AuditRepository:
         approved: bool,
         raw_message: str,
         final_message: str,
+        channel: str = "web",
     ) -> int:
         """Insert a new interaction record."""
         conn = self._connect()
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO interactions(ts_utc, user_id, session_id, role, intent, approved, raw_message, final_message, ok)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
-        """, (self._utc_now(), user_id, session_id, role, intent, 1 if approved else 0, raw_message, final_message))
+            INSERT INTO interactions(ts_utc, user_id, session_id, role, channel, intent, approved, raw_message, final_message, ok)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+        """, (
+            self._utc_now(),
+            user_id,
+            session_id,
+            role,
+            channel,
+            intent,
+            1 if approved else 0,
+            raw_message,
+            final_message,
+        ))
         interaction_id = int(cur.lastrowid)
         conn.commit()
         conn.close()
@@ -228,6 +278,35 @@ class AuditRepository:
         ))
         conn.commit()
         conn.close()
+
+    def insert_whatsapp_message(
+        self,
+        direction: str,
+        phone_number: str,
+        user_id: Optional[str],
+        message_text: str,
+        status: str,
+        error: Optional[str] = None,
+    ) -> int:
+        """Insert a WhatsApp inbound/outbound audit record."""
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO whatsapp_messages(ts_utc, direction, phone_number, user_id, message_text, status, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            self._utc_now(),
+            direction,
+            phone_number,
+            user_id,
+            message_text,
+            status,
+            error,
+        ))
+        message_id = int(cur.lastrowid)
+        conn.commit()
+        conn.close()
+        return message_id
     
     def query_history(
         self,
@@ -284,10 +363,55 @@ class AuditRepository:
         
         cur.execute("SELECT * FROM service_calls WHERE interaction_id = ? ORDER BY id ASC", (event_id,))
         calls = [dict(r) for r in cur.fetchall()]
+
+        cur.execute("SELECT * FROM tool_executions WHERE interaction_id = ? ORDER BY id ASC", (event_id,))
+        tool_calls = [dict(r) for r in cur.fetchall()]
         
         conn.close()
-        return {"interaction": dict(inter), "service_calls": calls}
+        return {"interaction": dict(inter), "service_calls": calls, "tool_executions": tool_calls}
     
+    def insert_tool_execution(
+        self,
+        interaction_id: Optional[int],
+        tool_name: str,
+        user_id: str,
+        role: Optional[str],
+        is_write_action: bool,
+        arguments_json: Dict[str, Any],
+        result_json: Any,
+        error: Optional[str],
+        confirmation_token_id: Optional[str],
+        ok: bool = True,
+    ) -> int:
+        """Insert a tool execution audit record."""
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO tool_executions(
+              ts_utc, interaction_id, tool_name, user_id, role, is_write_action,
+              arguments_json, result_json, error, confirmation_token_id, ok
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                self._utc_now(),
+                interaction_id,
+                tool_name,
+                user_id,
+                role,
+                1 if is_write_action else 0,
+                json.dumps(self._redact(arguments_json), ensure_ascii=False),
+                json.dumps(self._redact(result_json), ensure_ascii=False) if result_json is not None else None,
+                error,
+                confirmation_token_id,
+                1 if ok else 0,
+            ),
+        )
+        tool_id = int(cur.lastrowid)
+        conn.commit()
+        conn.close()
+        return tool_id
+
     def search(self, q: str, limit: int = 25) -> List[Dict[str, Any]]:
         """Full-text search interactions."""
         conn = self._connect()
