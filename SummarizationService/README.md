@@ -336,6 +336,7 @@ Contributions welcome! Please:
 
 **IMPORTANT:** This is an AI-powered clinical documentation tool. All generated summaries should be reviewed by qualified healthcare professionals before use in patient care. AI systems can make errors - always verify accuracy.
 
+## CI workflow (.github/workflows/clinical-summary-ci.yml)
 ---
 
 **Made with ❤️ for better clinical documentation**
