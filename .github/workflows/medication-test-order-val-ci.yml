@@ -4,13 +4,13 @@ on:
     branches:
       - main
     paths:
-      - 'AI-Services/MedicationTestOrdersValidation/**'
+      - 'MedicationTestOrdersValidation/**'
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: AI-Services/MedicationTestOrdersValidation
+        working-directory: MedicationTestOrdersValidation
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
