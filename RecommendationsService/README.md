@@ -371,6 +371,8 @@ Log level can be configured in `main.py`.
 - Implement caching for common scenarios
 - Add metrics and monitoring
 
+## CI workflow (.github/workflows/clinical-recommendadtions-ci.yml)
+
 ## License
 
 [Your License Here]
