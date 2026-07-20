@@ -4,13 +4,13 @@ on:
     branches:
       - main
     paths:
-      - 'AI-Services/SummarizationService/**'
+      - 'SummarizationService/**'
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: AI-Services/SummarizationService
+        working-directory: SummarizationService
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
