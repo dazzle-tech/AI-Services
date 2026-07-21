@@ -1,0 +1,194 @@
+{
+  "raw_model_output": {
+    "corrected_doctor_notes": "Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+    "corrected_radiologist_notes": "PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.",
+    "structured_report": {
+      "indication": "Acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+      "technique": "PA/Lateral Chest X-ray",
+      "findings": [
+        {
+          "label": "Consolidation",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        },
+        {
+          "label": "Opacity",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        }
+      ],
+      "impression": "Consolidation and opacity in the right lower lobe. No evidence of pneumothorax."
+    },
+    "spelling_corrections": {},
+    "findings": [
+      {
+        "label": "Consolidation",
+        "location": "right lower lobe",
+        "source": "radiologist"
+      },
+      {
+        "label": "Opacity",
+        "location": "right lower lobe",
+        "source": "radiologist"
+      }
+    ],
+    "warnings": [
+      {
+        "severity": "high",
+        "code": "LATERALITY_CONFLICT",
+        "message": "Doctor notes suspect left-sided pneumonia, but radiologist notes consolidation in the right lower lobe."
+      }
+    ],
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R07.9",
+          "term": "Chest pain, unspecified",
+          "matched_phrase": "chest pain"
+        },
+        {
+          "code": "R05.9",
+          "term": "Cough, unspecified",
+          "matched_phrase": "persistent cough"
+        },
+        {
+          "code": "J18.9",
+          "term": "Pneumonia, unspecified organism",
+          "matched_phrase": "pneumonia"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID11078",
+          "term": "PA projection",
+          "matched_phrase": "PA"
+        },
+        {
+          "id": "RID28494",
+          "term": "right lower lobe",
+          "matched_phrase": "right lower lobe"
+        },
+        {
+          "id": "RID4853",
+          "term": "consolidation",
+          "matched_phrase": "consolidation"
+        },
+        {
+          "id": "RID3554",
+          "term": "opacity",
+          "matched_phrase": "opacity"
+        }
+      ]
+    },
+    "study_metadata": {
+      "PatientID": "12345",
+      "Modality": "CR",
+      "BodyPartExamined": "CHEST",
+      "ViewPosition": "PA",
+      "StudyDate": "20260101"
+    },
+    "exam_type": "Chest X-ray 2 Views"
+  },
+  "safety_normalized_output": {
+    "study_metadata": {
+      "PatientID": "12345",
+      "Modality": "CR",
+      "BodyPartExamined": "CHEST",
+      "ViewPosition": "PA",
+      "StudyDate": "20260101"
+    },
+    "exam_type": "Chest X-ray 2 Views",
+    "findings": [
+      {
+        "label": "Consolidation",
+        "location": "right lower lobe",
+        "status": null,
+        "size_cm": null,
+        "source": "radiologist"
+      },
+      {
+        "label": "Opacity",
+        "location": "right lower lobe",
+        "status": null,
+        "size_cm": null,
+        "source": "radiologist"
+      }
+    ],
+    "confidence": "Low",
+    "priority": "Routine",
+    "warnings": [
+      {
+        "severity": "high",
+        "code": "LATERALITY_CONFLICT",
+        "message": "Doctor notes suspect left-sided pneumonia, but radiologist notes consolidation in the right lower lobe."
+      }
+    ],
+    "critical_alert": false,
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R07.9",
+          "term": "Chest pain, unspecified",
+          "matched_phrase": "chest pain"
+        },
+        {
+          "code": "R05.9",
+          "term": "Cough, unspecified",
+          "matched_phrase": "persistent cough"
+        },
+        {
+          "code": "J18.9",
+          "term": "Pneumonia, unspecified organism",
+          "matched_phrase": "pneumonia"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID11078",
+          "term": "PA projection",
+          "matched_phrase": "PA"
+        },
+        {
+          "id": "RID28494",
+          "term": "right lower lobe",
+          "matched_phrase": "right lower lobe"
+        },
+        {
+          "id": "RID4853",
+          "term": "consolidation",
+          "matched_phrase": "consolidation"
+        },
+        {
+          "id": "RID3554",
+          "term": "opacity",
+          "matched_phrase": "opacity"
+        }
+      ]
+    },
+    "corrected_doctor_notes": "Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+    "corrected_radiologist_notes": "PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.",
+    "structured_report": {
+      "indication": "Acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+      "technique": "PA/Lateral Chest X-ray",
+      "findings": [
+        {
+          "label": "Consolidation",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        },
+        {
+          "label": "Opacity",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        }
+      ],
+      "impression": "Consolidation and opacity in the right lower lobe. No evidence of pneumothorax."
+    },
+    "spelling_corrections": null,
+    "reconciled_findings": null,
+    "ai_findings_dropped": null,
+    "ai_findings_used_for_enrichment": null
+  },
+  "disclaimer": "This output is for assistive purposes only and is not a final diagnosis. Review by a board-certified radiologist is required.",
+  "output_file": null
+}

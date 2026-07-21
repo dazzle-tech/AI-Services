@@ -1,0 +1,175 @@
+{
+  "raw_model_output": {
+    "study_metadata": {
+      "Modality": "CR",
+      "ViewPosition": "PA",
+      "StudyDescription": "CHEST (2 VIEWS)"
+    },
+    "exam_type": "Lateral chest X-ray",
+    "findings": [
+      {
+        "label": "opacity",
+        "location": "right lower lobe",
+        "source": "reconciled"
+      },
+      {
+        "label": "consolidation",
+        "location": "right lower lobe",
+        "source": "reconciled"
+      },
+      {
+        "label": "pneumothorax",
+        "status": "not identified",
+        "source": "reconciled"
+      }
+    ],
+    "warnings": [
+      {
+        "severity": "critical",
+        "code": "ANATOMY_METADATA_MISMATCH",
+        "message": "DICOM metadata indicates PA view, but clinical report describes a lateral view."
+      }
+    ],
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R07.9",
+          "term": "Chest pain, unspecified",
+          "matched_phrase": "chest pain"
+        },
+        {
+          "code": "R05.9",
+          "term": "Cough, unspecified",
+          "matched_phrase": "persistent cough"
+        },
+        {
+          "code": "J18.9",
+          "term": "Pneumonia, unspecified organism",
+          "matched_phrase": "pneumonia"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID28494",
+          "term": "right lower lobe",
+          "matched_phrase": "right lower lobe"
+        },
+        {
+          "id": "RID3554",
+          "term": "opacity",
+          "matched_phrase": "opacity"
+        }
+      ]
+    },
+    "reconciled_findings": [
+      {
+        "label": "opacity",
+        "location": "right lower lobe",
+        "size_cm": null,
+        "source": "clinical_report"
+      },
+      {
+        "label": "consolidation",
+        "location": "right lower lobe",
+        "size_cm": null,
+        "source": "clinical_report"
+      }
+    ],
+    "ai_findings_dropped": [],
+    "ai_findings_used_for_enrichment": []
+  },
+  "safety_normalized_output": {
+    "study_metadata": {
+      "Modality": "CR",
+      "ViewPosition": "PA",
+      "StudyDescription": "CHEST (2 VIEWS)"
+    },
+    "exam_type": "Lateral chest X-ray",
+    "findings": [
+      {
+        "label": "opacity",
+        "location": "right lower lobe",
+        "status": null,
+        "size_cm": null,
+        "source": "reconciled"
+      },
+      {
+        "label": "consolidation",
+        "location": "right lower lobe",
+        "status": null,
+        "size_cm": null,
+        "source": "reconciled"
+      },
+      {
+        "label": "pneumothorax",
+        "location": null,
+        "status": "not identified",
+        "size_cm": null,
+        "source": "reconciled"
+      }
+    ],
+    "confidence": "Low",
+    "priority": "Urgent",
+    "warnings": [
+      {
+        "severity": "critical",
+        "code": "ANATOMY_METADATA_MISMATCH",
+        "message": "DICOM metadata indicates PA view, but clinical report describes a lateral view."
+      }
+    ],
+    "critical_alert": false,
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R07.9",
+          "term": "Chest pain, unspecified",
+          "matched_phrase": "chest pain"
+        },
+        {
+          "code": "R05.9",
+          "term": "Cough, unspecified",
+          "matched_phrase": "persistent cough"
+        },
+        {
+          "code": "J18.9",
+          "term": "Pneumonia, unspecified organism",
+          "matched_phrase": "pneumonia"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID28494",
+          "term": "right lower lobe",
+          "matched_phrase": "right lower lobe"
+        },
+        {
+          "id": "RID3554",
+          "term": "opacity",
+          "matched_phrase": "opacity"
+        }
+      ]
+    },
+    "corrected_doctor_notes": null,
+    "corrected_radiologist_notes": null,
+    "structured_report": null,
+    "spelling_corrections": null,
+    "reconciled_findings": [
+      {
+        "label": "opacity",
+        "location": "right lower lobe",
+        "size_cm": null,
+        "source": "clinical_report"
+      },
+      {
+        "label": "consolidation",
+        "location": "right lower lobe",
+        "size_cm": null,
+        "source": "clinical_report"
+      }
+    ],
+    "ai_findings_dropped": [],
+    "ai_findings_used_for_enrichment": []
+  },
+  "disclaimer": "This output is for assistive purposes only and is not a final diagnosis. Review by a board-certified radiologist is required.",
+  "output_file": null
+}

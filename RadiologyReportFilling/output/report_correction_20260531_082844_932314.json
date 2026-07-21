@@ -1,0 +1,226 @@
+{
+  "raw_model_output": {
+    "corrected_doctor_notes": "Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+    "corrected_radiologist_notes": "Lateral Chest: Retrocardiac opacity and consolidation noted in the right lower lobe. No pneumothorax identified on lateral projection. PA view not submitted.",
+    "structured_report": {
+      "indication": "Acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+      "technique": "Lateral chest X-ray. PA view not submitted.",
+      "findings": [
+        {
+          "label": "opacity",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        },
+        {
+          "label": "consolidation",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        },
+        {
+          "label": "pneumothorax",
+          "status": "absent",
+          "source": "radiologist"
+        }
+      ],
+      "impression": "Retrocardiac opacity and consolidation in the right lower lobe. No pneumothorax identified."
+    },
+    "spelling_corrections": {},
+    "findings": [
+      {
+        "label": "opacity",
+        "location": "right lower lobe",
+        "source": "radiologist"
+      },
+      {
+        "label": "consolidation",
+        "location": "right lower lobe",
+        "source": "radiologist"
+      },
+      {
+        "label": "pneumothorax",
+        "status": "absent",
+        "source": "radiologist"
+      }
+    ],
+    "warnings": [
+      {
+        "severity": "high",
+        "code": "LATERALITY_CONFLICT",
+        "message": "Doctor notes suggest left-sided pneumonia, but radiologist notes indicate findings in the right lower lobe."
+      },
+      {
+        "severity": "info",
+        "code": "MISSING_VIEW",
+        "message": "PA view not submitted."
+      }
+    ],
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R07.9",
+          "term": "Chest pain, unspecified",
+          "matched_phrase": "chest pain"
+        },
+        {
+          "code": "R05.9",
+          "term": "Cough, unspecified",
+          "matched_phrase": "persistent cough"
+        },
+        {
+          "code": "J18.9",
+          "term": "Pneumonia, unspecified organism",
+          "matched_phrase": "pneumonia"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID11080",
+          "term": "lateral projection",
+          "matched_phrase": "lateral projection"
+        },
+        {
+          "id": "RID28494",
+          "term": "right lower lobe",
+          "matched_phrase": "right lower lobe"
+        },
+        {
+          "id": "RID4853",
+          "term": "consolidation",
+          "matched_phrase": "consolidation"
+        },
+        {
+          "id": "RID3554",
+          "term": "opacity",
+          "matched_phrase": "opacity"
+        }
+      ]
+    },
+    "study_metadata": {
+      "PatientID": "AP-26JK",
+      "Modality": "CR",
+      "BodyPartExamined": "CHEST",
+      "ViewPosition": "LL",
+      "StudyDate": "19741225"
+    },
+    "exam_type": "CHEST (2 VIEWS)"
+  },
+  "safety_normalized_output": {
+    "study_metadata": {
+      "PatientID": "AP-26JK",
+      "Modality": "CR",
+      "BodyPartExamined": "CHEST",
+      "ViewPosition": "LL",
+      "StudyDate": "19741225"
+    },
+    "exam_type": "CHEST (2 VIEWS)",
+    "findings": [
+      {
+        "label": "opacity",
+        "location": "right lower lobe",
+        "status": null,
+        "size_cm": null,
+        "source": "radiologist"
+      },
+      {
+        "label": "consolidation",
+        "location": "right lower lobe",
+        "status": null,
+        "size_cm": null,
+        "source": "radiologist"
+      },
+      {
+        "label": "pneumothorax",
+        "location": null,
+        "status": "absent",
+        "size_cm": null,
+        "source": "radiologist"
+      }
+    ],
+    "confidence": "Low",
+    "priority": "Routine",
+    "warnings": [
+      {
+        "severity": "high",
+        "code": "LATERALITY_CONFLICT",
+        "message": "Doctor notes suggest left-sided pneumonia, but radiologist notes indicate findings in the right lower lobe."
+      },
+      {
+        "severity": "high",
+        "code": "MISSING_VIEW",
+        "message": "PA view not submitted."
+      }
+    ],
+    "critical_alert": false,
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R07.9",
+          "term": "Chest pain, unspecified",
+          "matched_phrase": "chest pain"
+        },
+        {
+          "code": "R05.9",
+          "term": "Cough, unspecified",
+          "matched_phrase": "persistent cough"
+        },
+        {
+          "code": "J18.9",
+          "term": "Pneumonia, unspecified organism",
+          "matched_phrase": "pneumonia"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID11080",
+          "term": "lateral projection",
+          "matched_phrase": "lateral projection"
+        },
+        {
+          "id": "RID28494",
+          "term": "right lower lobe",
+          "matched_phrase": "right lower lobe"
+        },
+        {
+          "id": "RID4853",
+          "term": "consolidation",
+          "matched_phrase": "consolidation"
+        },
+        {
+          "id": "RID3554",
+          "term": "opacity",
+          "matched_phrase": "opacity"
+        }
+      ]
+    },
+    "corrected_doctor_notes": "Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+    "corrected_radiologist_notes": "Lateral Chest: Retrocardiac opacity and consolidation noted in the right lower lobe. No pneumothorax identified on lateral projection. PA view not submitted.",
+    "structured_report": {
+      "indication": "Acute chest pain and persistent cough. Suspected left-sided pneumonia.",
+      "technique": "Lateral chest X-ray. PA view not submitted.",
+      "findings": [
+        {
+          "label": "opacity",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        },
+        {
+          "label": "consolidation",
+          "location": "right lower lobe",
+          "source": "radiologist"
+        },
+        {
+          "label": "pneumothorax",
+          "status": "absent",
+          "source": "radiologist"
+        }
+      ],
+      "impression": "Retrocardiac opacity and consolidation in the right lower lobe. No pneumothorax identified."
+    },
+    "spelling_corrections": null,
+    "reconciled_findings": null,
+    "ai_findings_dropped": null,
+    "ai_findings_used_for_enrichment": null
+  },
+  "disclaimer": "This output is for assistive purposes only and is not a final diagnosis. Review by a board-certified radiologist is required.",
+  "output_file": null
+}

@@ -1,23 +1,21 @@
 """OpenAI client for LLM interactions"""
 import json
 import os
-import logging
 from typing import Dict, Any, Optional
 from openai import OpenAI
 from app.utils.errors import ExternalServiceError
 
-logger = logging.getLogger(__name__)
 
 class OpenAIClient:
     """Client for OpenAI API interactions"""
     
-    def __init__(self, api_key: Optional[str] = None, model_name: str = ""):
+    def __init__(self, api_key: Optional[str] = None, model_name: str = "gpt-4o"):
         """
         Initialize OpenAI client.
         
         Args:
             api_key: OpenAI API key (defaults to OPENAI_API_KEY env var)
-            model_name: Model to use (defaults to OPENAI_MODEL)
+            model_name: Model to use (defaults to gpt-4o)
         """
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         if not self.api_key:
@@ -26,16 +24,8 @@ class OpenAIClient:
                 service="OPENAI"
             )
         
-        self.model_name = model_name or os.getenv("OPENAI_MODEL", "")
-        self.base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1") or None
-        self.timeout = float(os.getenv("OPENAI_TIMEOUT", "120"))
-        self.max_retries = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url,
-            timeout=self.timeout,
-            max_retries=self.max_retries,
-        )
+        self.model_name = model_name or os.getenv("MODEL_NAME", "gpt-4o")
+        self.client = OpenAI(api_key=self.api_key)
     
     def generate_structured_completion(self, prompt: str, json_schema: Dict[str, Any],
                                       max_retries: int = 3) -> Dict[str, Any]:
@@ -59,14 +49,6 @@ class OpenAIClient:
                 # Note: For models that support structured outputs, use response_format
                 # For others, request JSON mode and parse manually
                 try:
-                    prompt_length = len(prompt)
-                    logger.info(
-                        "Calling ICU structured completion using model %s base_url=%s timeout=%ss prompt_length=%s",
-                        self.model_name,
-                        self.base_url,
-                        self.timeout,
-                        prompt_length,
-                    )
                     # Try structured outputs API (for supported models)
                     # Note: json_schema requires a "name" field
                     response = self.client.beta.chat.completions.parse(
@@ -82,8 +64,7 @@ class OpenAIClient:
                                 "schema": json_schema,
                                 "strict": True
                             }
-                        },
-                        timeout=self.timeout,
+                        }
                     )
                     result = response.choices[0].message.parsed
                     if result:
@@ -99,8 +80,7 @@ class OpenAIClient:
                             {"role": "user", "content": prompt + "\n\nIMPORTANT: Respond with ONLY valid JSON matching this schema: " + json.dumps(json_schema)}
                         ],
                         response_format={"type": "json_object"},
-                        temperature=0.3,
-                        timeout=self.timeout,
+                        temperature=0.3
                     )
                     content = response.choices[0].message.content
                 
@@ -153,22 +133,13 @@ class OpenAIClient:
             ExternalServiceError: If API call fails
         """
         try:
-            prompt_length = len(prompt)
-            logger.info(
-                "Calling ICU text completion using model %s base_url=%s timeout=%ss prompt_length=%s",
-                self.model_name,
-                self.base_url,
-                self.timeout,
-                prompt_length,
-            )
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": "You are a medical AI assistant. Generate clear, concise clinical notes in markdown format. Never invent data - if information is missing, state 'Not available'."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=temperature,
-                timeout=self.timeout,
+                temperature=temperature
             )
             
             content = response.choices[0].message.content

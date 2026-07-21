@@ -37,7 +37,7 @@ normalizer = ConceptNormalizer(load_mappings_from_yaml(mappings_path))
 try:
     openai_client = OpenAIClient(
         api_key=os.getenv("OPENAI_API_KEY"),
-        model_name=os.getenv("OPENAI_MODEL", "")
+        model_name=os.getenv("MODEL_NAME", "gpt-4o")
     )
 except Exception:
     # Allow app to start without API key for testing (will fail on actual API calls)

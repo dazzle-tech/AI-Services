@@ -1,0 +1,157 @@
+{
+  "raw_model_output": {
+    "reconciled_findings": [
+      {
+        "label": "Nodule",
+        "location": "Left Upper Lobe",
+        "size_cm": 1.2,
+        "source": "clinical_report",
+        "ai_variance": {
+          "ai_size_mm": 18,
+          "delta_mm": 6,
+          "note": "AI measured size differs from clinical report."
+        }
+      }
+    ],
+    "ai_findings_dropped": [
+      {
+        "label": "Nodule",
+        "location": "Left Upper Lobe",
+        "size_mm": 18
+      }
+    ],
+    "ai_findings_used_for_enrichment": [],
+    "findings": [
+      {
+        "label": "Nodule",
+        "location": "Left Upper Lobe",
+        "size_cm": 1.2,
+        "source": "reconciled"
+      }
+    ],
+    "warnings": [
+      {
+        "severity": "info",
+        "code": "AI_SIZE_VARIANCE",
+        "message": "AI measured size of 18mm differs from clinical report size of 1.2cm."
+      },
+      {
+        "severity": "info",
+        "code": "SINGLE_VIEW_LIMITATION",
+        "message": "Only a single view is available; lobe-level claims are limited."
+      }
+    ],
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R91.1",
+          "term": "Solitary pulmonary nodule",
+          "matched_phrase": "pulmonary nodule"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID3875",
+          "term": "pulmonary nodule",
+          "matched_phrase": "pulmonary nodule"
+        },
+        {
+          "id": "RID1325",
+          "term": "left upper lobe",
+          "matched_phrase": "left upper lobe"
+        }
+      ]
+    },
+    "study_metadata": {
+      "Modality": "DX",
+      "ViewPosition": "PA",
+      "StudyDescription": "CHEST SINGLE VIEW"
+    },
+    "exam_type": "Chest X-ray PA"
+  },
+  "safety_normalized_output": {
+    "study_metadata": {
+      "Modality": "DX",
+      "ViewPosition": "PA",
+      "StudyDescription": "CHEST SINGLE VIEW"
+    },
+    "exam_type": "Chest X-ray PA",
+    "findings": [
+      {
+        "label": "Nodule",
+        "location": "lung",
+        "status": null,
+        "size_cm": 1.2,
+        "source": "reconciled"
+      }
+    ],
+    "confidence": "Medium",
+    "priority": "Routine",
+    "warnings": [
+      {
+        "severity": "high",
+        "code": "AI_SIZE_VARIANCE",
+        "message": "AI measured size of 18mm differs from clinical report size of 1.2cm."
+      },
+      {
+        "severity": "info",
+        "code": "SINGLE_VIEW_LIMITATION",
+        "message": "Only a single view is available; lobe-level claims are limited."
+      },
+      {
+        "severity": "high",
+        "code": "AI_FINDING_DROPPED",
+        "message": "1 AI finding(s) dropped because they contradicted the authoritative clinical report."
+      }
+    ],
+    "critical_alert": false,
+    "rag_grounding": {
+      "icd10_codes": [
+        {
+          "code": "R91.1",
+          "term": "Solitary pulmonary nodule",
+          "matched_phrase": "pulmonary nodule"
+        }
+      ],
+      "radlex_terms": [
+        {
+          "id": "RID3875",
+          "term": "pulmonary nodule",
+          "matched_phrase": "pulmonary nodule"
+        },
+        {
+          "id": "RID1325",
+          "term": "left upper lobe",
+          "matched_phrase": "left upper lobe"
+        }
+      ]
+    },
+    "corrected_doctor_notes": null,
+    "corrected_radiologist_notes": null,
+    "structured_report": null,
+    "spelling_corrections": null,
+    "reconciled_findings": [
+      {
+        "label": "Nodule",
+        "location": "Left Upper Lobe",
+        "size_cm": 1.2,
+        "source": "clinical_report",
+        "ai_variance": {
+          "ai_size_mm": 18,
+          "delta_mm": 6,
+          "note": "AI measured size differs from clinical report."
+        }
+      }
+    ],
+    "ai_findings_dropped": [
+      {
+        "label": "Nodule",
+        "location": "Left Upper Lobe",
+        "size_mm": 18
+      }
+    ],
+    "ai_findings_used_for_enrichment": []
+  },
+  "disclaimer": "This output is for assistive purposes only and is not a final diagnosis. Review by a board-certified radiologist is required.",
+  "output_file": null
+}

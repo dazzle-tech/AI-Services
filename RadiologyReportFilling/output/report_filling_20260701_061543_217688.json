@@ -1,0 +1,13 @@
+{
+  "ID": 0,
+  "TEMPLATE_NAME": "RADIOLOGY REPORT",
+  "TEMPLATE_TEXT": "RADIOLOGY REPORT\n\nClinical indication: Not stated.\nTechnique: The study was performed according to the department standard protocol.\n\nFindings:\n\nPA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.\n\nImpression:\nNo significant radiological abnormality identified on the current evaluation.\n\nQC status: REVIEW_REQUIRED\nQC issue: MISSING_METADATA\nQC confidence: 0.6\n\nDICOM modality: DX\nDICOM body part: CHEST\nDICOM study date: 2000-01-01T00:00:00\nDICOM view position: missing\nDICOM accession number: ACC-10008\n\nPhysician: Radiologist",
+  "STATUS_ID": 1,
+  "CREATED_BY": "MedScribe-Template",
+  "CREATION_DATETIME": "2026-06-04T00:00:00Z",
+  "DELETED_BY": null,
+  "DELETE_DATETIME": null,
+  "UPDATED_BY": "MedScribe-Template",
+  "UPDATE_DATETIME": "2026-06-04T00:00:00Z",
+  "Physician": null
+}

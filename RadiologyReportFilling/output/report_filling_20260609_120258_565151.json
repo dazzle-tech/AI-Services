@@ -1,0 +1,13 @@
+{
+  "ID": 0,
+  "TEMPLATE_NAME": "RADIOLOGY REPORT",
+  "TEMPLATE_TEXT": "RADIOLOGY REPORT\n\nClinical indication: Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.\nTechnique: The study was performed according to the department standard protocol.\n\nFindings:\nConsolidation and opacity noted in the right lower lobe. No evidence of pneumothorax. No free fluid or collection is seen. Anatomical structures are within expected limits.\n\nAdditional AI findings:\nPossible apparent enlargement of the cardiac silhouette (AP projection may magnify heart size). Radiologist review required.\nPossible lung opacity or airspace abnormality in the left lung field. Radiologist review required.\n\nImpression:\nNo significant radiological abnormality identified on the current evaluation. Possible apparent enlargement of the cardiac silhouette (AP projection may magnify heart size). Radiologist review required. Possible lung opacity or airspace abnormality in the left lung field. Radiologist review required.\n\nDisclaimer: This output is for assistive purposes only and is not a final diagnosis. Review by a board-certified radiologist is required.",
+  "STATUS_ID": null,
+  "CREATED_BY": null,
+  "CREATION_DATETIME": null,
+  "DELETED_BY": null,
+  "DELETE_DATETIME": null,
+  "UPDATED_BY": null,
+  "UPDATE_DATETIME": null,
+  "Physician": null
+}

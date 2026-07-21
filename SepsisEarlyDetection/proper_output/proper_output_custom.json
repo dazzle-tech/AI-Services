@@ -1,0 +1,209 @@
+{
+  "assessment_timestamp": "2026-03-15T12:00:00Z",
+  "patient_id": "JD001",
+  "patient_name": "Jane Doe",
+  "age": 58,
+  "gender": "Female",
+  "weight": 65,
+  "admission_reason": "Suspected UTI",
+  "comorbidities": [
+    "Diabetes"
+  ],
+  "allergies": "Penicillin",
+  "current_hour": 0,
+  "status_summary": "Stable patient with suspected UTI and diabetes",
+  "sirs_criteria_met": true,
+  "qsofa_score": 0,
+  "sofa_score": 0,
+  "sepsis_3_criteria_met": true,
+  "patient_vitals": {
+    "bp": {
+      "value": 120,
+      "unit": "mmHg",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "temp": {
+      "value": 36.5,
+      "unit": "\u00b0C",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "etco2": {
+      "value": 40,
+      "unit": "mmHg",
+      "status": "normal",
+      "trend": "stable"
+    }
+  },
+  "current_labs": {
+    "lactate": {
+      "value": 2.5,
+      "unit": "mmol/L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "wbc": {
+      "value": 12.3,
+      "unit": "10\u00b3/\u00b5L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "platelets": {
+      "value": 150,
+      "unit": "10\u00b3/\u00b5L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "creatinine": {
+      "value": 1.2,
+      "unit": "mg/dL",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "bilirubin_total": {
+      "value": 0.5,
+      "unit": "mg/dL",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "hco3": {
+      "value": 24,
+      "unit": "mmol/L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "bun": {
+      "value": 12,
+      "unit": "mg/dL",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "hct": {
+      "value": 38,
+      "unit": "%",
+      "status": "normal",
+      "trend": "stable"
+    }
+  },
+  "timeline_analysis": [
+    {
+      "time": "Hour 0",
+      "event": "Initial assessment",
+      "affected_parameters": [
+        "bp",
+        "temp",
+        "etco2"
+      ],
+      "severity": "normal",
+      "clinical_significance": "Stable patient with suspected UTI and diabetes"
+    }
+  ],
+  "organ_dysfunction": {
+    "cardiovascular": {
+      "status": "normal",
+      "notes": "Normal BP and ETCO2"
+    },
+    "respiratory": {
+      "status": "normal",
+      "notes": "Normal temp and ETCO2"
+    },
+    "renal": {
+      "status": "normal",
+      "notes": "Normal creatinine and BUN"
+    },
+    "hepatic": {
+      "status": "normal",
+      "notes": "Normal bilirubin and HCO3"
+    },
+    "hematologic": {
+      "status": "normal",
+      "notes": "Normal Hct"
+    },
+    "metabolic": {
+      "status": "normal",
+      "notes": "Normal lactate and WBC"
+    }
+  },
+  "watchlist": [
+    {
+      "parameter": "bp",
+      "current_value": "120 mmHg",
+      "unit": "mmHg",
+      "normal_range": "90-120 mmHg",
+      "status": "normal",
+      "trend": "stable",
+      "rate_of_change": "0.0",
+      "clinical_concern": "Stable",
+      "recommended_action": "Routine monitoring"
+    },
+    {
+      "parameter": "temp",
+      "current_value": "36.5\u00b0C",
+      "unit": "\u00b0C",
+      "normal_range": "36.0-37.5\u00b0C",
+      "status": "normal",
+      "trend": "stable",
+      "rate_of_change": "0.0",
+      "clinical_concern": "Stable",
+      "recommended_action": "Routine monitoring"
+    },
+    {
+      "parameter": "etco2",
+      "current_value": "40 mmHg",
+      "unit": "mmHg",
+      "normal_range": "35-45 mmHg",
+      "status": "normal",
+      "trend": "stable",
+      "rate_of_change": "0.0",
+      "clinical_concern": "Stable",
+      "recommended_action": "Routine monitoring"
+    }
+  ],
+  "risk_factors": {
+    "infection_source_suspected": "UTI",
+    "immunocompromised": true,
+    "age_risk": true,
+    "comorbidity_burden": "moderate",
+    "contributing_factors": [
+      "Suspected UTI",
+      "Diabetes"
+    ]
+  },
+  "forecast_24h": {
+    "expected_trajectory": "stable",
+    "narrative": "Patient remains stable with suspected UTI and diabetes",
+    "key_decision_points": [
+      {
+        "hour": "Hour 0",
+        "trigger": "Initial assessment",
+        "recommended_response": "Routine monitoring"
+      }
+    ],
+    "intervention_urgency": "routine"
+  },
+  "sepsis_probability_24h": {
+    "probability": 0,
+    "risk_level": "low",
+    "confidence": "low",
+    "primary_drivers": [],
+    "mitigating_factors": []
+  },
+  "recommended_actions": [
+    {
+      "priority": "routine",
+      "action": "Routine monitoring",
+      "rationale": "Patient remains stable with suspected UTI and diabetes"
+    }
+  ],
+  "flags": {
+    "escalate_care": true,
+    "repeat_labs_needed": true,
+    "imaging_recommended": true,
+    "culture_recommended": true,
+    "antibiotic_consideration": true,
+    "fluid_resuscitation_needed": true,
+    "vasopressor_consideration": true,
+    "icu_transfer_recommended": true
+  }
+}
