@@ -1,0 +1,55 @@
+name: Build and Push Docker Image to DOCR - OCR Parsing Service
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'OCRParsingService/**'
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: OCRParsingService
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Log in to DigitalOcean Container Registry
+        env:
+          DOCKER_USERNAME: "doctoken"
+          DOCKER_PASSWORD: ${{ secrets.DOCR_ACCESS_TOKEN }}
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login ${{ secrets.DOCR_REGISTRY_URL }} -u "$DOCKER_USERNAME" --password-stdin
+
+      - name: Build Docker Image
+        run: |
+          docker build -t registry.digitalocean.com/asklepios/ocr-parsing-service:${{ github.sha }} .
+
+      - name: Push Docker Image to DOCR
+        run: |
+          docker push registry.digitalocean.com/asklepios/ocr-parsing-service:${{ github.sha }}
+
+      - name: Logout of DigitalOcean Container Registry
+        run: docker logout ${{ secrets.DOCR_REGISTRY_URL }}
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DOCR_ACCESS_TOKEN }}
+
+      - name: Save DigitalOcean kubeconfig with short-lived credentials
+        run: doctl kubernetes cluster kubeconfig save --expiry-seconds 600 k8s-1-31-1-do-3-fra1-1730027205220
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Apply Kubernetes manifests (Deployment + Service)
+        run: |
+          kubectl apply -f k8s/ocr-parsing-service.yaml -n asklepios-sandbox
+
+      - name: Update Kubernetes Deployment with New Image
+        run: |
+          kubectl set image deployment/ocr-parsing-service ocr-parsing-service=registry.digitalocean.com/asklepios/ocr-parsing-service:${{ github.sha }} -n asklepios-sandbox
