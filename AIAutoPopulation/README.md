@@ -146,6 +146,8 @@ Extracts structured medical data from free-text input.
 
 This service is designed for extensibility. Future tasks (discharge QA, guideline checks, recommendations) can be added following the same patterns.
 
+## CI workflow (.github/workflows/auto-populate-ci.yml)
+
 ## License
 
 [Add your license here]
