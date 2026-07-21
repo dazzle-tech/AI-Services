@@ -46,10 +46,6 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Apply Kubernetes manifests (Deployment + Service)
-        run: |
-          kubectl apply -f k8s/ocr-parsing-service.yaml -n asklepios-sandbox
-
       - name: Update Kubernetes Deployment with New Image
         run: |
           kubectl set image deployment/ocr-parsing-service ocr-parsing-service=registry.digitalocean.com/asklepios/ocr-parsing-service:${{ github.sha }} -n asklepios-sandbox
