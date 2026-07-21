@@ -55,3 +55,5 @@ Service runs on port `8012`.
 
 Import `postman/OCR_Parsing_Service.postman_collection.json`.
 Default `base_url` is `http://localhost:8012` and can be overridden from the collection variables.
+
+## CI workflow (.github/workflows/ocr-parsing-ci.yml)
