@@ -220,6 +220,8 @@ pytest tests/integration/
 - **Disclaimer:** Every response includes a disclaimer that output is interpretation support and not a diagnosis.
 - **Traceability:** Raw values, units, ranges, and timestamps are preserved in structured output.
 
+## CI workflow (.github/workflows/lab-result-ci.yml)
+
 ## Disclaimer
 
 This is an AI-powered interpretation support tool. All output should be reviewed by qualified healthcare professionals. AI systems can make errors—always verify accuracy before clinical use.
