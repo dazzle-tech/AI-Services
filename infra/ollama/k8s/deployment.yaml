@@ -42,10 +42,10 @@ spec:
               mountPath: /root/.ollama
           resources:
             requests:
-              memory: "2Gi"
-              cpu: "500m"
-            limits:
               memory: "4Gi"
+              cpu: "1"
+            limits:
+              memory: "6Gi"
               cpu: "2"
 
       containers:
@@ -57,26 +57,36 @@ spec:
           env:
             - name: OLLAMA_MODELS
               value: "qwen3:1.7b"
+            # Force CPU inference on clusters without GPU; avoids GPU discovery crashes.
+            - name: OLLAMA_LLM_LIBRARY
+              value: "cpu"
+            - name: OLLAMA_NUM_PARALLEL
+              value: "1"
           volumeMounts:
             - name: ollama-data
               mountPath: /root/.ollama
+          startupProbe:
+            httpGet:
+              path: /
+              port: 11434
+            periodSeconds: 10
+            failureThreshold: 30
           readinessProbe:
-            exec:
-              command: ["ollama", "list"]
-            initialDelaySeconds: 10
+            httpGet:
+              path: /
+              port: 11434
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
               port: 11434
-            initialDelaySeconds: 30
             periodSeconds: 30
           resources:
             requests:
-              memory: "2Gi"
-              cpu: "500m"
-            limits:
               memory: "4Gi"
+              cpu: "1"
+            limits:
+              memory: "6Gi"
               cpu: "2"
 
       volumes:
