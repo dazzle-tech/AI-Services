@@ -1,5 +1,8 @@
 version: "3.8"
 
+include:
+  - path: ../infra/ollama/compose.fragment.yml
+
 services:
   api:
     build:
@@ -9,7 +12,13 @@ services:
     ports:
       - "8017:8017"
       - "8080:8080"
+    depends_on:
+      ollama:
+        condition: service_healthy
     environment:
+      - OPENAI_BASE_URL=http://ollama:11434/v1
+      - OLLAMA_HOST=http://ollama:11434
+      - LLM_PROVIDER=ollama
       - API_HOST=0.0.0.0
       - ORCHESTRATOR_PORT=8017
       - SQL_GENERATOR_PORT=8018
@@ -26,3 +35,5 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - app-network

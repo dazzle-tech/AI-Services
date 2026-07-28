@@ -1,0 +1,33 @@
+# Shared Ollama service — included by every AI service docker-compose.yml.
+# Version is pinned in infra/ollama/Dockerfile (ARG OLLAMA_VERSION).
+services:
+  ollama:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        OLLAMA_VERSION: "0.32.2"
+    image: ai-services-ollama:0.32.2
+    container_name: ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_MODELS=${OLLAMA_MODELS:-qwen3:1.7b}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - app-network
+
+volumes:
+  ollama-data:
+
+networks:
+  app-network:
+    driver: bridge

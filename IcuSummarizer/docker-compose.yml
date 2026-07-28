@@ -1,5 +1,8 @@
 version: "3.8"
 
+include:
+  - path: ../infra/ollama/compose.fragment.yml
+
 services:
   api:
     build:
@@ -8,11 +11,15 @@ services:
     container_name: icu-summarizer-service
     ports:
       - "8013:8013"
-    env_file:
-      - .env
+    depends_on:
+      ollama:
+        condition: service_healthy
     environment:
+      - OPENAI_BASE_URL=http://ollama:11434/v1
       - API_HOST=0.0.0.0
       - API_PORT=8013
+    env_file:
+      - .env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8013/')"]
@@ -20,3 +27,5 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - app-network

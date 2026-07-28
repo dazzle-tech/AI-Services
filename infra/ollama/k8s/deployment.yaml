@@ -1,0 +1,85 @@
+# Ollama on Kubernetes — version must match infra/ollama/VERSION and Dockerfile.
+# Apply: kubectl apply -f infra/ollama/k8s/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      initContainers:
+        - name: pull-model
+          image: ollama/ollama:0.32.2
+          command:
+            - /bin/sh
+            - -c
+            - |
+              ollama serve &
+              pid=$!
+              echo "Waiting for Ollama to start..."
+              until ollama list >/dev/null 2>&1; do sleep 2; done
+              echo "Pulling models..."
+              for model in $(echo "${OLLAMA_MODELS:-qwen3:1.7b}" | tr ',' ' '); do
+                ollama pull "$model"
+              done
+              echo "Model pull complete."
+              kill $pid
+              wait $pid 2>/dev/null || true
+          env:
+            - name: OLLAMA_MODELS
+              value: "qwen3:1.7b"
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+
+      containers:
+        - name: ollama
+          image: ollama/ollama:0.32.2
+          ports:
+            - containerPort: 11434
+              name: http
+          env:
+            - name: OLLAMA_MODELS
+              value: "qwen3:1.7b"
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+          readinessProbe:
+            exec:
+              command: ["ollama", "list"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+
+      volumes:
+        - name: ollama-data
+          persistentVolumeClaim:
+            claimName: ollama-pvc

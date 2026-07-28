@@ -1,13 +1,20 @@
 version: '3.8'
 
+include:
+  - path: ../infra/ollama/compose.fragment.yml
+
 services:
   api:
     build: .
     container_name: specialist-alert-service
     ports:
       - "8014:8014"
+    depends_on:
+      ollama:
+        condition: service_healthy
     environment:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=http://ollama:11434/v1
       - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.1}
       - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-1400}
@@ -31,7 +38,3 @@ services:
       start_period: 40s
     networks:
       - app-network
-
-networks:
-  app-network:
-    driver: bridge

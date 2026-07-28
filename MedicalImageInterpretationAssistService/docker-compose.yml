@@ -1,12 +1,23 @@
 version: "3.8"
 
+include:
+  - path: ../infra/ollama/compose.fragment.yml
+
 services:
+  ollama:
+    environment:
+      - OLLAMA_MODELS=qwen3:1.7b,qwen2.5vl:3b
+
   api:
     build: .
     container_name: medical-image-interpretation-assist
     ports:
       - "8015:8015"
+    depends_on:
+      ollama:
+        condition: service_healthy
     environment:
+      - OPENAI_BASE_URL=http://ollama:11434/v1
       - API_HOST=0.0.0.0
       - API_PORT=8015
       - API_RELOAD=false
@@ -19,3 +30,5 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    networks:
+      - app-network
