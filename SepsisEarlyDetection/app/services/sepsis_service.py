@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 from app.core.config import settings
 from app.ai.client import SepsisAIClient
 from app.ai.prompts import build_system_prompt, build_user_prompt
+from app.services.output_normalizer import normalize_analysis_result
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,8 @@ class SepsisService:
 
         # Call AI
         logger.info("Sending data to GPT-4o for analysis ...")
-        result = self.ai_client.analyze(system_prompt, user_prompt)
+        raw_result = self.ai_client.analyze(system_prompt, user_prompt)
+        result = normalize_analysis_result(raw_result, patient_data)
 
         # Save output
         output_file = self._save_output(result, patient_id)

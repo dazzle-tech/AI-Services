@@ -165,6 +165,42 @@ def test_create_custom_analysis_with_patient_data(client):
     assert data["source"] == "custom"
 
 
+def test_create_custom_analysis_normalizes_flat_llm_output(client):
+    """Flat LLM output should be normalized before returning to the client."""
+    mock_result = {
+        "patient_name": "Sonsoabd",
+        "age": 26,
+        "gender": "FEMALE",
+        "status_summary": "Guarded condition",
+        "patient_vitals": {},
+        "current_labs": {},
+    }
+    payload = {
+        "patient_data": {
+            "patient_info": {
+                "name": "Sonsoabd",
+                "age": 26,
+                "gender": "FEMALE",
+                "comorbidities": ["Abscess of bursa (M71.0)"],
+            },
+            "hourly_data": [],
+        }
+    }
+
+    with patch(
+        "app.services.sepsis_service.SepsisAIClient.analyze",
+        return_value=mock_result,
+    ):
+        response = client.post("/api/v1/analyses", json=payload)
+
+    assert response.status_code == 201
+    analysis = response.json()["analysis"]
+    assert "patient_snapshot" in analysis
+    assert analysis["patient_snapshot"]["name"] == "Sonsoabd"
+    assert "patient_name" not in analysis
+    assert isinstance(analysis["status_summary"], dict)
+
+
 def test_legacy_analyze_with_valid_patient_id(client):
     """POST /api/v1/analyze should remain available for compatibility."""
     mock_result = {
