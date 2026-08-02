@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import httpx
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.responses import StreamingResponse
 import pydicom
@@ -57,6 +57,13 @@ PACS_MOVE_DESTINATION_AE = os.getenv("PACS_MOVE_DESTINATION_AE")
 PACS_TIMEOUT_SECONDS = float(os.getenv("PACS_TIMEOUT_SECONDS", "30"))
 PACS_ENABLED = os.getenv("PACS_ENABLED", "false").lower() == "true"
 
+# Sub-service base URLs. Default to localhost (the monolith / subprocess layout);
+# override via env to point at the compose service containers.
+_QC = os.getenv("QC_SERVICE_URL", "http://127.0.0.1:8016")
+_INTERP = os.getenv("INTERP_SERVICE_URL", "http://127.0.0.1:8015")
+_REPORT = os.getenv("REPORT_SERVICE_URL", "http://127.0.0.1:8000")
+_AUTOFILL = os.getenv("AUTOFILL_SERVICE_URL", "http://127.0.0.1:8022")
+
 
 HealthPath = Literal["/health", "/api/v1/health"]
 
@@ -71,7 +78,14 @@ class ServiceDef:
 
     @property
     def health_url(self) -> str:
-        return f"http://127.0.0.1:{self.port}{self.health_path}"
+        # Use the env-configured base URL (compose service) when set, else localhost.
+        base = {
+            "RadiologyImageQaAI": _QC,
+            "MedicalImageInterpretationAssistService": _INTERP,
+            "RadiologyReportFilling": _REPORT,
+            "MedicalImageTemplateAutofill": _AUTOFILL,
+        }.get(self.name, f"http://127.0.0.1:{self.port}")
+        return f"{base}{self.health_path}"
 
 
 SERVICES: list[ServiceDef] = [
@@ -231,14 +245,14 @@ def stop_all_services() -> dict[str, Any]:
 
 def qc_endpoint_for_modality(modality: str) -> str:
     if modality.upper() in {"CR", "DX"}:
-        return "http://127.0.0.1:8016/api/v1/qc/xray/dicom"
-    return "http://127.0.0.1:8016/api/v1/qc/ct/dicom"
+        return f"{_QC}/api/v1/qc/xray/dicom"
+    return f"{_QC}/api/v1/qc/ct/dicom"
 
 
 def interpretation_endpoint_for_modality(modality: str) -> str:
     if modality.upper() in {"CR", "DX"}:
-        return "http://127.0.0.1:8015/api/v1/radiology/xray-interpretation/dicom"
-    return "http://127.0.0.1:8015/api/v1/radiology/ct-interpretation/dicom"
+        return f"{_INTERP}/api/v1/radiology/xray-interpretation/dicom"
+    return f"{_INTERP}/api/v1/radiology/ct-interpretation/dicom"
 
 
 def _as_zip_bytes(filename: str, content: bytes) -> tuple[str, bytes]:
@@ -623,6 +637,28 @@ def _build_report_filling_body(
     if isinstance(dicom_extras, dict):
         dicom_payload.update(dicom_extras)
 
+    # Surface the AI (torchxrayvision CNN) interpretation so the report reflects it.
+    ai_summary = None
+    effective_radiologist_notes = radiologist_notes
+    if isinstance(ai_interpretation, dict):
+        _findings = ai_interpretation.get("findings") or []
+        _codes = [f.get("finding_code") for f in _findings
+                  if isinstance(f, dict) and f.get("finding_code")]
+        _readable = [str(c).replace("_", " ").title() for c in _codes]
+        ai_summary = {
+            "summary": ai_interpretation.get("summary") or "",
+            "status": ai_interpretation.get("status") or "",
+            "findings_count": len(_findings),
+            "findings": _readable,
+        }
+        # No human radiologist in the automated pipeline: let the AI findings drive
+        # the report (RadiologistNotes is the report-filler's primary findings source).
+        if not (radiologist_notes or "").strip() and _readable:
+            effective_radiologist_notes = (
+                f"AI-detected findings ({(modality or '').strip()} {(body_part or '').strip()}): "
+                + "; ".join(_readable) + "."
+            )
+
     return {
         "PatientID": patient_id,
         "PatientName": patient_name,
@@ -635,10 +671,11 @@ def _build_report_filling_body(
         "OutputLanguage": OutputLanguage,
         "ExamType": exam_type or None,
         "DoctorNotes": doctor_notes or None,
-        "RadiologistNotes": radiologist_notes or None,
+        "RadiologistNotes": effective_radiologist_notes or None,
         "SigningPhysician": signing_physician or None,
         "SigningPhysicianCode": signing_physician_code or None,
         "AIInterpretation": ai_interpretation or None,
+        "AIInterpretationSummary": ai_summary,
         "QCResult": qc_result or None,
         "DICOM": dicom_payload,
     }
@@ -893,7 +930,7 @@ async def _api_run_pipeline_v2(
             qc_result=qc_json if isinstance(qc_json, dict) else None,
             dicom_extras=mismatch_context,
         )
-        stage3_url = "http://127.0.0.1:8000/api/v1/report-filling"
+        stage3_url = f"{_REPORT}/api/v1/report-filling"
         _print_block("STAGE 3 REQUEST (Final Report Filling)", {"url": stage3_url, "json": stage3_body})
         report_resp = await client.post(stage3_url, json=stage3_body)
         try:
@@ -1090,7 +1127,7 @@ async def _run_pipeline_job_v2(job: "_Job") -> None:
                 qc_result=qc_json if isinstance(qc_json, dict) else None,
                 dicom_extras=mismatch_context,
             )
-            stage3_url = "http://127.0.0.1:8000/api/v1/report-filling"
+            stage3_url = f"{_REPORT}/api/v1/report-filling"
             _job_print(
                 job.job_id,
                 "STAGE 3 REQUEST (Final Report Filling)",
@@ -1202,6 +1239,177 @@ async def api_parse_dicom(dicom_file: UploadFile = File(...)) -> JSONResponse:
         raise HTTPException(status_code=422, detail=f"Failed to parse DICOM metadata: {exc}") from exc
 
     return JSONResponse(payload)
+
+
+# ---------------------------------------------------------------------------
+# Lean draft-report path (demo): DICOM -> rendered image -> gpt-4o vision -> report.
+# Bypasses the multi-service pipeline for a fast, robust single-call assessment.
+# ---------------------------------------------------------------------------
+import base64 as _base64
+
+_RADIOLOGY_MODEL = os.getenv("RADIOLOGY_MODEL") or os.getenv("OPENAI_MODEL", "gpt-4o")
+_OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+_OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+
+def _dicom_to_png_b64(dicom_bytes: bytes) -> str:
+    """Render the first DICOM frame to a base64 PNG for the vision model."""
+    import numpy as np
+    from PIL import Image
+
+    ds = pydicom.dcmread(BytesIO(dicom_bytes), force=True)
+    arr = ds.pixel_array.astype("float32")
+    slope = float(getattr(ds, "RescaleSlope", 1) or 1)
+    intercept = float(getattr(ds, "RescaleIntercept", 0) or 0)
+    arr = arr * slope + intercept
+    lo, hi = np.percentile(arr, [1, 99])
+    if hi <= lo:
+        lo, hi = float(arr.min()), float(arr.max())
+    arr = np.clip((arr - lo) / (hi - lo + 1e-6), 0, 1)
+    if str(getattr(ds, "PhotometricInterpretation", "")).upper() == "MONOCHROME1":
+        arr = 1.0 - arr
+    img = Image.fromarray((arr * 255).astype("uint8"))
+    if img.mode != "L":
+        img = img.convert("L")
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    return _base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _gpt4o_radiology_report(png_b64: str, ctx: dict) -> dict:
+    """Ask the vision model for a STRUCTURED draft report (JSON)."""
+    from openai import OpenAI
+
+    client = OpenAI(base_url=_OPENAI_BASE_URL, api_key=_OPENAI_API_KEY)
+    lang = "Arabic" if str(ctx.get("output_language", "")).lower().startswith("ar") else "English"
+    system = (
+        "You are a board-certified radiologist assistant producing a STRUCTURED DRAFT report "
+        "from a single medical image. Return STRICT JSON with keys: technique (string), "
+        "findings (string), impression (string), recommendations (array of strings). "
+        "ALWAYS populate every key — describe what is actually visible in the image. If the image "
+        "quality is limited or it is not a standard diagnostic radiograph, state that explicitly in "
+        "'findings' and set 'impression' to 'Non-diagnostic image — clinical correlation and repeat "
+        "imaging advised.' Never return an empty object. This is an AI-assisted draft requiring "
+        f"radiologist review. Write all text in {lang}."
+    )
+    user_text = (
+        f"Modality: {ctx.get('modality') or 'unknown'}. "
+        f"Body part: {ctx.get('body_part') or 'unknown'}. "
+        f"Clinical indication: {ctx.get('clinical_indication') or 'not provided'}. "
+        f"Patient: {ctx.get('patient_name') or 'unknown'}. Produce the draft report as JSON."
+    )
+    resp = client.chat.completions.create(
+        model=_RADIOLOGY_MODEL,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": [
+                {"type": "text", "text": user_text},
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{png_b64}"}},
+            ]},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.2,
+        max_tokens=900,
+    )
+    content = resp.choices[0].message.content or "{}"
+    try:
+        return json.loads(content)
+    except Exception:
+        return {"technique": "", "findings": content, "impression": "", "recommendations": []}
+
+
+@app.post("/api/draft-report")
+async def api_draft_report(request: Request) -> JSONResponse:
+    """Demo radiology flow: DICOM upload -> render -> gpt-4o vision -> draft report.
+
+    The form is parsed manually and the upload is accepted under ANY field name
+    (dicom_file, file, upload, ...). Declaring a single required field made this
+    endpoint brittle: any client/field-name mismatch produced an opaque 422 before
+    the handler ever ran.
+    """
+    _log = logging.getLogger(__name__)
+    try:
+        form = await request.form()
+    except Exception as exc:  # noqa: BLE001
+        _log.exception("draft-report: could not parse multipart form")
+        raise HTTPException(status_code=422, detail=f"Could not parse upload form: {exc}") from exc
+
+    # First value that looks like an uploaded file, whatever it was named.
+    upload = None
+    for _key, val in form.multi_items():
+        if hasattr(val, "filename") and hasattr(val, "read"):
+            upload = val
+            break
+
+    def _f(key: str, default: str = "") -> str:
+        val = form.get(key)
+        return val if isinstance(val, str) else default
+
+    patient_name = _f("patient_name")
+    patient_id = _f("patient_id")
+    modality = _f("modality")
+    body_part = _f("body_part")
+    clinical_indication = _f("clinical_indication")
+    output_language = _f("output_language", "en") or "en"
+
+    _log.info("draft-report: fields=%s file=%s", list(form.keys()),
+              getattr(upload, "filename", None))
+
+    if upload is None:
+        raise HTTPException(
+            status_code=422,
+            detail=("No file was received. Attach the DICOM as a multipart file field "
+                    f"(e.g. 'dicom_file'). Fields received: {list(form.keys())}"),
+        )
+    blob = await upload.read()
+    if not blob:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty (0 bytes).")
+    name = getattr(upload, "filename", None) or "upload.dcm"
+    try:
+        meta = _extract_parse_dicom_payload(name, blob)  # DICOM-only: raises on non-DICOM
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=422, detail=f"Not a valid DICOM file: {exc}") from exc
+    try:
+        png_b64 = _dicom_to_png_b64(blob)
+    except Exception as exc:  # noqa: BLE001
+        ts = "unknown"
+        try:
+            _ds = pydicom.dcmread(BytesIO(blob), stop_before_pixels=True, force=True)
+            ts = str(getattr(_ds.file_meta, "TransferSyntaxUID", "")) or "unknown"
+        except Exception:  # noqa: BLE001
+            pass
+        logging.getLogger(__name__).exception(
+            "DICOM pixel render failed (transfer_syntax=%s, file=%s)", ts, name)
+        raise HTTPException(
+            status_code=422,
+            detail=(f"Could not render DICOM pixels (transfer syntax {ts}): {exc}. "
+                    "Compressed DICOMs need a decoder (pylibjpeg/gdcm)."),
+        ) from exc
+    ctx = {
+        "patient_name": patient_name, "patient_id": patient_id, "modality": modality,
+        "body_part": body_part, "clinical_indication": clinical_indication,
+        "output_language": output_language,
+    }
+    try:
+        report = _gpt4o_radiology_report(png_b64, ctx) or {}
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=502, detail=f"Vision model failed: {exc}") from exc
+    # Normalise so the UI always has the four fields.
+    recs = report.get("recommendations") or []
+    if isinstance(recs, str):
+        recs = [recs]
+    report = {
+        "technique": report.get("technique") or "",
+        "findings": report.get("findings") or "No structured findings were generated for this image.",
+        "impression": report.get("impression") or "",
+        "recommendations": recs,
+    }
+    return JSONResponse({
+        "patient_name": patient_name, "patient_id": patient_id,
+        "dicom_metadata": meta, "image_base64": png_b64, "report": report,
+        "model": _RADIOLOGY_MODEL,
+        "disclaimer": "AI-assisted draft. Board-certified radiologist review required before clinical use.",
+    })
 
 
 @app.post("/api/run-pipeline")
@@ -1388,9 +1596,9 @@ async def api_run_pipeline(
                 "StudyDate": study_date,
             },
         }
-        _print_block("STAGE 3 REQUEST (Report Correction)", {"url": "http://127.0.0.1:8000/api/v1/report-correction", "json": stage3_body})
+        _print_block("STAGE 3 REQUEST (Report Correction)", {"url": f"{_REPORT}/api/v1/report-correction", "json": stage3_body})
         rc_resp = await client.post(
-            "http://127.0.0.1:8000/api/v1/report-correction",
+            f"{_REPORT}/api/v1/report-correction",
             json=stage3_body,
         )
         results["stage_3_report_correction"] = {"status_code": rc_resp.status_code}
@@ -1420,9 +1628,9 @@ async def api_run_pipeline(
                 "StudyDescription": exam_type,
             },
         }
-        _print_block("STAGE 4 REQUEST (Analysis Matching)", {"url": "http://127.0.0.1:8000/api/v1/analysis-matching", "json": stage4_body})
+        _print_block("STAGE 4 REQUEST (Analysis Matching)", {"url": f"{_REPORT}/api/v1/analysis-matching", "json": stage4_body})
         am_resp = await client.post(
-            "http://127.0.0.1:8000/api/v1/analysis-matching",
+            f"{_REPORT}/api/v1/analysis-matching",
             json=stage4_body,
         )
         results["stage_4_analysis_matching"] = {"status_code": am_resp.status_code}
@@ -1461,9 +1669,9 @@ async def api_run_pipeline(
             },
             "top_k": 3,
         }
-        _print_block("STAGE 5 REQUEST (Template Autofill)", {"url": "http://127.0.0.1:8022/select-and-fill", "json": stage5_body})
+        _print_block("STAGE 5 REQUEST (Template Autofill)", {"url": f"{_AUTOFILL}/select-and-fill", "json": stage5_body})
         ta_resp = await client.post(
-            "http://127.0.0.1:8022/select-and-fill",
+            f"{_AUTOFILL}/select-and-fill",
             json=stage5_body,
         )
         results["stage_5_template_autofill"] = {"status_code": ta_resp.status_code}
@@ -1852,7 +2060,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                 job.job_id,
                 "STAGE 3 REQUEST (Report Correction)",
                 {
-                    "url": "http://127.0.0.1:8000/api/v1/report-correction",
+                    "url": f"{_REPORT}/api/v1/report-correction",
                     "json": {
                         "doctor_notes": p["doctor_notes"],
                         "radiologist_notes": p["radiologist_notes"],
@@ -1874,7 +2082,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                     },
                 },
             )
-            await job.emit("stage_start", {"stage": 3, "name": "Report Correction", "url": "http://127.0.0.1:8000/api/v1/report-correction"})
+            await job.emit("stage_start", {"stage": 3, "name": "Report Correction", "url": f"{_REPORT}/api/v1/report-correction"})
             stage3_body = {
                 "doctor_notes": p["doctor_notes"],
                 "radiologist_notes": p["radiologist_notes"],
@@ -1894,7 +2102,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                     "StudyDate": p["study_date"],
                 },
             }
-            rc_resp = await client.post("http://127.0.0.1:8000/api/v1/report-correction", json=stage3_body)
+            rc_resp = await client.post(f"{_REPORT}/api/v1/report-correction", json=stage3_body)
             try:
                 rc_json = rc_resp.json()
             except Exception:  # noqa: BLE001
@@ -1915,7 +2123,7 @@ async def _run_pipeline_job(job: _Job) -> None:
                 job.job_id,
                 "STAGE 4 REQUEST (Analysis Matching)",
                 {
-                    "url": "http://127.0.0.1:8000/api/v1/analysis-matching",
+                    "url": f"{_REPORT}/api/v1/analysis-matching",
                     "json": {
                         "clinical_report": clinical_report_text or "",
                         "ai_image_analysis": {"findings": (interp_json or {}).get("findings", [])},
@@ -1927,13 +2135,13 @@ async def _run_pipeline_job(job: _Job) -> None:
                     },
                 },
             )
-            await job.emit("stage_start", {"stage": 4, "name": "Analysis Matching", "url": "http://127.0.0.1:8000/api/v1/analysis-matching"})
+            await job.emit("stage_start", {"stage": 4, "name": "Analysis Matching", "url": f"{_REPORT}/api/v1/analysis-matching"})
             stage4_body = {
                 "clinical_report": clinical_report_text or "",
                 "ai_image_analysis": {"findings": (interp_json or {}).get("findings", [])},
                 "extracted_dicom_metadata": {"Modality": p["modality"], "ViewPosition": "PA", "StudyDescription": p["exam_type"]},
             }
-            am_resp = await client.post("http://127.0.0.1:8000/api/v1/analysis-matching", json=stage4_body)
+            am_resp = await client.post(f"{_REPORT}/api/v1/analysis-matching", json=stage4_body)
             try:
                 am_json = am_resp.json()
             except Exception:  # noqa: BLE001
@@ -1943,7 +2151,7 @@ async def _run_pipeline_job(job: _Job) -> None:
             await job.emit("stage_result", {"stage": 4, "result": results["stage_4_analysis_matching"]})
 
             # Stage 5
-            await job.emit("stage_start", {"stage": 5, "name": "Template Autofill", "url": "http://127.0.0.1:8022/select-and-fill"})
+            await job.emit("stage_start", {"stage": 5, "name": "Template Autofill", "url": f"{_AUTOFILL}/select-and-fill"})
             sn = am_json.get("safety_normalized_output") if isinstance(am_json, dict) else {}
             reconciled_findings = (sn or {}).get("reconciled_findings", [])
             icd10_codes_raw = (((rc_sn or {}).get("rag_grounding") or {}).get("icd10_codes")) or []
@@ -1971,9 +2179,9 @@ async def _run_pipeline_job(job: _Job) -> None:
             _job_print(
                 job.job_id,
                 "STAGE 5 REQUEST (Template Autofill)",
-                {"url": "http://127.0.0.1:8022/select-and-fill", "json": stage5_body},
+                {"url": f"{_AUTOFILL}/select-and-fill", "json": stage5_body},
             )
-            ta_resp = await client.post("http://127.0.0.1:8022/select-and-fill", json=stage5_body)
+            ta_resp = await client.post(f"{_AUTOFILL}/select-and-fill", json=stage5_body)
             try:
                 ta_json = ta_resp.json()
             except Exception:  # noqa: BLE001

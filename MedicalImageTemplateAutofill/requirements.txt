@@ -13,6 +13,9 @@ python-dotenv==1.0.0
 
 # Vector store + embeddings (RAG template selection)
 chromadb==0.4.22
+# CPU-only torch (avoids ~2GB of nvidia CUDA packages on a CPU-only demo build).
+numpy>=1.26,<2
+torch==2.2.2
 sentence-transformers==2.3.1
 
 # Testing

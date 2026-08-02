@@ -5,3 +5,12 @@ pydantic>=2.0.0
 python-multipart>=0.0.9
 pydicom>=2.4.0
 # pynetdicom>=2.0.0  # required only if PACS_PROTOCOL=dimse - uncomment when implementing DIMSE retrieval
+numpy>=1.26,<3.0
+pillow>=10.0
+openai>=1.0.0
+# Decoders for COMPRESSED DICOM transfer syntaxes (JPEG baseline/extended, JPEG-LS,
+# JPEG 2000). Real clinical DICOMs are usually compressed; without these pydicom
+# cannot build pixel_array and the draft-report endpoint fails with a 422.
+pylibjpeg>=2.0
+pylibjpeg-libjpeg>=2.1
+pylibjpeg-openjpeg>=2.1

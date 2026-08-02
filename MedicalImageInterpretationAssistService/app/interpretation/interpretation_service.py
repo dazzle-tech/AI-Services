@@ -777,7 +777,7 @@ def build_image_response(
             study=study,
         )
 
-    if skip_image_model:
+    if skip_image_model and not exam_type.startswith("XR_CHEST"):
         return _build_review_required_response(
             exam_type=exam_type,
             summary=(
@@ -793,7 +793,12 @@ def build_image_response(
         )
 
     try:
-        if _should_use_gpt(settings):
+        if exam_type.startswith("XR_CHEST"):
+            # Chest: always use the purpose-built local CNN (accurate + free).
+            findings, model_outputs, model_meta = run_xray_model(str(image_path), exam_type)
+        elif _should_use_gpt(settings) and selected_vision_model:
+            # Non-chest: no local CNN, fall back to the configured vision model
+            # (Ollama or OpenAI, per OPENAI_BASE_URL / VISION_MODEL).
             from .gpt_xray_model import run_gpt_xray_model
 
             findings, _gpt_output, model_meta = run_gpt_xray_model(
@@ -801,7 +806,9 @@ def build_image_response(
                 exam_type=exam_type,
                 output_language=output_language,
                 openai_api_key=(settings.openai_api_key or "").strip(),
+                openai_base_url=settings.openai_base_url,
                 openai_model=selected_vision_model,
+                vision_image_url_as_string=settings.vision_image_url_as_string,
                 openai_timeout=settings.openai_timeout,
                 study_description=None,
                 series_description=None,
@@ -810,12 +817,9 @@ def build_image_response(
             )
             model_outputs = {}
         else:
-            if exam_type.startswith("XR_CHEST"):
-                findings, model_outputs, model_meta = run_xray_model(str(image_path), exam_type)
-            else:
-                raise RuntimeError(
-                    "No local model available for this body part; configure OPENAI_API_KEY to enable full X-ray coverage."
-                )
+            raise RuntimeError(
+                "No local model available for this body part; configure OPENAI_API_KEY to enable full X-ray coverage."
+            )
     except Exception as e:
         reason = str(e) or e.__class__.__name__
         study = StudyInfo(image_quality="UNREADABLE")
@@ -1051,7 +1055,7 @@ def build_dicom_response(
             disclaimer=settings.disclaimer_text,
         ), output_language), clinical_indication)
 
-    if skip_image_model:
+    if skip_image_model and not exam_type.startswith("XR_CHEST"):
         study = StudyInfo(
             study_instance_uid=study_uid,
             modality=metadata.get("modality"),
@@ -1085,7 +1089,12 @@ def build_dicom_response(
         metadata["available_views"] = available_views
         metadata["images_reviewed_count"] = 1
         metadata["detected_view"] = detected_view
-        if _should_use_gpt(settings):
+        if exam_type.startswith("XR_CHEST"):
+            # Chest: always use the purpose-built local CNN (accurate + free).
+            findings, model_outputs, model_meta = run_xray_model(str(image_path), exam_type)
+        elif _should_use_gpt(settings) and selected_vision_model:
+            # Non-chest: no local CNN, fall back to the configured vision model
+            # (Ollama or OpenAI, per OPENAI_BASE_URL / VISION_MODEL).
             from .gpt_xray_model import run_gpt_xray_model
 
             findings, _gpt_output, model_meta = run_gpt_xray_model(
@@ -1104,12 +1113,9 @@ def build_dicom_response(
             )
             model_outputs = {}
         else:
-            if exam_type.startswith("XR_CHEST"):
-                findings, model_outputs, model_meta = run_xray_model(str(image_path), exam_type)
-            else:
-                raise RuntimeError(
-                    "No local model available for this body part; configure OPENAI_API_KEY to enable full X-ray coverage."
-                )
+            raise RuntimeError(
+                "No local model available for this body part; configure OPENAI_API_KEY to enable full X-ray coverage."
+            )
     except Exception as e:
         reason = str(e) or e.__class__.__name__
         if reason == (
