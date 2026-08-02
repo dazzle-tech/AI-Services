@@ -118,6 +118,14 @@ class PromptRunner:
         
         prompt_parts.append("=== END INPUTS ===\n\n")
         prompt_parts.append("Now perform Direct QA using the provided inputs and return ONLY the JSON output.")
-        
-        return "".join(prompt_parts)
+
+        prompt = "".join(prompt_parts)
+        if self._uses_qwen3_thinking_model():
+            prompt += "\n\n/no_think"
+
+        return prompt
+
+    def _uses_qwen3_thinking_model(self) -> bool:
+        model_name = (self.client.model or "").lower()
+        return "qwen3" in model_name or "qwen" in model_name
 

@@ -1,67 +1,67 @@
 """PHI detection and prevention."""
 
-import json
 import re
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 
 class AnonymizationChecker:
     """Checks for PHI in output."""
-    
-    # Common PHI patterns
+
     PHI_PATTERNS = {
         "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
-        "phone": r"\b\d{3}[-.]?\d{3}[-.]?\d{4}\b",
-        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b",
-        "mrn": r"\bMRN[:\s]*\d+\b",
-        "address": r"\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Court|Ct)",
-        "name": r"\b(?:Mr|Mrs|Ms|Dr)\.?\s+[A-Z][a-z]+\s+[A-Z][a-z]+\b"
+        "phone": r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b",
+        "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
+        "mrn": r"\bMRN[:\s#-]*\d+\b",
+        "address": r"\b\d+\s+[A-Za-z0-9\s]{2,40}\b(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Drive|Dr\.|Lane|Ln\.|Boulevard|Blvd\.|Court|Ct\.)\b",
+        "provider_name": r"\b(?:Dr|Mr|Mrs|Ms)\.\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b",
     }
-    
-    def check_output(self, output: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Check output for PHI.
-        
-        Returns:
-            List of PHI detection issues
-        """
-        issues = []
-        output_str = str(output)
-        
-        for phi_type, pattern in self.PHI_PATTERNS.items():
-            matches = re.findall(pattern, output_str, re.IGNORECASE)
-            if matches:
-                issues.append({
-                    "type": phi_type,
-                    "count": len(matches),
-                    "severity": "high"
-                })
-        
-        return issues
-    
-    def sanitize_output(self, output: Dict[str, Any]) -> Dict[str, Any]:
-        """Remove PHI from output (basic implementation)."""
-        output_str = json.dumps(output)
-        
-        # Replace SSNs
-        output_str = re.sub(self.PHI_PATTERNS["ssn"], "[REDACTED-SSN]", output_str)
-        
-        # Replace phone numbers
-        output_str = re.sub(self.PHI_PATTERNS["phone"], "[REDACTED-PHONE]", output_str)
-        
-        # Replace emails
-        output_str = re.sub(self.PHI_PATTERNS["email"], "[REDACTED-EMAIL]", output_str)
-        
-        # Replace MRNs
-        output_str = re.sub(self.PHI_PATTERNS["mrn"], "[REDACTED-MRN]", output_str)
-        
-        # Replace addresses
-        output_str = re.sub(self.PHI_PATTERNS["address"], "[REDACTED-ADDRESS]", output_str)
-        
-        # Replace names (basic)
-        output_str = re.sub(self.PHI_PATTERNS["name"], "[REDACTED-NAME]", output_str)
-        
-        try:
-            return json.loads(output_str)
-        except:
-            return output
 
+    REDACTIONS = {
+        "ssn": "[REDACTED-SSN]",
+        "phone": "[REDACTED-PHONE]",
+        "email": "[REDACTED-EMAIL]",
+        "mrn": "[REDACTED-MRN]",
+        "address": "[REDACTED-ADDRESS]",
+        "provider_name": "[REDACTED-NAME]",
+    }
+
+    def check_output(self, output: Dict[str, Any]) -> List[Dict[str, Any]]:
+        issues = []
+        for phi_type, pattern in self.PHI_PATTERNS.items():
+            matches = self._find_matches(output, pattern)
+            if matches:
+                issues.append({"type": phi_type, "count": len(matches), "severity": "high"})
+        return issues
+
+    def sanitize_output(self, output: Dict[str, Any]) -> Dict[str, Any]:
+        sanitized = self._sanitize_value(output)
+        return sanitized if isinstance(sanitized, dict) else output
+
+    def _find_matches(self, value: Any, pattern: str) -> List[str]:
+        if isinstance(value, dict):
+            matches: List[str] = []
+            for key, item in value.items():
+                if key in {"qa_method", "overall_score"}:
+                    continue
+                matches.extend(self._find_matches(item, pattern))
+            return matches
+        if isinstance(value, list):
+            matches = []
+            for item in value:
+                matches.extend(self._find_matches(item, pattern))
+            return matches
+        if isinstance(value, str):
+            return re.findall(pattern, value, re.IGNORECASE)
+        return []
+
+    def _sanitize_value(self, value: Any) -> Any:
+        if isinstance(value, dict):
+            return {key: self._sanitize_value(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [self._sanitize_value(item) for item in value]
+        if isinstance(value, str):
+            sanitized = value
+            for phi_type, pattern in self.PHI_PATTERNS.items():
+                sanitized = re.sub(pattern, self.REDACTIONS[phi_type], sanitized, flags=re.IGNORECASE)
+            return sanitized
+        return value

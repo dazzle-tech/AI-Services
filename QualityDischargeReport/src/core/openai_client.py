@@ -75,7 +75,27 @@ class OpenAIClient:
                 timeout=self.timeout,
             )
             
-            return response.choices[0].message.content
+            content = response.choices[0].message.content
+            if not content:
+                reasoning = (
+                    getattr(response.choices[0].message, "reasoning_content", None)
+                    or getattr(response.choices[0].message, "reasoning", None)
+                )
+                if reasoning:
+                    logger.error(
+                        "Model '%s' returned only reasoning content and no final answer "
+                        "(likely exhausted max_tokens=%s while thinking). Reasoning preview: %.200s",
+                        self.model,
+                        max_tokens,
+                        reasoning,
+                    )
+                raise RuntimeError(
+                    f"Empty response from model '{self.model}' - the model may have "
+                    f"exhausted max_tokens on internal reasoning before producing an answer"
+                )
+            return content
+        except RuntimeError:
+            raise
         except Exception as e:
             raise RuntimeError(f"OpenAI API error: {str(e)}")
 

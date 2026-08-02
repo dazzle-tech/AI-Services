@@ -88,3 +88,66 @@ def test_qa_structure_validation(sample_discharge_report, sample_patient_record,
     assert isinstance(result["missing_items"], list)
     assert isinstance(result["inconsistencies"], list)
 
+
+def test_qa_filters_false_return_precautions_missing(sample_discharge_report, sample_patient_record, sample_onsite_docs):
+    """Malformed AI findings for present return_precautions should be removed after merge."""
+    service = DischargeQAService()
+
+    class MockPromptRunner:
+        def run_qa(self, *args, **kwargs):
+            return {
+                "qa_method": "direct_qa",
+                "overall_score": 90,
+                "summary": "AI summary",
+                "parsed_report": {
+                    "format": "text",
+                    "structure_used": "standard",
+                    "content": {},
+                    "unmapped_content": [],
+                },
+                "errors": [
+                    {
+                        "type": "missing_item",
+                        "section": "follow_up_and_instructions",
+                        "field": "return_precautions",
+                        "reason": "Required for high-risk cases",
+                    }
+                ],
+                "missing_items": [
+                    {
+                        "section": "follow_up_and_instructions",
+                        "field": "return_precautions",
+                    }
+                ],
+                "inconsistencies": [],
+                "recommended_corrections": [
+                    {
+                        "id": "FIX-001",
+                        "action": "add",
+                        "section": "follow_up_and_instructions",
+                        "field": "return_precautions",
+                        "suggested_text": "",
+                        "rationale": "",
+                    }
+                ],
+            }
+
+    service.prompt_runner = MockPromptRunner()
+
+    result = service.perform_qa(
+        discharge_report=sample_discharge_report,
+        patient_record=sample_patient_record,
+        onsite_docs=sample_onsite_docs,
+    )
+
+    is_valid, error = service.validator.validate(result)
+
+    assert is_valid, error
+    assert result["overall_score"] == 100
+    assert result["errors"] == []
+    assert result["missing_items"] == []
+    assert result["recommended_corrections"] == []
+    assert "validation issues" not in result["summary"].lower()
+    precautions = result["parsed_report"]["content"]["follow_up_and_instructions"]["return_precautions"]
+    assert len(precautions) > 0
+

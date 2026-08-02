@@ -1,17 +1,15 @@
 """Parser for discharge reports."""
 
 import logging
-import json
 import re
-from typing import Dict, Any, Optional, List
-from ...utils.json_utils import safe_json_loads, extract_json_from_text
+from typing import Dict, Any, Optional, List, Tuple
+from ...utils.json_utils import safe_json_loads
 
 logger = logging.getLogger(__name__)
-# Ensure logger outputs to console
 if not logger.handlers:
     handler = logging.StreamHandler()
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(levelname)s - %(name)s - %(message)s')
+    formatter = logging.Formatter("%(levelname)s - %(name)s - %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
@@ -19,7 +17,7 @@ if not logger.handlers:
 
 class DischargeReportParser:
     """Parses discharge reports from text or JSON into structured format."""
-    
+
     STANDARD_SECTIONS = [
         "patient_info",
         "encounter_summary",
@@ -30,22 +28,26 @@ class DischargeReportParser:
         "vitals_and_key_results",
         "follow_up_and_instructions",
         "disposition",
-        "providers_and_signoff"
+        "providers_and_signoff",
     ]
-    
+
+    SECTION_HEADER_RULES: List[Tuple[str, str]] = [
+        ("patient_info", r"patient\s+information|demographics"),
+        ("encounter_summary", r"chief\s+complaint"),
+        ("encounter_summary", r"history\s+of\s+present\s+illness"),
+        ("encounter_summary", r"hospital\s+course"),
+        ("diagnoses", r"diagnos(?:is|es)"),
+        ("procedures_and_tests", r"procedures?|tests?|imaging"),
+        ("medications", r"medications?(?:\s+on\s+discharge)?|meds(?:\s+on\s+discharge)?|discharge\s+medications?"),
+        ("allergies", r"allerg(?:y|ies)"),
+        ("vitals_and_key_results", r"vitals?(?:\s+at\s+discharge)?|vital\s+signs"),
+        ("follow_up_and_instructions", r"follow[- ]?up|return\s+precautions|discharge\s+instructions"),
+        ("disposition", r"discharge\s+disposition|condition\s+on\s+discharge"),
+        ("providers_and_signoff", r"service(?:\s+department)?|author|sign[- ]?off|provider"),
+    ]
+
     def parse(self, content: Any, template: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Parse discharge report content.
-        
-        Args:
-            content: Text string or JSON object
-            template: Optional template defining structure
-            
-        Returns:
-            Parsed report structure
-        """
-        # Determine format
         if isinstance(content, str):
-            # Try to parse as JSON first
             parsed = safe_json_loads(content)
             if isinstance(parsed, dict):
                 format_type = "json"
@@ -58,232 +60,272 @@ class DischargeReportParser:
             format_type = "json"
             structure_used = "template" if template else "inferred"
             parsed = content if isinstance(content, dict) else {}
-        
-        # Normalize structure
+
         normalized = self._normalize_structure(parsed, template)
-        
         return {
             "format": format_type,
             "structure_used": structure_used,
             "content": normalized,
-            "unmapped_content": []
+            "unmapped_content": [],
         }
-    
+
     def _parse_text(self, text: str, template: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Parse text report into structured format."""
-        result = {}
-        
-        if template:
-            # Use template-defined sections
-            sections = template.get("sections", [])
-            for section in sections:
-                section_name = section.get("name", "")
-                result[section_name] = self._extract_section(text, section_name, section.get("patterns", []))
-        else:
-            # Use standard sections
-            for section in self.STANDARD_SECTIONS:
-                result[section] = self._extract_section(text, section)
-        
-        return result
-    
-    def _extract_section(self, text: str, section_name: str, patterns: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Extract section content from text."""
-        # Common section header patterns
-        section_patterns = {
-            "patient_info": r"(?i)(patient\s+info|demographics|patient\s+demographics)",
-            "encounter_summary": r"(?i)(encounter\s+summary|chief\s+complaint|history\s+of\s+present\s+illness|hospital\s+course)",
-            "diagnoses": r"(?i)(diagnos(?:is|es)|final\s+diagnos(?:is|es))",
-            "medications": r"(?i)(medication|medications|meds|discharge\s+medications)",
-            "allergies": r"(?i)(allerg(?:y|ies)|allergic\s+reactions?)",
-            "vitals": r"(?i)(vitals|vital\s+signs|vitals\s+and\s+key\s+results)",
-            "follow_up": r"(?i)(follow\s+up|follow\s+up\s+instructions|discharge\s+instructions)",
-            "disposition": r"(?i)(disposition|discharge\s+disposition)",
-            "procedures": r"(?i)(procedures?|tests?|imaging)"
-        }
-        
-        # Try to find section
-        pattern = patterns[0] if patterns else section_patterns.get(section_name.lower().replace("_", " "), "")
-        
-        if pattern:
-            match = re.search(pattern, text, re.IGNORECASE)
-            if match:
-                # Extract content until next section or end
-                start = match.end()
-                # Find next section
-                next_section_start = len(text)
-                for other_pattern in section_patterns.values():
-                    next_match = re.search(other_pattern, text[start:], re.IGNORECASE)
-                    if next_match and next_match.start() < next_section_start:
-                        next_section_start = next_match.start()
-                
-                content = text[start:start + next_section_start].strip()
-                return self._parse_section_content(section_name, content)
-        
-        return {}
-    
-    def _parse_section_content(self, section_name: str, content: str) -> Dict[str, Any]:
-        """Parse section content into structured fields."""
-        result = {}
-        
-        # Basic field extraction based on section type
-        if section_name == "patient_info":
-            # Extract age, sex, dates
-            age_match = re.search(r"age[:\s]+(\d+)", content, re.IGNORECASE)
-            if age_match:
-                result["age"] = int(age_match.group(1))
-            
-            sex_match = re.search(r"(?:sex|gender)[:\s]+([MFmf]|male|female)", content, re.IGNORECASE)
-            if sex_match:
-                result["sex"] = sex_match.group(1)
-        
-        elif section_name == "medications":
-            # Extract medication list
-            result["discharge_medications"] = self._extract_medications(content)
-        
-        elif section_name == "allergies":
-            # Extract allergies
-            result["allergies"] = self._extract_allergies(content)
-        
-        elif section_name == "diagnoses":
-            # Extract diagnoses
-            result["primary_diagnosis"] = self._extract_primary_diagnosis(content)
-            result["secondary_diagnoses"] = self._extract_secondary_diagnoses(content)
-        
-        return result
-    
-    def _extract_medications(self, text: str) -> List[Dict[str, Any]]:
-        """Extract medications from text."""
-        logger.debug(f"_extract_medications called with text length: {len(text)}")
-        meds = []
-        # Simple line-by-line extraction
-        lines = text.split('\n')
-        logger.debug(f"Split into {len(lines)} lines")
-        
-        for i, line in enumerate(lines):
-            original_line = line
-            line = line.strip()
-            
-            # Skip empty lines, comments, and section headers
-            if not line or line.startswith('#'):
-                logger.debug(f"  Line {i+1}: Skipped (empty or comment)")
+        sections = self._split_into_sections(text)
+        result: Dict[str, Any] = {}
+
+        for section_name, field_name, content in sections:
+            if not content.strip():
                 continue
-            
-            # Skip section headers and labels
-            if re.search(r"(?i)^(medications?|meds|discharge\s+medications?|home\s+medications?|on\s+discharge)[:\s]*$", line):
-                logger.debug(f"  Line {i+1}: Skipped (section header): {line[:50]}")
+            if field_name:
+                section = result.setdefault(section_name, {})
+                section[field_name] = content.strip()
                 continue
-            
-            # Skip partial section headers (like "s on Discharge:" from "Medications on Discharge:")
-            if re.search(r"(?i)(on\s+discharge|discharge)[:\s]*$", line) and len(line) < 25:
-                logger.debug(f"  Line {i+1}: Skipped (partial section header): {line[:50]}")
-                continue
-            
-            # Skip lines that are just colons or punctuation
-            if re.match(r"^[:\-\s]+$", line):
-                logger.debug(f"  Line {i+1}: Skipped (punctuation only): {line[:50]}")
-                continue
-            
-            # Skip lines that look like headers (short, all caps, or ending with colon)
-            if len(line) < 10 and (line.isupper() or line.endswith(':')):
-                logger.debug(f"  Line {i+1}: Skipped (looks like header): {line[:50]}")
-                continue
-            
-            # Skip lines that are just ":" or similar invalid patterns
-            if re.match(r"^[:\s]+$", line) or line == ":":
-                logger.debug(f"  Line {i+1}: Skipped (invalid pattern): {line[:50]}")
-                continue
-            
-            # Only include lines that look like medication entries (contain dose or medication name)
-            # Must have either: a dose pattern, or start with dash/bullet AND contain a medication-like word
-            has_dose = re.search(r"(?i)(\d+\s*(?:mg|mcg|g|ml|units?)|[a-z]+\s+\d+)", line)
-            has_med_name = re.search(r"(?i)\b(aspirin|metformin|lisinopril|atorvastatin|metoprolol|clopidogrel|warfarin|insulin|penicillin|amoxicillin|ibuprofen|acetaminophen|morphine|furosemide|omeprazole|levothyroxine|amlodipine|simvastatin|losartan|atenolol|propranolol|digoxin|prednisone|albuterol|sertraline|fluoxetine|gabapentin|tramadol|hydrochlorothiazide|carvedilol|spironolactone|folic|vitamin|calcium|iron|zinc|magnesium|potassium)\b", line)
-            
-            if has_dose or (line.startswith('-') or line.startswith('•')) and (has_dose or has_med_name):
-                logger.debug(f"  Line {i+1}: Added as medication: {line[:50]}")
-                meds.append({"name": line, "dose": None, "frequency": None, "route": None})
+
+            parsed = self._parse_section_content(section_name, content)
+            if section_name in result and isinstance(result[section_name], dict) and isinstance(parsed, dict):
+                result[section_name] = self._merge_section_dicts(result[section_name], parsed)
             else:
-                logger.debug(f"  Line {i+1}: Skipped (doesn't look like medication): {line[:50]}")
-        
-        logger.debug(f"_extract_medications returning {len(meds)} medications")
-        return meds
-    
-    def _extract_allergies(self, text: str) -> List[str]:
-        """Extract allergies from text."""
-        allergies = []
-        # Look for "NKDA" or "No known allergies"
-        if re.search(r"(?i)(nkda|no\s+known\s+allerg)", text):
-            return []
-        
-        # Extract allergy items
-        lines = text.split('\n')
+                result[section_name] = parsed
+
+        return result
+
+    def _split_into_sections(self, text: str) -> List[Tuple[str, Optional[str], str]]:
+        inline_headers = re.finditer(
+            r"(?im)^(service(?:\s+department)?|author|date)\s*:\s*(.+)$",
+            text,
+        )
+        header_regex = re.compile(
+            rf"(?im)^(?:{'|'.join(rule[1] for rule in self.SECTION_HEADER_RULES)})\s*:?\s*$"
+        )
+        boundaries = []
+
+        for match in header_regex.finditer(text):
+            boundaries.append((match.start(), match.end(), match.group(0).strip(), None))
+        for match in inline_headers:
+            header = match.group(1).strip()
+            value = match.group(2).strip()
+            boundaries.append((match.start(), match.end(), header, value))
+
+        boundaries.sort(key=lambda item: item[0])
+        sections: List[Tuple[str, Optional[str], str]] = []
+
+        for index, (_, end, header_line, inline_value) in enumerate(boundaries):
+            section_name, field_name = self._map_header_to_section(header_line)
+            if inline_value is not None:
+                sections.append((section_name, field_name, inline_value))
+                continue
+            start = end
+            next_start = boundaries[index + 1][0] if index + 1 < len(boundaries) else len(text)
+            chunk = text[start:next_start].strip()
+            if chunk:
+                sections.append((section_name, field_name, chunk))
+
+        return sections
+
+    def _map_header_to_section(self, header_line: str) -> Tuple[str, Optional[str]]:
+        normalized = header_line.rstrip(":").strip()
+        field_headers = {
+            "chief_complaint": ("encounter_summary", "chief_complaint"),
+            "history_of_present_illness": ("encounter_summary", "history_of_present_illness"),
+            "hospital_course": ("encounter_summary", "hospital_course"),
+            "return_precautions": ("follow_up_and_instructions", "return_precautions"),
+            "discharge_disposition": ("disposition", "discharge_disposition"),
+            "condition_on_discharge": ("disposition", "condition_on_discharge"),
+        }
+        for pattern, mapping in {
+            r"chief\s+complaint": field_headers["chief_complaint"],
+            r"history\s+of\s+present\s+illness": field_headers["history_of_present_illness"],
+            r"hospital\s+course": field_headers["hospital_course"],
+            r"return\s+precautions": field_headers["return_precautions"],
+            r"discharge\s+disposition": field_headers["discharge_disposition"],
+            r"condition\s+on\s+discharge": field_headers["condition_on_discharge"],
+            r"service(?:\s+department)?": ("providers_and_signoff", "service_department"),
+            r"author": ("providers_and_signoff", "author_role"),
+            r"date": ("providers_and_signoff", "signoff_date"),
+        }.items():
+            if re.search(rf"(?i)^{pattern}$", normalized):
+                return mapping
+
+        for section_name, pattern in self.SECTION_HEADER_RULES:
+            if re.search(rf"(?i)^{pattern}$", normalized):
+                return section_name, None
+        return normalized.replace(" ", "_"), None
+
+    def _merge_section_dicts(self, left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
+        merged = dict(left)
+        for key, value in right.items():
+            if key not in merged or not merged[key]:
+                merged[key] = value
+            elif isinstance(merged[key], list) and isinstance(value, list):
+                merged[key] = merged[key] + [item for item in value if item not in merged[key]]
+        return merged
+
+    def _parse_section_content(self, section_name: str, content: str) -> Dict[str, Any]:
+        if section_name == "patient_info":
+            return self._parse_patient_info(content)
+        if section_name == "encounter_summary":
+            return self._parse_encounter_summary(content)
+        if section_name == "medications":
+            return {"discharge_medications": self._extract_medications(content)}
+        if section_name == "allergies":
+            return {"allergies": self._extract_allergies(content)}
+        if section_name == "diagnoses":
+            return {
+                "primary_diagnosis": self._extract_primary_diagnosis(content),
+                "secondary_diagnoses": self._extract_secondary_diagnoses(content),
+            }
+        if section_name == "procedures_and_tests":
+            return {"procedures": self._extract_list_items(content)}
+        if section_name == "vitals_and_key_results":
+            return {"vitals_last": self._extract_vitals(content), "key_results": []}
+        if section_name == "follow_up_and_instructions":
+            return self._parse_follow_up(content)
+        if section_name == "disposition":
+            return self._parse_disposition(content)
+        if section_name == "providers_and_signoff":
+            return self._parse_providers(content)
+        return {"text": content.strip()} if content.strip() else {}
+
+    def _parse_patient_info(self, content: str) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        age_match = re.search(r"age[:\s]+(\d+)", content, re.IGNORECASE)
+        if age_match:
+            result["age"] = int(age_match.group(1))
+        sex_match = re.search(r"(?:sex|gender)[:\s]+([A-Za-z]+)", content, re.IGNORECASE)
+        if sex_match:
+            result["sex"] = sex_match.group(1)
+        admission_match = re.search(r"admission\s+date[:\s]+([^\n]+)", content, re.IGNORECASE)
+        if admission_match:
+            result["admission_date"] = admission_match.group(1).strip()
+        discharge_match = re.search(r"discharge\s+date[:\s]+([^\n]+)", content, re.IGNORECASE)
+        if discharge_match:
+            result["discharge_date"] = discharge_match.group(1).strip()
+        return result
+
+    def _parse_encounter_summary(self, content: str) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        if re.search(r"(?i)chief\s+complaint", content):
+            result["chief_complaint"] = content.strip()
+        elif re.search(r"(?i)history\s+of\s+present", content):
+            result["history_of_present_illness"] = content.strip()
+        elif re.search(r"(?i)hospital\s+course", content):
+            result["hospital_course"] = content.strip()
+        else:
+            result["chief_complaint"] = content.strip()
+        return result
+
+    def _parse_follow_up(self, content: str) -> Dict[str, Any]:
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        appointments = []
+        precautions = []
         for line in lines:
+            if re.search(r"(?i)return|precaution|ed|emergency|warning", line):
+                precautions.append(line)
+            else:
+                appointments.append(line)
+        return {
+            "follow_up_appointments": appointments,
+            "return_precautions": precautions,
+            "patient_instructions": content.strip(),
+        }
+
+    def _parse_disposition(self, content: str) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        lines = [line.strip() for line in content.splitlines() if line.strip()]
+        if lines:
+            result["discharge_disposition"] = lines[0]
+        if len(lines) > 1:
+            result["condition_on_discharge"] = lines[1]
+        return result
+
+    def _parse_providers(self, content: str) -> Dict[str, Any]:
+        result: Dict[str, Any] = {}
+        service_match = re.search(r"(?i)service(?:\s+department)?[:\s]+(.+)", content)
+        if service_match:
+            result["service_department"] = service_match.group(1).strip()
+        author_match = re.search(r"(?i)author[:\s]+(.+)", content)
+        if author_match:
+            result["author_role"] = author_match.group(1).strip()
+        date_match = re.search(r"(?i)date[:\s]+(.+)", content)
+        if date_match:
+            result["signoff_date"] = date_match.group(1).strip()
+        return result
+
+    def _extract_vitals(self, content: str) -> Dict[str, Any]:
+        vitals: Dict[str, Any] = {}
+        patterns = {
+            "bp": r"bp[:\s]+([^\n,]+)",
+            "hr": r"hr[:\s]+([^\n,]+)",
+            "rr": r"rr[:\s]+([^\n,]+)",
+            "temp": r"temp(?:erature)?[:\s]+([^\n,]+)",
+            "o2_sat": r"(?:o2\s*sat|spo2)[:\s]+([^\n,]+)",
+        }
+        for key, pattern in patterns.items():
+            match = re.search(pattern, content, re.IGNORECASE)
+            if match:
+                vitals[key] = match.group(1).strip()
+        return vitals
+
+    def _extract_list_items(self, content: str) -> List[str]:
+        items = []
+        for line in content.splitlines():
+            line = line.strip().lstrip("-•").strip()
+            if line and not line.endswith(":"):
+                items.append(line)
+        return items
+
+    def _extract_medications(self, text: str) -> List[Dict[str, Any]]:
+        meds = []
+        for line in text.splitlines():
             line = line.strip()
-            if line:
+            if not line or re.search(r"(?i)^(medications?|meds|on\s+discharge)[:\s]*$", line):
+                continue
+            if re.search(r"(?i)(on\s+discharge|discharge)[:\s]*$", line) and len(line) < 25:
+                continue
+            has_dose = re.search(r"(?i)(\d+\s*(?:mg|mcg|g|ml|units?))", line)
+            if has_dose or line.startswith("-") or line.startswith("•"):
+                meds.append({"name": line, "dose": None, "frequency": None, "route": None})
+        return meds
+
+    def _extract_allergies(self, text: str) -> List[str]:
+        normalized = " ".join(text.split())
+        if re.search(r"(?i)(nkda|no\s+known\s+(?:drug\s+)?allerg)", normalized):
+            return ["No known drug allergies"]
+        allergies = []
+        for line in text.splitlines():
+            line = line.strip().lstrip("-•").strip()
+            if line and not re.search(r"(?i)^allerg", line):
                 allergies.append(line)
-        
         return allergies
-    
+
     def _extract_primary_diagnosis(self, text: str) -> Optional[str]:
-        """Extract primary diagnosis."""
-        # Look for "Primary:" or first diagnosis
         match = re.search(r"(?i)primary[:\s]+(.+)", text)
         if match:
             return match.group(1).strip()
-        
-        # Take first line
-        lines = text.split('\n')
-        return lines[0].strip() if lines else None
-    
+        lines = [line.strip() for line in text.splitlines() if line.strip()]
+        return lines[0] if lines else None
+
     def _extract_secondary_diagnoses(self, text: str) -> List[str]:
-        """Extract secondary diagnoses."""
+        match = re.search(r"(?i)secondary[:\s]+(.+)", text)
+        if match:
+            return [part.strip() for part in re.split(r",|;", match.group(1)) if part.strip()]
         diagnoses = []
-        lines = text.split('\n')
-        for i, line in enumerate(lines):
-            if i > 0:  # Skip first (primary)
-                line = line.strip()
-                if line:
-                    diagnoses.append(line)
+        for line in text.splitlines()[1:]:
+            line = line.strip().lstrip("-•").strip()
+            if line and not re.search(r"(?i)^primary", line):
+                diagnoses.append(line)
         return diagnoses
-    
+
     def _normalize_structure(self, parsed: Dict[str, Any], template: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Normalize parsed structure to standard format."""
-        normalized = {}
-        
-        # Standard structure
-        standard_structure = {
-            "patient_info": {},
-            "encounter_summary": {},
-            "diagnoses": {},
-            "procedures_and_tests": {},
-            "medications": {},
-            "allergies": {},
-            "vitals_and_key_results": {},
-            "follow_up_and_instructions": {},
-            "disposition": {},
-            "providers_and_signoff": {}
-        }
-        
-        # Map parsed content to standard structure
+        standard_structure = {section: {} for section in self.STANDARD_SECTIONS}
         for key, value in parsed.items():
             normalized_key = self._normalize_section_name(key)
             if normalized_key in standard_structure:
-                normalized[normalized_key] = value
-            else:
-                # Store as unmapped
-                pass
-        
-        # Fill in missing sections
-        for section in standard_structure:
-            if section not in normalized:
-                normalized[section] = standard_structure[section]
-        
-        return normalized
-    
+                standard_structure[normalized_key] = value
+        return standard_structure
+
     def _normalize_section_name(self, name: str) -> str:
-        """Normalize section name to standard format."""
         name_lower = name.lower().replace(" ", "_").replace("-", "_")
-        
-        # Map common variations
         mappings = {
             "patient": "patient_info",
             "demographics": "patient_info",
@@ -296,12 +338,10 @@ class DischargeReportParser:
             "vitals": "vitals_and_key_results",
             "followup": "follow_up_and_instructions",
             "instructions": "follow_up_and_instructions",
-            "discharge_disposition": "disposition"
+            "discharge_disposition": "disposition",
+            "procedures": "procedures_and_tests",
         }
-        
         for key, value in mappings.items():
             if key in name_lower:
                 return value
-        
         return name_lower
-
