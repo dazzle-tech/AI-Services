@@ -13,6 +13,7 @@ class PatientRecord(BaseModel):
     discharge_date: Optional[str] = None
     diagnoses: List[str] = Field(default_factory=list)
     medications: List[Dict[str, Any]] = Field(default_factory=list)
+    medications_on_admission: List[Dict[str, Any]] = Field(default_factory=list)
     allergies: List[str] = Field(default_factory=list)
     procedures: List[str] = Field(default_factory=list)
     vitals: Optional[Dict[str, Any]] = None

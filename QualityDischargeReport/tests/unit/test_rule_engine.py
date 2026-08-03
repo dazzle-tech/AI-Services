@@ -118,6 +118,36 @@ def test_medication_dose_mismatch_detected():
     assert dose_mismatches[0]["source_value"] == "81mg"
 
 
+def test_medications_on_admission_alias_detects_dose_mismatch():
+    engine = RuleEngine()
+    content = {
+        "medications": {
+            "discharge_medications": [
+                {"name": "active1", "dose": "3 Capsule", "frequency": "twice daily"},
+                {"name": "active2", "dose": "1 Mg", "frequency": "every 4 hours"},
+            ]
+        }
+    }
+    patient_record = {
+        "medications_on_admission": [
+            {"name": "active1", "dose": "3 Capsule", "frequency": "Twice daily"},
+            {"name": "active2", "dose": "5 Mg", "frequency": "Every 4 hours"},
+        ]
+    }
+    quality_rules = {"consistency": {"check_diagnoses": False, "check_procedures": False, "check_medications": True}}
+
+    findings = engine.evaluate(content, patient_record, [], quality_rules=quality_rules)
+
+    dose_mismatches = [
+        item
+        for item in findings["inconsistencies"]
+        if item.get("field") == "dose" and "active2" in str(item.get("ref_id", "")).lower()
+    ]
+    assert len(dose_mismatches) == 1
+    assert dose_mismatches[0]["report_value"] == "1 Mg"
+    assert dose_mismatches[0]["source_value"] == "5 Mg"
+
+
 def test_patient_age_mismatch_detected():
     engine = RuleEngine()
     content = {

@@ -282,7 +282,10 @@ class DischargeReportParser:
                 continue
             if re.search(r"(?i)(on\s+discharge|discharge)[:\s]*$", line) and len(line) < 25:
                 continue
-            has_dose = re.search(r"(?i)(\d+\s*(?:mg|mcg|g|ml|units?))", line)
+            has_dose = re.search(
+                r"(?i)(\d+\s*(?:mg|mcg|g|ml|units?|capsule|capsules|tablet|tablets|tabs?))",
+                line,
+            )
             if has_dose or line.startswith("-") or line.startswith("•"):
                 meds.append({"name": line, "dose": None, "frequency": None, "route": None})
         return meds

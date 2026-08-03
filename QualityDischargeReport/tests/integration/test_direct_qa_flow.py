@@ -193,3 +193,55 @@ def test_qa_handles_ai_errors_with_string_location(sample_discharge_report, samp
     assert result["qa_method"] == "direct_qa"
     assert isinstance(result["errors"], list)
 
+
+def test_qa_flags_active2_dose_mismatch_from_medications_on_admission():
+    """End-to-end: compound discharge med text + medications_on_admission should flag dose mismatch."""
+    service = DischargeQAService()
+    discharge_report = (
+        "DISCHARGE SUMMARY\n\n"
+        "DISCHARGE MEDICATIONS\n"
+        "--------------------------------------------------------------------------------\n"
+        "The patient was prescribed active1 3 Capsule twice daily and active2 1 Mg every 4 hours on admission.\n"
+    )
+    patient_record = {
+        "medications_on_admission": [
+            {"name": "active1", "dose": "3 Capsule", "frequency": "Twice daily"},
+            {"name": "active2", "dose": "5 Mg", "frequency": "Every 4 hours"},
+        ]
+    }
+
+    class MockPromptRunner:
+        def run_qa(self, *args, **kwargs):
+            return {
+                "qa_method": "direct_qa",
+                "overall_score": 80,
+                "summary": "AI summary",
+                "parsed_report": {
+                    "format": "text",
+                    "structure_used": "standard",
+                    "content": {},
+                    "unmapped_content": [],
+                },
+                "errors": [],
+                "missing_items": [],
+                "inconsistencies": [],
+                "recommended_corrections": [],
+            }
+
+    service.prompt_runner = MockPromptRunner()
+
+    result = service.perform_qa(
+        discharge_report=discharge_report,
+        patient_record=patient_record,
+        onsite_docs=[],
+    )
+
+    dose_mismatches = [
+        item
+        for item in result["inconsistencies"]
+        if item.get("field") == "dose" and "active2" in str(item.get("ref_id", "")).lower()
+    ]
+    assert len(dose_mismatches) == 1
+    assert dose_mismatches[0]["report_value"] == "1 Mg"
+    assert dose_mismatches[0]["source_value"] == "5 Mg"
+

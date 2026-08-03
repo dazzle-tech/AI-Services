@@ -15,9 +15,19 @@ if not logger.handlers:
     logger.setLevel(logging.DEBUG)
 
 
+_DOSE_PATTERN = re.compile(
+    r"(\d+(?:\.\d+)?)\s*(?:mg|mcg|g|ml|units?|capsule|capsules|tablet|tablets|tabs?)\b",
+    re.IGNORECASE,
+)
+_MEDICATION_PREAMBLE = re.compile(
+    r"(?i)^(?:the\s+)?patient\s+(?:was\s+)?(?:prescribed|given|started\s+on|received)\s+"
+)
+_ON_ADMISSION_SUFFIX = re.compile(r"(?i)\s+on\s+admission\.?\s*$")
+
+
 class DischargeReportNormalizer:
     """Normalizes discharge report content."""
-    
+
     def normalize_medications(self, med_lines: List[Any]) -> List[Dict[str, Any]]:
         """Normalize medication entries.
         
@@ -30,23 +40,35 @@ class DischargeReportNormalizer:
             logger.debug(f"Processing medication {i+1}: {type(med)} - {str(med)[:50]}")
             
             if isinstance(med, str):
-                logger.debug(f"  Type: string, parsing...")
-                parsed = self._parse_medication_string(med)
-                logger.debug(f"  Parsed result: name={parsed.get('name')}, dose={parsed.get('dose')}, route={parsed.get('route')}, frequency={parsed.get('frequency')}")
-                normalized.append(parsed)
+                logger.debug("  Type: string, parsing...")
+                for segment in self._split_compound_medication_string(med):
+                    parsed = self._parse_medication_string(segment)
+                    logger.debug(
+                        "  Parsed result: name=%s, dose=%s, route=%s, frequency=%s",
+                        parsed.get("name"),
+                        parsed.get("dose"),
+                        parsed.get("route"),
+                        parsed.get("frequency"),
+                    )
+                    normalized.append(parsed)
             elif isinstance(med, dict):
                 logger.debug(f"  Type: dict, name={med.get('name')}, dose={med.get('dose')}, frequency={med.get('frequency')}")
                 # If dict has name but other fields are None/missing, try parsing the name string
                 if med.get("name") and (med.get("dose") is None and med.get("frequency") is None):
                     logger.debug(f"  Name has full string, parsing name: {med.get('name')[:50]}")
-                    # Name contains full medication string, parse it
-                    parsed = self._parse_medication_string(med.get("name", ""))
-                    logger.debug(f"  Parsed from name: name={parsed.get('name')}, dose={parsed.get('dose')}, route={parsed.get('route')}, frequency={parsed.get('frequency')}")
-                    # Merge with any existing fields
-                    parsed.update({k: v for k, v in med.items() if v is not None and k != "name"})
-                    normalized.append(parsed)
+                    for segment in self._split_compound_medication_string(med.get("name", "")):
+                        parsed = self._parse_medication_string(segment)
+                        logger.debug(
+                            "  Parsed from name: name=%s, dose=%s, route=%s, frequency=%s",
+                            parsed.get("name"),
+                            parsed.get("dose"),
+                            parsed.get("route"),
+                            parsed.get("frequency"),
+                        )
+                        parsed.update({k: v for k, v in med.items() if v is not None and k != "name"})
+                        normalized.append(parsed)
                 else:
-                    logger.debug(f"  Using normalize_medication_dict")
+                    logger.debug("  Using normalize_medication_dict")
                     normalized.append(self._normalize_medication_dict(med))
             else:
                 logger.debug(f"  Type: other ({type(med)}), converting to string")
@@ -79,6 +101,26 @@ class DischargeReportNormalizer:
         
         logger.debug(f"normalize_medications returning {len(filtered)} normalized medications (filtered {len(normalized) - len(filtered)} invalid)")
         return filtered
+
+    def _split_compound_medication_string(self, med_str: str) -> List[str]:
+        """Split narrative sentences that list multiple medications."""
+        med_str = re.sub(r"^[-•*]\s*", "", med_str.strip())
+        if not med_str or re.match(r"^[:\-\s]+$", med_str):
+            return []
+
+        cleaned = _MEDICATION_PREAMBLE.sub("", med_str).strip()
+        cleaned = _ON_ADMISSION_SUFFIX.sub("", cleaned).strip()
+        if not cleaned:
+            return [med_str]
+
+        parts = re.split(r"\s+and\s+", cleaned, flags=re.IGNORECASE)
+        if len(parts) <= 1:
+            return [cleaned]
+
+        valid_parts = [part.strip() for part in parts if part.strip() and re.search(r"[a-zA-Z]", part)]
+        if len(valid_parts) >= 2:
+            return valid_parts
+        return [cleaned]
     
     def _parse_medication_string(self, med_str: str) -> Dict[str, Any]:
         """Parse medication string into structured format."""
@@ -92,15 +134,14 @@ class DischargeReportNormalizer:
         # Common patterns: "Medication 10mg PO BID" or "Medication, 10mg, PO, BID"
         result = {"name": med_str, "dose": None, "frequency": None, "route": None, "duration": None, "instructions": None}
         
-        # Extract dose (e.g., "10mg", "500 mg", "10 mg")
-        dose_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:mg|mcg|g|ml|units?)", med_str, re.IGNORECASE)
+        # Extract dose (e.g., "10mg", "500 mg", "3 Capsule")
+        dose_match = _DOSE_PATTERN.search(med_str)
         if dose_match:
             result["dose"] = dose_match.group(0).strip()
             logger.debug(f"  Extracted dose: {result['dose']}")
-            # Remove dose from name
             result["name"] = med_str.replace(dose_match.group(0), "").strip()
         else:
-            logger.debug(f"  No dose found")
+            logger.debug("  No dose found")
         
         # Extract route (PO, IV, IM, etc.) - check before removing from name
         route_patterns = ["PO", "IV", "IM", "SQ", "subcutaneous", "oral", "topical"]
@@ -114,23 +155,28 @@ class DischargeReportNormalizer:
                 break
         
         # Extract frequency (BID, TID, QID, daily, etc.)
-        freq_patterns = {
-            "BID": r"\bBID\b",
-            "TID": r"\bTID\b",
-            "QID": r"\bQID\b",
-            "daily": r"\bdaily\b",
-            "once daily": r"\bonce\s+daily\b",
-            "twice daily": r"\btwice\s+daily\b",
-            "three times daily": r"\bthree\s+times\s+daily\b"
-        }
-        for freq, pattern in freq_patterns.items():
-            freq_match = re.search(pattern, med_str, re.IGNORECASE)
-            if freq_match:
-                result["frequency"] = freq
-                logger.debug(f"  Extracted frequency: {result['frequency']}")
-                # Remove frequency from name
-                result["name"] = result["name"].replace(freq_match.group(0), "").strip()
-                break
+        every_hours_match = re.search(r"\bevery\s+\d+\s+hours?\b", med_str, re.IGNORECASE)
+        if every_hours_match:
+            result["frequency"] = every_hours_match.group(0).strip()
+            logger.debug(f"  Extracted frequency: {result['frequency']}")
+            result["name"] = result["name"].replace(every_hours_match.group(0), "").strip()
+        else:
+            freq_patterns = [
+                ("three times daily", r"\bthree\s+times\s+daily\b"),
+                ("twice daily", r"\btwice\s+daily\b"),
+                ("once daily", r"\bonce\s+daily\b"),
+                ("BID", r"\bBID\b"),
+                ("TID", r"\bTID\b"),
+                ("QID", r"\bQID\b"),
+                ("daily", r"\bdaily\b"),
+            ]
+            for freq, pattern in freq_patterns:
+                freq_match = re.search(pattern, med_str, re.IGNORECASE)
+                if freq_match:
+                    result["frequency"] = freq
+                    logger.debug(f"  Extracted frequency: {result['frequency']}")
+                    result["name"] = result["name"].replace(freq_match.group(0), "").strip()
+                    break
         
         # Clean up name - remove extra whitespace and common separators
         result["name"] = re.sub(r"\s+", " ", result["name"]).strip()

@@ -90,6 +90,32 @@ def _medications_by_name(content: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return by_name
 
 
+def _patient_record_medications(patient_record: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Return medications from the patient record, supporting common field aliases."""
+    for key in ("medications", "medications_on_admission", "discharge_medications", "home_medications"):
+        value = patient_record.get(key)
+        if isinstance(value, list) and value:
+            return [med for med in value if isinstance(med, dict)]
+    return []
+
+
+def _find_report_med(med_name: str, report_med_map: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Find a report medication by exact or partial name match."""
+    if not med_name:
+        return None
+    direct = report_med_map.get(med_name)
+    if direct:
+        return direct
+    for key, med in report_med_map.items():
+        if med_name == key or med_name in key or key in med_name:
+            return med
+    return None
+
+
+def _medication_in_report(med_name: str, report_meds: set[str], report_med_map: Dict[str, Dict[str, Any]]) -> bool:
+    return med_name in report_meds or _find_report_med(med_name, report_med_map) is not None
+
+
 def _normalize_scalar(value: Any) -> str:
     if value is None or value == "":
         return ""
@@ -297,11 +323,11 @@ class RuleEngine:
             report_meds = set(_medication_names(content))
             report_med_map = _medications_by_name(content)
 
-            for med in patient_record.get("medications", []) or []:
-                if not isinstance(med, dict):
-                    continue
+            for med in _patient_record_medications(patient_record):
                 med_name = _normalize_text(med.get("name", ""))
-                if med_name and med_name not in report_meds:
+                if not med_name:
+                    continue
+                if not _medication_in_report(med_name, report_meds, report_med_map):
                     inconsistencies.append(
                         {
                             "id": "",
@@ -317,7 +343,7 @@ class RuleEngine:
                     )
                     continue
 
-                report_med = report_med_map.get(med_name)
+                report_med = _find_report_med(med_name, report_med_map)
                 if not report_med:
                     continue
 
