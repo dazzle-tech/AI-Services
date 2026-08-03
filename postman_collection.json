@@ -3358,16 +3358,185 @@
             },
             {
               "name": "Health",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status code is 200', function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Service reports healthy or degraded status', function () {",
+                      "  pm.expect(body.status).to.be.oneOf(['healthy', 'degraded']);",
+                      "});",
+                      "",
+                      "pm.test('Response identifies medical-imaging-assist service', function () {",
+                      "  pm.expect(body.service).to.eql('medical-imaging-assist');",
+                      "});",
+                      "",
+                      "pm.test('Response includes openai_configured flag', function () {",
+                      "  pm.expect(body.openai_configured).to.be.a('boolean');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
+                "description": "Liveness and configuration check.",
                 "url": "{{radiologyreportfilling_base_url}}/api/v1/health"
               }
             },
             {
               "name": "Terms Summary",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status code is 200', function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('ICD-10 term count is loaded', function () {",
+                      "  pm.expect(body.icd10_count).to.be.at.least(30);",
+                      "});",
+                      "",
+                      "pm.test('RadLex term count is loaded', function () {",
+                      "  pm.expect(body.radlex_count).to.be.at.least(30);",
+                      "});",
+                      "",
+                      "pm.test('Embeddings presence flag is returned', function () {",
+                      "  pm.expect(body.embeddings_present).to.be.a('boolean');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
+                "description": "Loaded ICD-10 and RadLex counts (no AI call).",
                 "url": "{{radiologyreportfilling_base_url}}/api/v1/terms/summary"
+              }
+            },
+            {
+              "name": "Report Correction - Laterality Conflict",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status code is 200', function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('clinical_report_text uses radiologist notes as base', function () {",
+                      "  pm.expect(body.clinical_report_text).to.include('right lower lobe');",
+                      "});",
+                      "",
+                      "pm.test('Response is not auto-confirmed', function () {",
+                      "  pm.expect(body.confirmed).to.eql(false);",
+                      "});",
+                      "",
+                      "pm.test('Laterality conflict warning is present', function () {",
+                      "  const codes = (body.warnings || []).map((w) => w.code);",
+                      "  pm.expect(codes).to.include('LATERALITY_CONFLICT');",
+                      "});",
+                      "",
+                      "pm.test('safety_normalized_output mirrors clinical report', function () {",
+                      "  pm.expect(body.safety_normalized_output).to.be.an('object');",
+                      "  pm.expect(body.safety_normalized_output.clinical_report).to.eql(body.clinical_report_text);",
+                      "  pm.expect(body.safety_normalized_output.rag_grounding).to.have.property('icd10_codes');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "Uses radiologist_notes as the base report, flags contradictions against doctor_notes, and returns clinical_report_text.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"doctor_notes\": \"Patient presenting with acute chest pain and persistent cough. Suspected left-sided pneumonia.\",\n  \"radiologist_notes\": \"PA/Lateral Chest: Consolidation and opacity noted in the right lower lobe. No evidence of pneumothorax.\",\n  \"exam_type\": \"Chest X-ray 2 Views\",\n  \"extracted_dicom_metadata\": {\n    \"PatientID\": \"12345\",\n    \"Modality\": \"CR\",\n    \"BodyPartExamined\": \"CHEST\",\n    \"ViewPosition\": \"PA\",\n    \"StudyDate\": \"20260513\"\n  }\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{radiologyreportfilling_base_url}}/api/v1/report-correction"
+              }
+            },
+            {
+              "name": "Analysis Matching - Hierarchy Of Truth",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status code is 200', function () {",
+                      "  pm.response.to.have.status(200);",
+                      "});",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('reconciled_findings is returned', function () {",
+                      "  pm.expect(body.reconciled_findings).to.be.an('array').that.is.not.empty;",
+                      "});",
+                      "",
+                      "pm.test('Each finding has a valid match_status', function () {",
+                      "  body.reconciled_findings.forEach((finding) => {",
+                      "    pm.expect(finding.match_status).to.be.oneOf(['matched', 'partial', 'unmatched']);",
+                      "  });",
+                      "});",
+                      "",
+                      "pm.test('suggested_icd10_codes is returned', function () {",
+                      "  pm.expect(body.suggested_icd10_codes).to.be.an('array');",
+                      "});",
+                      "",
+                      "pm.test('safety_normalized_output mirrors reconciled findings', function () {",
+                      "  pm.expect(body.safety_normalized_output.reconciled_findings).to.eql(body.reconciled_findings);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "description": "Compares AI findings against the clinical report and returns reconciled_findings with ICD-10 suggestions.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"clinical_report\": \"Follow-up of pulmonary nodule. A stable 1.2cm nodule is noted in the left upper lobe.\",\n  \"ai_image_analysis\": {\n    \"findings\": [\n      {\n        \"label\": \"Nodule\",\n        \"location\": \"Left Upper Lobe\",\n        \"size_mm\": 18,\n        \"confidence\": 0.92\n      }\n    ]\n  },\n  \"extracted_dicom_metadata\": {\n    \"Modality\": \"DX\",\n    \"ViewPosition\": \"PA\",\n    \"StudyDescription\": \"CHEST SINGLE VIEW\"\n  }\n}\n",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": "{{radiologyreportfilling_base_url}}/api/v1/analysis-matching"
               }
             },
             {
