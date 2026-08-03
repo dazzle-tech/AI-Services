@@ -10,13 +10,17 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test-fake-key-for-testing-only")
 
 from main import app  # noqa: E402
 
-FIXTURES_DIR = os.path.join(os.path.dirname(__file__), "billing_samples")
+FIXTURES_FILE = os.path.join(os.path.dirname(__file__), "charge_request_fixtures.json")
 
 
 def _load_fixture(name: str) -> dict:
-    """Load a stress-test sample from tests/billing_samples/."""
-    with open(os.path.join(FIXTURES_DIR, name), "r", encoding="utf-8") as fh:
-        return json.load(fh)
+    """Load a stress-test request body from tests/charge_request_fixtures.json."""
+    with open(FIXTURES_FILE, "r", encoding="utf-8") as fh:
+        fixtures = json.load(fh)
+    key = name.replace(".json", "")
+    if key not in fixtures:
+        raise KeyError(f"Unknown fixture '{key}'")
+    return fixtures[key]["request"]
 
 
 @pytest.fixture

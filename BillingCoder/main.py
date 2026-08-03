@@ -32,7 +32,15 @@ async def lifespan(application: FastAPI):
         count = seed_rag_store(force=False)
         logger.info("RAG store ready with %d records.", count)
     except Exception as exc:
-        logger.exception("RAG seeding failed: %s", exc)
+        if exc.__class__.__name__ == "AuthenticationError":
+            logger.error(
+                "RAG seeding failed: invalid OpenAI credentials. "
+                "Set a valid OPENAI_API_KEY, or use Ollama with "
+                "OPENAI_BASE_URL=http://localhost:11434/v1, OPENAI_API_KEY=ollama, "
+                "OPENAI_MODEL=qwen3:1.7b, and OPENAI_EMBEDDING_MODEL=nomic-embed-text."
+            )
+        else:
+            logger.exception("RAG seeding failed: %s", exc)
     yield
     logger.info("Shutting down CodingAssist")
 

@@ -66,7 +66,7 @@ Server runs at http://localhost:8025.
 
 Interactive docs: http://localhost:8025/docs
 
-Postman collection: import the unified repo collection at [../postman_collection.json](../postman_collection.json) → **BillingCoder** folder (Postman → File → Import). Includes the full stress-test fixture set — clean control case, NCCI bundling, MUE clamp, ruled-out diagnosis trap, medical-necessity gap, multi-document conflict, prompt-injection attempt, polytrauma volume, upstream chaining from RadiologyReporter, and a malformed-input 422 case.
+Postman collection: import [postman_collection.json](postman_collection.json) (Postman → File → Import). Default `base_url` is `http://localhost:8025`. Includes all stress-test scenarios: happy path, NCCI bundling, MUE clamp, ruled-out diagnosis, medical necessity, multi-document conflict, prompt injection, polytrauma volume, radiology upstream chaining, and invalid-field 422 validation.
 
 ## Example request
 
@@ -100,6 +100,7 @@ Response is the full structured charge ticket (coded entities, compliance flags,
 CodingAssist/
 ├── main.py                          # FastAPI entry, lifespan seeds RAG on startup
 ├── .env.example                      # copy to .env and set OPENAI_API_KEY
+├── postman_collection.json          # Postman API tests (all scenarios)
 ├── coding_edit_rules.json           # illustrative NCCI PTP edits + MUE limits
 ├── medical_necessity_policies.json  # illustrative LCD-style covered-indications
 ├── billing_data_guide.txt           # shorthand table + drafting/compliance rules
@@ -125,7 +126,7 @@ CodingAssist/
 │   └── api/routes.py                 # FastAPI route definitions
 ├── tests/
 │   ├── test_routes.py                # endpoint tests (mocked AI + RAG calls)
-│   └── billing_samples/              # 10 stress-test fixtures
+│   └── charge_request_fixtures.json  # shared request bodies for tests + Postman source
 ├── rag_db/                           # persisted Chroma store (gitignored)
 └── output/                           # generated charge tickets (gitignored)
 ```
