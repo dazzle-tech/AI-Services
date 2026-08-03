@@ -148,6 +148,36 @@ def test_medications_on_admission_alias_detects_dose_mismatch():
     assert dose_mismatches[0]["source_value"] == "5 Mg"
 
 
+def test_weekly_vs_daily_frequency_mismatch_detected():
+    engine = RuleEngine()
+    content = {
+        "medications": {
+            "discharge_medications": [
+                {"name": "active1", "dose": "3 Capsule", "frequency": "twice weekly"},
+                {"name": "active2", "dose": "1 Mg", "frequency": "every 4 hours"},
+            ]
+        }
+    }
+    patient_record = {
+        "medications_on_admission": [
+            {"name": "active1", "dose": "3 Capsule", "frequency": "Twice daily"},
+            {"name": "active2", "dose": "5 Mg", "frequency": "Every 4 hours"},
+        ]
+    }
+    quality_rules = {"consistency": {"check_diagnoses": False, "check_procedures": False, "check_medications": True}}
+
+    findings = engine.evaluate(content, patient_record, [], quality_rules=quality_rules)
+
+    frequency_mismatches = [
+        item
+        for item in findings["inconsistencies"]
+        if item.get("field") == "frequency" and "active1" in str(item.get("ref_id", "")).lower()
+    ]
+    assert len(frequency_mismatches) == 1
+    assert frequency_mismatches[0]["report_value"] == "twice weekly"
+    assert frequency_mismatches[0]["source_value"] == "Twice daily"
+
+
 def test_patient_age_mismatch_detected():
     engine = RuleEngine()
     content = {

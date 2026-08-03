@@ -19,6 +19,20 @@ _DOSE_PATTERN = re.compile(
     r"(\d+(?:\.\d+)?)\s*(?:mg|mcg|g|ml|units?|capsule|capsules|tablet|tablets|tabs?)\b",
     re.IGNORECASE,
 )
+_FREQ_PATTERNS: List[tuple[str, str]] = [
+    ("three times daily", r"\bthree\s+times\s+daily\b"),
+    ("twice daily", r"\btwice\s+daily\b"),
+    ("once daily", r"\bonce\s+daily\b"),
+    ("three times weekly", r"\bthree\s+times\s+(?:a\s+)?week(?:ly)?\b"),
+    ("twice weekly", r"\btwice\s+(?:a\s+)?week(?:ly)?\b"),
+    ("once weekly", r"\bonce\s+(?:a\s+)?week(?:ly)?\b"),
+    ("weekly", r"\bweekly\b"),
+    ("BID", r"\bBID\b"),
+    ("TID", r"\bTID\b"),
+    ("QID", r"\bQID\b"),
+    ("daily", r"\bdaily\b"),
+]
+_EVERY_HOURS_PATTERN = re.compile(r"\bevery\s+\d+\s+hours?\b", re.IGNORECASE)
 _MEDICATION_PREAMBLE = re.compile(
     r"(?i)^(?:the\s+)?patient\s+(?:was\s+)?(?:prescribed|given|started\s+on|received)\s+"
 )
@@ -154,29 +168,13 @@ class DischargeReportNormalizer:
                 result["name"] = result["name"].replace(route_match.group(0), "").strip()
                 break
         
-        # Extract frequency (BID, TID, QID, daily, etc.)
-        every_hours_match = re.search(r"\bevery\s+\d+\s+hours?\b", med_str, re.IGNORECASE)
-        if every_hours_match:
-            result["frequency"] = every_hours_match.group(0).strip()
+        # Extract frequency (BID, TID, daily, weekly, etc.)
+        frequency, frequency_span = self._extract_frequency(med_str)
+        if frequency:
+            result["frequency"] = frequency
             logger.debug(f"  Extracted frequency: {result['frequency']}")
-            result["name"] = result["name"].replace(every_hours_match.group(0), "").strip()
-        else:
-            freq_patterns = [
-                ("three times daily", r"\bthree\s+times\s+daily\b"),
-                ("twice daily", r"\btwice\s+daily\b"),
-                ("once daily", r"\bonce\s+daily\b"),
-                ("BID", r"\bBID\b"),
-                ("TID", r"\bTID\b"),
-                ("QID", r"\bQID\b"),
-                ("daily", r"\bdaily\b"),
-            ]
-            for freq, pattern in freq_patterns:
-                freq_match = re.search(pattern, med_str, re.IGNORECASE)
-                if freq_match:
-                    result["frequency"] = freq
-                    logger.debug(f"  Extracted frequency: {result['frequency']}")
-                    result["name"] = result["name"].replace(freq_match.group(0), "").strip()
-                    break
+            if frequency_span:
+                result["name"] = result["name"].replace(frequency_span, "").strip()
         
         # Clean up name - remove extra whitespace and common separators
         result["name"] = re.sub(r"\s+", " ", result["name"]).strip()
@@ -184,6 +182,23 @@ class DischargeReportNormalizer:
         
         logger.debug(f"  Final parsed result: name='{result['name']}', dose={result['dose']}, route={result['route']}, frequency={result['frequency']}")
         return result
+
+    def _extract_frequency(self, med_str: str) -> tuple[Optional[str], Optional[str]]:
+        """Return normalized frequency label and matched source span."""
+        every_hours_match = _EVERY_HOURS_PATTERN.search(med_str)
+        if every_hours_match:
+            return every_hours_match.group(0).strip(), every_hours_match.group(0)
+
+        for freq, pattern in _FREQ_PATTERNS:
+            freq_match = re.search(pattern, med_str, re.IGNORECASE)
+            if freq_match:
+                return freq, freq_match.group(0)
+        return None, None
+
+    def extract_frequency(self, med_str: str) -> Optional[str]:
+        """Public helper for extracting a normalized frequency label."""
+        frequency, _ = self._extract_frequency(med_str)
+        return frequency
     
     def _normalize_medication_dict(self, med: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize medication dictionary to standard format."""

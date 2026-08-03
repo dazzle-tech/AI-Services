@@ -4,6 +4,9 @@ import re
 from typing import Any, Dict, List, Optional
 
 from .conflict_resolver import ConflictResolver
+from .normalizer import DischargeReportNormalizer
+
+_med_field_normalizer = DischargeReportNormalizer()
 
 
 def _field_present(section_content: Any, field: str) -> bool:
@@ -138,6 +141,19 @@ def _patient_info_fields(check_dates: bool) -> List[str]:
 
 def _normalize_med_value(value: Any) -> str:
     return re.sub(r"\s+", "", _normalize_text(value))
+
+
+def _report_med_field_value(report_med: Dict[str, Any], field: str) -> Any:
+    """Return a medication field, inferring frequency from leftover name text when needed."""
+    value = report_med.get(field)
+    if value not in (None, ""):
+        return value
+    if field != "frequency":
+        return value
+    name = report_med.get("name", "")
+    if isinstance(name, str) and name.strip():
+        return _med_field_normalizer.extract_frequency(name)
+    return value
 
 
 def _diagnosis_values(content: Dict[str, Any]) -> List[str]:
@@ -349,7 +365,8 @@ class RuleEngine:
 
                 for field in ("dose", "frequency"):
                     record_value = _normalize_med_value(med.get(field))
-                    report_value = _normalize_med_value(report_med.get(field))
+                    report_field_value = _report_med_field_value(report_med, field)
+                    report_value = _normalize_med_value(report_field_value)
                     if record_value and report_value and record_value != report_value:
                         inconsistencies.append(
                             {
@@ -357,13 +374,13 @@ class RuleEngine:
                                 "severity": "high",
                                 "section": "medications",
                                 "field": field,
-                                "report_value": report_med.get(field, ""),
+                                "report_value": report_field_value or "",
                                 "source_value": med.get(field, ""),
                                 "source": "patient_record",
                                 "ref_id": med.get("name", ""),
                                 "recommendation": (
                                     f"Align {med.get('name')} {field} in the discharge report "
-                                    f"({report_med.get(field)}) with the patient record ({med.get(field)})"
+                                    f"({report_field_value}) with the patient record ({med.get(field)})"
                                 ),
                             }
                         )

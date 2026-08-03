@@ -36,6 +36,23 @@ def test_normalize_compound_medication_sentence():
     assert normalized[1]["frequency"].lower() == "every 4 hours"
 
 
+def test_normalize_compound_medication_with_weekly_frequency():
+    """Weekly frequencies such as twice weekly should be parsed from narrative text."""
+    normalizer = DischargeReportNormalizer()
+    med_line = (
+        "The patient was prescribed active1 3 Capsule twice weekly and "
+        "active2 1 Mg every 4 hours on admission."
+    )
+
+    normalized = normalizer.normalize_medications([med_line])
+
+    assert len(normalized) == 2
+    assert normalized[0]["name"].lower() == "active1"
+    assert normalized[0]["frequency"] == "twice weekly"
+    assert normalized[1]["name"].lower() == "active2"
+    assert normalized[1]["frequency"].lower() == "every 4 hours"
+
+
 def test_normalize_vitals():
     """Test vitals normalization."""
     normalizer = DischargeReportNormalizer()
