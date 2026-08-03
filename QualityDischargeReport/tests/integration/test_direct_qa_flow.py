@@ -151,3 +151,45 @@ def test_qa_filters_false_return_precautions_missing(sample_discharge_report, sa
     precautions = result["parsed_report"]["content"]["follow_up_and_instructions"]["return_precautions"]
     assert len(precautions) > 0
 
+
+def test_qa_handles_ai_errors_with_string_location(sample_discharge_report, sample_patient_record, sample_onsite_docs):
+    """AI errors whose location is a string should not crash post-processing."""
+    service = DischargeQAService()
+
+    class MockPromptRunner:
+        def run_qa(self, *args, **kwargs):
+            return {
+                "qa_method": "direct_qa",
+                "overall_score": 80,
+                "summary": "AI summary",
+                "parsed_report": {
+                    "format": "text",
+                    "structure_used": "standard",
+                    "content": {},
+                    "unmapped_content": [],
+                },
+                "errors": [
+                    {
+                        "category": "consistency",
+                        "severity": "medium",
+                        "location": "medications",
+                        "field": "discharge_medications",
+                        "issue": "Aspirin dose differs from patient record",
+                    }
+                ],
+                "missing_items": [],
+                "inconsistencies": [],
+                "recommended_corrections": [],
+            }
+
+    service.prompt_runner = MockPromptRunner()
+
+    result = service.perform_qa(
+        discharge_report=sample_discharge_report,
+        patient_record=sample_patient_record,
+        onsite_docs=sample_onsite_docs,
+    )
+
+    assert result["qa_method"] == "direct_qa"
+    assert isinstance(result["errors"], list)
+

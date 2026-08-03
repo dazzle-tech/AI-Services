@@ -8,6 +8,18 @@ def _item_key(section: str, field: str) -> tuple[str, str]:
     return (section or "", field or "")
 
 
+def _error_location(error: Any) -> Dict[str, Any]:
+    """Normalize error location whether AI returned a dict or a bare section string."""
+    if not isinstance(error, dict):
+        return {}
+    location = error.get("location")
+    if isinstance(location, dict):
+        return location
+    if isinstance(location, str):
+        return {"section": location, "field": error.get("field", "")}
+    return {}
+
+
 def _content_field_present(content: Dict[str, Any], section: str, field: str) -> bool:
     if not section:
         return False
@@ -62,7 +74,7 @@ def filter_resolved_findings(qa_result: Dict[str, Any], content: Dict[str, Any])
             continue
         if error.get("type") == "missing_item":
             continue
-        location = error.get("location") or {}
+        location = _error_location(error)
         section = location.get("section") or error.get("section", "")
         field = location.get("field") or error.get("field", "")
         if _content_field_present(content, section, field):
@@ -176,10 +188,12 @@ def merge_findings(
 
 
 def _merge_list(existing: List[Dict[str, Any]], incoming: List[Dict[str, Any]], kind: str) -> List[Dict[str, Any]]:
-    merged = list(existing or [])
+    merged = [item for item in (existing or []) if isinstance(item, dict)]
     seen = {_dedupe_key(item, kind) for item in merged}
 
     for item in incoming or []:
+        if not isinstance(item, dict):
+            continue
         key = _dedupe_key(item, kind)
         if key in seen:
             continue
@@ -224,7 +238,9 @@ def _ensure_corrections(
             result.append(correction)
 
     for error in errors or []:
-        location = error.get("location") or {}
+        if not isinstance(error, dict):
+            continue
+        location = _error_location(error)
         correction = {
             "id": "",
             "action": "replace" if error.get("observed") else "add",

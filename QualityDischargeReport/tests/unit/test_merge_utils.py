@@ -140,3 +140,26 @@ def test_filter_resolved_findings_removes_present_return_precautions():
     assert filtered["errors"] == []
     assert filtered["missing_items"] == []
     assert filtered["recommended_corrections"] == []
+
+
+def test_filter_resolved_findings_handles_string_error_location():
+    content = {"medications": {"discharge_medications": []}}
+    qa_result = {
+        "errors": [
+            {
+                "category": "consistency",
+                "severity": "medium",
+                "location": "medications",
+                "field": "discharge_medications",
+                "issue": "Dose mismatch with patient record",
+            }
+        ],
+        "missing_items": [],
+        "inconsistencies": [],
+        "recommended_corrections": [],
+    }
+
+    filtered = filter_resolved_findings(qa_result, content)
+
+    assert len(filtered["errors"]) == 1
+    assert filtered["recommended_corrections"][0]["section"] == "medications"
