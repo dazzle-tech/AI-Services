@@ -65,7 +65,7 @@ if __name__ == "__main__":
     import os
     import uvicorn
 
-    port = int(os.environ.get("PORT", settings.api_port))
+    port = settings.api_port
     uvicorn.run(
         "main:app",
         host=settings.api_host,

@@ -15,9 +15,9 @@ COPY app/ ./app/
 
 RUN mkdir -p /app/output /app/rag_db
 
-EXPOSE 8001
+EXPOSE 8025
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8025/api/v1/health')"
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8025"]

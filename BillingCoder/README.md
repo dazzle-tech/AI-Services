@@ -35,8 +35,12 @@ pip install -r requirements.txt
 
 ### Configure
 Copy `.env.example` to `.env` and fill in your key:
+```bash
+copy .env.example .env
+```
 ```
 OPENAI_API_KEY=sk-your-key-here
+PORT=8025
 ```
 
 ## Run
@@ -47,9 +51,9 @@ python main.py
 
 On the **first run** the service seeds its local RAG store with ICD-10-CM and HCPCS codes for the terms in `coding_seed_terms.json` (via the live NLM API) plus a curated CPT list (no live call). The store is persisted to `rag_db/` and reused on subsequent starts. Seeding failures are logged but don't crash startup.
 
-Server runs at http://localhost:8001.
+Server runs at http://localhost:8025.
 
-> Both this project and the sibling **RadiologyReporter** default to adjacent ports (8001 here, 8000 there) so they can run side by side.
+> Default port is **8025** (avoids conflict with Patient Timeline on 8001). RadiologyReporter uses 8024 in this monorepo so both can run side by side.
 
 ## Endpoints
 
@@ -60,13 +64,13 @@ Server runs at http://localhost:8001.
 | `GET` | `/api/v1/coding-edits/summary` | Counts/contents of loaded NCCI PTP edits and MUE limits (no AI call) |
 | `POST` | `/api/v1/charges/generate` | Charge-capture pipeline — documents in, structured charge ticket out |
 
-Interactive docs: http://localhost:8001/docs
+Interactive docs: http://localhost:8025/docs
 
-Postman collection: [CodingAssist.postman_collection.json](CodingAssist.postman_collection.json) (import via Postman → File → Import). Includes the full stress-test fixture set — clean control case, NCCI bundling, MUE clamp, ruled-out diagnosis trap, medical-necessity gap, multi-document conflict, prompt-injection attempt, polytrauma volume, upstream chaining from RadiologyReporter, and a malformed-input 422 case.
+Postman collection: import the unified repo collection at [../postman_collection.json](../postman_collection.json) → **BillingCoder** folder (Postman → File → Import). Includes the full stress-test fixture set — clean control case, NCCI bundling, MUE clamp, ruled-out diagnosis trap, medical-necessity gap, multi-document conflict, prompt-injection attempt, polytrauma volume, upstream chaining from RadiologyReporter, and a malformed-input 422 case.
 
 ## Example request
 
-`POST http://localhost:8001/api/v1/charges/generate`
+`POST http://localhost:8025/api/v1/charges/generate`
 
 ```json
 {
@@ -95,13 +99,12 @@ Response is the full structured charge ticket (coded entities, compliance flags,
 ```
 CodingAssist/
 ├── main.py                          # FastAPI entry, lifespan seeds RAG on startup
-├── .env                             # OpenAI key (gitignored)
+├── .env.example                      # copy to .env and set OPENAI_API_KEY
 ├── coding_edit_rules.json           # illustrative NCCI PTP edits + MUE limits
 ├── medical_necessity_policies.json  # illustrative LCD-style covered-indications
 ├── billing_data_guide.txt           # shorthand table + drafting/compliance rules
 ├── output_schema.json               # the response shape
 ├── coding_seed_terms.json           # ICD-10/HCPCS terms (live lookup) + curated CPT list
-├── CodingAssist.postman_collection.json
 ├── app/
 │   ├── core/config.py               # Pydantic settings from .env
 │   ├── models/schemas.py            # request/response Pydantic models (POS/NPI validators)

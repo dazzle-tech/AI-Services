@@ -19,10 +19,13 @@ class CodingAIClient:
         """Construct the OpenAI client using configured credentials."""
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY must be set")
-        self.client = OpenAI(
-            api_key=settings.openai_api_key,
-            timeout=settings.openai_timeout,
-        )
+        client_kwargs = {
+            "api_key": settings.openai_api_key,
+            "timeout": settings.openai_timeout,
+        }
+        if settings.openai_base_url:
+            client_kwargs["base_url"] = settings.openai_base_url
+        self.client = OpenAI(**client_kwargs)
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
         self.max_retries = settings.openai_max_retries

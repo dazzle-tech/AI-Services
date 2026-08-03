@@ -1,5 +1,6 @@
 """Configuration management for CodingAssist."""
 import os
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -7,7 +8,7 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables and .env file."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", case_sensitive=False, env_file_encoding="utf-8"
+        env_file=".env", case_sensitive=False, env_file_encoding="utf-8", extra="ignore"
     )
 
     # API Metadata
@@ -24,6 +25,7 @@ class Settings(BaseSettings):
 
     # OpenAI Configuration
     openai_api_key: str
+    openai_base_url: str | None = None
     openai_model: str = "gpt-4o"
     openai_embedding_model: str = "text-embedding-3-small"
     openai_temperature: float = 0.2
@@ -50,7 +52,7 @@ class Settings(BaseSettings):
 
     # Server Configuration
     api_host: str = "0.0.0.0"
-    api_port: int = 8001
+    api_port: int = Field(default=8025, validation_alias=AliasChoices("API_PORT", "PORT"))
     api_reload: bool = False
 
     # Project paths (resolved at import time)

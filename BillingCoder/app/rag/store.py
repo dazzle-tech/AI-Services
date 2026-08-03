@@ -34,10 +34,13 @@ class CodingRAGStore:
             name=settings.rag_collection_name,
             metadata={"hnsw:space": "cosine"},
         )
-        self._openai = OpenAI(
-            api_key=settings.openai_api_key,
-            timeout=settings.openai_timeout,
-        )
+        openai_kwargs = {
+            "api_key": settings.openai_api_key,
+            "timeout": settings.openai_timeout,
+        }
+        if settings.openai_base_url:
+            openai_kwargs["base_url"] = settings.openai_base_url
+        self._openai = OpenAI(**openai_kwargs)
         self._embedding_model = settings.openai_embedding_model
         self._top_k = settings.rag_top_k
         self._similarity_threshold = settings.rag_similarity_threshold

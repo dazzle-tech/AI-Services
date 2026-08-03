@@ -30,7 +30,6 @@ STT_Service/
     prompts/
       radiology_lexicon.txt
     tests/
-      STT_Postman_Collection.json    # Postman tests for REST endpoints
       test_live_mic.py               # Python CLI for mic/file/WS testing
     requirements.txt
     .env.example
@@ -138,8 +137,7 @@ Response: `text`, `raw_text` (optional), `language`, `language_probability`,
 
 ### Postman (REST)
 
-Import `api/tests/STT_Postman_Collection.json`. Set the collection variable `base_url`
-to `http://localhost:8013`.
+Import the unified repo collection at [../postman_collection.json](../postman_collection.json) → **STT_Service** folder. Set `stt_service_base_url` to `http://localhost:8013`.
 
 > **Postman cannot record audio from your microphone**, so the WebSocket request in the
 > collection is documentation only. Use the Python script below for live mic testing.
