@@ -1,5 +1,6 @@
 """Deterministic QA checks from templates and quality rules."""
 
+import re
 from typing import Any, Dict, List, Optional
 
 from .conflict_resolver import ConflictResolver
@@ -73,6 +74,44 @@ def _medication_names(content: Dict[str, Any]) -> List[str]:
             elif isinstance(med, str) and med.strip():
                 names.append(_normalize_text(med))
     return names
+
+
+def _medications_by_name(content: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """Map normalized medication name -> report med dict (discharge meds preferred)."""
+    by_name: Dict[str, Dict[str, Any]] = {}
+    meds = _get_section_content(content, "medications")
+    for key in ("home_medications", "discharge_medications"):
+        for med in meds.get(key, []) or []:
+            if not isinstance(med, dict):
+                continue
+            name = med.get("name")
+            if name:
+                by_name[_normalize_text(name)] = med
+    return by_name
+
+
+def _normalize_scalar(value: Any) -> str:
+    if value is None or value == "":
+        return ""
+    if isinstance(value, bool):
+        return _normalize_text(value)
+    if isinstance(value, (int, float)):
+        number = float(value)
+        if number.is_integer():
+            return str(int(number))
+        return str(number)
+    return _normalize_text(value)
+
+
+def _patient_info_fields(check_dates: bool) -> List[str]:
+    fields = ["age", "sex"]
+    if check_dates:
+        fields.extend(["admission_date", "discharge_date"])
+    return fields
+
+
+def _normalize_med_value(value: Any) -> str:
+    return re.sub(r"\s+", "", _normalize_text(value))
 
 
 def _diagnosis_values(content: Dict[str, Any]) -> List[str]:
@@ -186,6 +225,32 @@ class RuleEngine:
         consistency_rules = quality_rules.get("consistency", {})
         inconsistencies: List[Dict[str, Any]] = []
 
+        patient_info = _get_section_content(content, "patient_info")
+        if patient_info or patient_record:
+            check_dates = consistency_rules.get("check_dates", True)
+            for field in _patient_info_fields(check_dates):
+                report_value = patient_info.get(field)
+                record_value = patient_record.get(field)
+                if report_value in (None, "") or record_value in (None, ""):
+                    continue
+                if _normalize_scalar(report_value) != _normalize_scalar(record_value):
+                    inconsistencies.append(
+                        {
+                            "id": "",
+                            "severity": "high" if field in {"age", "sex"} else "medium",
+                            "section": "patient_info",
+                            "field": field,
+                            "report_value": report_value,
+                            "source_value": record_value,
+                            "source": "patient_record",
+                            "ref_id": "",
+                            "recommendation": (
+                                f"Align patient {field} in the discharge report "
+                                f"({report_value}) with the patient record ({record_value})"
+                            ),
+                        }
+                    )
+
         if consistency_rules.get("check_diagnoses", True):
             report_diagnoses = set(_diagnosis_values(content))
             record_diagnoses = {_normalize_text(d) for d in patient_record.get("diagnoses", []) if d}
@@ -230,11 +295,7 @@ class RuleEngine:
 
         if consistency_rules.get("check_medications", True):
             report_meds = set(_medication_names(content))
-            record_meds = {
-                _normalize_text(med.get("name", ""))
-                for med in patient_record.get("medications", []) or []
-                if isinstance(med, dict) and med.get("name")
-            }
+            report_med_map = _medications_by_name(content)
 
             for med in patient_record.get("medications", []) or []:
                 if not isinstance(med, dict):
@@ -254,6 +315,32 @@ class RuleEngine:
                             "recommendation": f"Confirm whether '{med.get('name')}' should appear on discharge medications",
                         }
                     )
+                    continue
+
+                report_med = report_med_map.get(med_name)
+                if not report_med:
+                    continue
+
+                for field in ("dose", "frequency"):
+                    record_value = _normalize_med_value(med.get(field))
+                    report_value = _normalize_med_value(report_med.get(field))
+                    if record_value and report_value and record_value != report_value:
+                        inconsistencies.append(
+                            {
+                                "id": "",
+                                "severity": "high",
+                                "section": "medications",
+                                "field": field,
+                                "report_value": report_med.get(field, ""),
+                                "source_value": med.get(field, ""),
+                                "source": "patient_record",
+                                "ref_id": med.get("name", ""),
+                                "recommendation": (
+                                    f"Align {med.get('name')} {field} in the discharge report "
+                                    f"({report_med.get(field)}) with the patient record ({med.get(field)})"
+                                ),
+                            }
+                        )
 
         if consistency_rules.get("check_procedures", True):
             report_procedures = {_normalize_text(item) for item in _get_procedures(content)}

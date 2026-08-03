@@ -91,6 +91,16 @@ class ResponseValidator:
         
         return True, None
     
+    def _schema_string(self, value: Any) -> str:
+        """Coerce error observed/expected values to strings for JSON schema validation."""
+        if value is None or value == "":
+            return ""
+        if isinstance(value, str):
+            return value
+        if isinstance(value, (list, dict)):
+            return json.dumps(value)
+        return str(value)
+    
     def fix_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
         """Fix common issues in response."""
         fixed = {
@@ -219,8 +229,8 @@ class ResponseValidator:
                         "evidence_snippet": location.get("evidence_snippet", ""),
                     },
                     "issue": error.get("issue") or error.get("reason") or "",
-                    "expected": error.get("expected", ""),
-                    "observed": error.get("observed", ""),
+                    "expected": self._schema_string(error.get("expected", "")),
+                    "observed": self._schema_string(error.get("observed", "")),
                     "recommendation": error.get("recommendation", ""),
                     "references": error.get("references", []),
                 }
