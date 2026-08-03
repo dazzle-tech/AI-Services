@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  coding-assist:
+    build: .
+    container_name: coding-assist
+    ports:
+      - "8001:8001"
+    env_file:
+      - .env
+    volumes:
+      - ./output:/app/output
+      - ./rag_db:/app/rag_db
+    restart: unless-stopped

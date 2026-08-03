@@ -1,0 +1,49 @@
+{
+  "charge_id": "string -- unique id for this generated charge ticket, format: <encounter_id>-<utc-timestamp>",
+  "encounter_id": "string -- mirrored from input encounter_metadata.encounter_id",
+  "patient_id": "string -- mirrored from input encounter_metadata.patient_id",
+  "date_of_service": "string -- mirrored from input encounter_metadata.date_of_service",
+  "generated_at_utc": "string -- ISO-8601 UTC timestamp when the charge ticket was produced",
+  "model_used": "string -- OpenAI model name used for drafting",
+
+  "normalized_notes": "string -- output of Phase 2; multiple source documents reconciled into one coherent narrative",
+
+  "coded_entities": [
+    {
+      "text": "string -- the surface form found in the normalized notes",
+      "kind": "string -- diagnosis | procedure",
+      "status": "string -- confirmed | suspected | ruled_out (diagnosis only)",
+      "laterality": "string or null -- left | right | bilateral | null",
+      "units": "integer or null -- count of times a procedure was documented as performed",
+      "code_system": "string or null -- ICD-10-CM | CPT | HCPCS",
+      "code": "string or null",
+      "display": "string or null",
+      "source": "string -- one of: rag | icd10_api | hcpcs_api | none"
+    }
+  ],
+
+  "compliance_flags": [
+    {
+      "rule_type": "string -- ptp_edit | mue | medical_necessity | ruled_out_diagnosis",
+      "severity": "string -- blocking | warning",
+      "message": "string -- human-readable explanation",
+      "affected_codes": ["string"]
+    }
+  ],
+
+  "charge_draft": {
+    "charge_lines": [
+      {
+        "code_system": "string -- CPT | HCPCS",
+        "code": "string",
+        "description": "string",
+        "modifiers": ["string"],
+        "units": "integer",
+        "linked_diagnosis_codes": ["string"]
+      }
+    ],
+    "claim_notes": "string -- reconciliation summary and every compliance flag a human reviewer must see before submission"
+  },
+
+  "output_file": "string -- path where this JSON was persisted"
+}

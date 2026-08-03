@@ -1,0 +1,46 @@
+{
+  "description": "Deterministic compliance edits. Phase 4 of the pipeline checks drafted CPT code combinations against ptp_edits (NCCI procedure-to-procedure bundling) and per-code unit counts against mue_limits (Medically Unlikely Edits). This is an illustrative subset for demonstrating the pattern -- not the full, quarterly-updated CMS NCCI/MUE tables, which would be loaded from licensed CMS data files in production.",
+  "ptp_edits": [
+    {
+      "column1_cpt": "44950",
+      "column1_desc": "Appendectomy, open",
+      "column2_cpt": "49320",
+      "column2_desc": "Diagnostic laparoscopy, abdomen, peritoneum, omentum",
+      "modifier_indicator": "0",
+      "rationale": "A diagnostic laparoscopy converted to an open procedure in the same session is bundled into the definitive procedure and is never separately billable, regardless of modifier."
+    },
+    {
+      "column1_cpt": "44970",
+      "column1_desc": "Laparoscopic appendectomy",
+      "column2_cpt": "49320",
+      "column2_desc": "Diagnostic laparoscopy, abdomen, peritoneum, omentum",
+      "modifier_indicator": "0",
+      "rationale": "Diagnostic laparoscopy is bundled into the definitive laparoscopic procedure performed in the same session."
+    },
+    {
+      "column1_cpt": "11401",
+      "column1_desc": "Excision, benign lesion, trunk/arms/legs, 0.6-1.0 cm",
+      "column2_cpt": "12001",
+      "column2_desc": "Simple repair of superficial wounds, 2.5 cm or less",
+      "modifier_indicator": "1",
+      "rationale": "Simple closure of the excision site is included in the excision code unless a distinct, separately identifiable repair is documented -- modifier 59 may apply if clinically supported."
+    },
+    {
+      "column1_cpt": "36556",
+      "column1_desc": "Insertion of non-tunneled centrally inserted central venous catheter",
+      "column2_cpt": "76937",
+      "column2_desc": "Ultrasound guidance for vascular access, with permanent image and report",
+      "modifier_indicator": "1",
+      "rationale": "Ultrasound guidance is separately billable only when permanent images and a written report documenting guidance are produced; absent that documentation it is bundled into the line placement."
+    }
+  ],
+  "mue_limits": [
+    {"cpt": "20610", "description": "Arthrocentesis, aspiration and/or injection, major joint (e.g. knee)", "max_units_per_day": 1},
+    {"cpt": "44950", "description": "Appendectomy, open", "max_units_per_day": 1},
+    {"cpt": "44970", "description": "Laparoscopic appendectomy", "max_units_per_day": 1},
+    {"cpt": "71046", "description": "Radiologic examination, chest, 2 views", "max_units_per_day": 2},
+    {"cpt": "32551", "description": "Tube thoracostomy (chest tube placement)", "max_units_per_day": 2},
+    {"cpt": "36556", "description": "Insertion of non-tunneled centrally inserted central venous catheter", "max_units_per_day": 1},
+    {"cpt": "72148", "description": "MRI lumbar spine without contrast", "max_units_per_day": 1}
+  ]
+}

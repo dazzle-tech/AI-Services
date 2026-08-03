@@ -1,0 +1,39 @@
+{
+  "description": "Terms pre-fetched at startup to populate the RAG store. icd10_terms are resolved against the live, public, keyless NLM Clinical Tables ICD-10-CM API. hcpcs_terms are resolved against the live NLM Clinical Tables HCPCS Level II API. CPT (HCPCS Level I) has no free public lookup API -- AMA holds the copyright -- so cpt_terms are seeded directly from manually curated code/display pairs instead of a live lookup; CPT grounding at runtime is therefore RAG-only with no live fallback.",
+  "icd10_terms": [
+    "type 2 diabetes mellitus without complications",
+    "essential hypertension",
+    "acute appendicitis",
+    "appendicitis with perforation and abscess",
+    "low back pain",
+    "pneumothorax",
+    "traumatic pneumothorax",
+    "laceration of spleen",
+    "closed fracture of distal radius",
+    "closed fracture of shaft of tibia and fibula",
+    "abdominal pain, unspecified",
+    "contusion of brain"
+  ],
+  "hcpcs_terms": [
+    "ambulance service, basic life support",
+    "wheelchair, manual, fully reclining",
+    "knee orthosis"
+  ],
+  "cpt_terms": [
+    {"code": "99213", "display": "Office/outpatient visit, established patient, low complexity"},
+    {"code": "99214", "display": "Office/outpatient visit, established patient, moderate complexity"},
+    {"code": "99285", "display": "Emergency department visit, high complexity"},
+    {"code": "44950", "display": "Appendectomy, open"},
+    {"code": "44970", "display": "Laparoscopic appendectomy"},
+    {"code": "49320", "display": "Diagnostic laparoscopy, abdomen, peritoneum, omentum"},
+    {"code": "20610", "display": "Arthrocentesis, aspiration and/or injection, major joint"},
+    {"code": "71046", "display": "Radiologic examination, chest, 2 views"},
+    {"code": "72148", "display": "MRI lumbar spine without contrast"},
+    {"code": "32551", "display": "Tube thoracostomy (chest tube placement)"},
+    {"code": "36556", "display": "Insertion of non-tunneled centrally inserted central venous catheter"},
+    {"code": "31500", "display": "Intubation, endotracheal, emergency procedure"},
+    {"code": "76937", "display": "Ultrasound guidance for vascular access, with permanent image and report"},
+    {"code": "11401", "display": "Excision, benign lesion, trunk/arms/legs, 0.6-1.0 cm"},
+    {"code": "12001", "display": "Simple repair of superficial wounds, 2.5 cm or less"}
+  ]
+}

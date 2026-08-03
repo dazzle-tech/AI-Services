@@ -1,0 +1,18 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.9
+pydantic==2.9.2
+python-dotenv==1.0.1
+
+# Whisper inference (CTranslate2 backend - fast, GPU+CPU)
+faster-whisper==1.0.3
+
+# Audio processing
+ffmpeg-python==0.2.0
+numpy>=1.24,<2.0
+soundfile==0.12.1
+
+# Optional - live mic recording for the test script
+sounddevice==0.4.7
+websockets==12.0
+requests==2.32.3

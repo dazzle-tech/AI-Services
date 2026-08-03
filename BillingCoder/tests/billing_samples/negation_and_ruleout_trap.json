@@ -1,0 +1,18 @@
+{
+  "_stress_scenario": "Heavily negated note where the working diagnosis was ruled out by imaging. Coding the suspected condition as confirmed (e.g. K35.80 appendicitis) instead of the symptom code (R10.9) would be a compliance error. Also includes a procedure-adjacent finding with unspecified laterality to test modifier (50/RT/LT) handling when the source text is ambiguous.",
+  "encounter_metadata": {
+    "encounter_id": "ENC-100855",
+    "patient_id": "P-19044",
+    "date_of_service": "2026-06-14",
+    "place_of_service": "23",
+    "rendering_provider_npi": "7891234560",
+    "payer_id": "CIGNA-COMM"
+  },
+  "documents": [
+    {
+      "document_type": "ed_note",
+      "text": "Patient presents with RLQ abdominal pain, evaluated for possible appendicitis. CT abdomen/pelvis: no evidence of appendicitis, appendix normal in caliber, no free fluid, no bowel obstruction, no inflammatory changes. Denies fever, denies nausea. Flank tenderness noted on exam, side not specified in exam note. Diagnosis: abdominal pain, appendicitis ruled out. Discharged home."
+    }
+  ],
+  "upstream_entities": null
+}

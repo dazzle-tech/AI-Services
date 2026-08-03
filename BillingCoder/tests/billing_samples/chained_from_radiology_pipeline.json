@@ -1,0 +1,43 @@
+{
+  "_stress_scenario": "Simulates chaining off RadiologyReporter's existing /api/v1/reports/generate output (same patient_id and findings as RAdiology/tests/sample_xr_chest_003.json in the sibling repo): structured_entities from a prior radiology pipeline run are passed directly as upstream_entities, with documents reduced to just the indication line. Tests the bypass path that should ground straight to CPT/ICD-10 instead of re-running normalize/extract on text that was already structured.",
+  "encounter_metadata": {
+    "encounter_id": "ENC-101299",
+    "patient_id": "P-3321",
+    "date_of_service": "2026-06-19",
+    "place_of_service": "22",
+    "rendering_provider_npi": "1473625890",
+    "payer_id": "AETNA-COMM"
+  },
+  "documents": [
+    {
+      "document_type": "radiology_report",
+      "text": "Indication: shortness of breath. See attached structured findings from prior pipeline run."
+    }
+  ],
+  "upstream_entities": [
+    {
+      "text": "pleural effusion",
+      "type": "finding",
+      "snomed_code": "60046008",
+      "snomed_display": "Pleural effusion",
+      "radlex_rid": "RID34539",
+      "radlex_display": "pleural effusion",
+      "umls_cui": "C0032231",
+      "laterality": "bilateral, left greater than right",
+      "measurement": null,
+      "source": "rag"
+    },
+    {
+      "text": "cardiomegaly",
+      "type": "finding",
+      "snomed_code": "8186001",
+      "snomed_display": "Cardiomegaly",
+      "radlex_rid": "RID5177",
+      "radlex_display": "cardiomegaly",
+      "umls_cui": "C0018800",
+      "laterality": null,
+      "measurement": null,
+      "source": "rag"
+    }
+  ]
+}

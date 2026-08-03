@@ -1,0 +1,34 @@
+{
+  "description": "Illustrative LCD-style medical necessity policies. Phase 4 deterministically checks whether any CONFIRMED diagnosis coded for the encounter matches a procedure's covered_indications list. This is not real payer LCD/NCD text -- it exists to demonstrate the necessity-gate pattern; production use would pull the payer's actual LCD/NCD via its policy ID.",
+  "policies": [
+    {
+      "cpt": "72148",
+      "description": "MRI lumbar spine without contrast",
+      "covered_indications": [
+        "radiculopathy", "cauda equina", "neurogenic claudication",
+        "trauma", "suspected malignancy", "suspected infection",
+        "failed conservative therapy", "progressive neurologic deficit",
+        "bowel or bladder dysfunction"
+      ],
+      "necessity_note": "Most payers do not cover lumbar MRI for uncomplicated low back pain under 6 weeks duration without red-flag symptoms or a documented trial of conservative therapy."
+    },
+    {
+      "cpt": "44970",
+      "description": "Laparoscopic appendectomy",
+      "covered_indications": ["appendicitis", "appendiceal abscess", "appendiceal perforation"],
+      "necessity_note": "Requires a confirmed -- not merely suspected or ruled-out -- diagnosis supporting surgical intervention."
+    },
+    {
+      "cpt": "44950",
+      "description": "Appendectomy, open",
+      "covered_indications": ["appendicitis", "appendiceal abscess", "appendiceal perforation"],
+      "necessity_note": "Requires a confirmed -- not merely suspected or ruled-out -- diagnosis supporting surgical intervention."
+    },
+    {
+      "cpt": "20610",
+      "description": "Arthrocentesis, aspiration and/or injection, major joint",
+      "covered_indications": ["joint effusion", "osteoarthritis", "joint pain", "synovitis", "bursitis"],
+      "necessity_note": "Requires a documented joint-specific indication, not a general pain complaint without exam findings."
+    }
+  ]
+}

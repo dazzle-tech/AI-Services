@@ -1,0 +1,18 @@
+{
+  "_stress_scenario": "Baseline happy path: single document, no bundling conflicts, no necessity issues. Should code cleanly with zero compliance flags. Use this as the control case when validating that new rules don't false-positive on clean documentation.",
+  "encounter_metadata": {
+    "encounter_id": "ENC-100234",
+    "patient_id": "P-55012",
+    "date_of_service": "2026-06-15",
+    "place_of_service": "11",
+    "rendering_provider_npi": "1234567893",
+    "payer_id": "AETNA-COMM"
+  },
+  "documents": [
+    {
+      "document_type": "progress_note",
+      "text": "Established patient, 30 min visit. Type 2 diabetes mellitus, stable, A1c 6.9, continue metformin. Essential hypertension, stable on lisinopril 10mg. Reviewed home glucose log, discussed diet. Moderate complexity MDM, two stable chronic conditions managed."
+    }
+  ],
+  "upstream_entities": null
+}

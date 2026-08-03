@@ -1,0 +1,34 @@
+{
+  "_stress_scenario": "High-volume polytrauma encounter spanning five documents from different services, heavy on shorthand, with the same procedures (chest tube, central line) mentioned redundantly across documents. Stresses extraction throughput across many documents and cross-document deduplication -- a chest tube placed once in the ED note must not be billed three times because three later notes also mention it.",
+  "encounter_metadata": {
+    "encounter_id": "ENC-101188",
+    "patient_id": "P-90021",
+    "date_of_service": "2026-06-20",
+    "place_of_service": "23",
+    "rendering_provider_npi": "2468013579",
+    "payer_id": "MEDICARE-B"
+  },
+  "documents": [
+    {
+      "document_type": "ed_note",
+      "text": "MVC, polytrauma. GCS 14. R-sided chest tube placed for traumatic PTX. Intubated for airway protection. FAST exam positive for free fluid. Central line placed (R subclavian) for access. Pan-scan obtained."
+    },
+    {
+      "document_type": "trauma_surgery_consult",
+      "text": "Trauma surgery c/s for blunt abd trauma. CT shows grade III splenic lac, small amt free fluid, no active extrav. Pt hemodynamically stable, managed nonop. R chest tube in place draining serosanguinous fluid, appropriately positioned. Recommend ICU admit, serial Hgb."
+    },
+    {
+      "document_type": "orthopedic_consult",
+      "text": "Ortho c/s for R distal radius fx and L tib-fib fx, both closed, non-displaced. Splinted in ED. No surgical intervention needed at this time. Will follow up outpatient."
+    },
+    {
+      "document_type": "neurosurgery_consult",
+      "text": "Neurosurg c/s for head CT showing small R frontal contusion, no midline shift, no herniation. GCS improved to 15. No surgical intervention indicated. Neuro checks q1h."
+    },
+    {
+      "document_type": "progress_note",
+      "text": "Hospital day 1. Chest tube (placed in ED, R side) still in place, output decreasing. Central line (R subclavian, placed on admission) functioning well. Splenic lac stable on repeat imaging, Hgb stable. Tolerating clears."
+    }
+  ],
+  "upstream_entities": null
+}
