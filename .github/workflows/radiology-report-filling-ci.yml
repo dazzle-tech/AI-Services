@@ -46,10 +46,6 @@ jobs:
         with:
           version: 'latest'
 
-      - name: Apply Kubernetes manifests (Deployment + Service)
-        run: |
-          kubectl apply -f k8s/radiology-report-filling-service.yaml -n asklepios-sandbox
-
       - name: Update Kubernetes Deployment with New Image
         run: |
           kubectl set image deployment/radiology-report-filling-service radiology-report-filling-service=registry.digitalocean.com/asklepios/radiology-report-filling-service:${{ github.sha }} -n asklepios-sandbox
