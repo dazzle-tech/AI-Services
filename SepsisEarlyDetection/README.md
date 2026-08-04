@@ -218,6 +218,8 @@ pytest tests/ -v
 
 ---
 
+## CI Workflow (sepsis-early-detection-ci.yml)
+
 ## Environment Variables
 
 | Variable             | Required | Default   | Description                        |
