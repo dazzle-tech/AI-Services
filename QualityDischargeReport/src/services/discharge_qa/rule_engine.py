@@ -78,24 +78,43 @@ def _allergy_term_variants(value: Any) -> List[str]:
     return [term for term in variants if term]
 
 
-def _report_allergy_terms(content: Dict[str, Any]) -> set[str]:
+def _allergy_values_from_content(content: Dict[str, Any]) -> List[str]:
     allergies_section = content.get("allergies", {})
-    allergy_values: List[str] = []
     if isinstance(allergies_section, dict):
-        allergy_values = allergies_section.get("allergies", []) or []
-    elif isinstance(allergies_section, list):
-        allergy_values = allergies_section
-    terms: set[str] = set()
-    for item in _med_field_normalizer.normalize_allergies(allergy_values):
-        terms.update(_allergy_term_variants(item))
-    return terms
+        return allergies_section.get("allergies", []) or []
+    if isinstance(allergies_section, list):
+        return allergies_section
+    return []
+
+
+def _allergy_display_entries(values: List[Any]) -> tuple[List[str], Dict[str, str]]:
+    """Return display allergy labels and a normalized-term -> display label map."""
+    display: List[str] = []
+    normalized_to_display: Dict[str, str] = {}
+    for item in _med_field_normalizer.normalize_allergies(values):
+        if item not in display:
+            display.append(item)
+        for variant in _allergy_term_variants(item):
+            normalized_to_display.setdefault(variant, item)
+    return display, normalized_to_display
+
+
+def _report_allergy_entries(content: Dict[str, Any]) -> tuple[List[str], Dict[str, str]]:
+    return _allergy_display_entries(_allergy_values_from_content(content))
+
+
+def _record_allergy_entries(patient_record: Dict[str, Any]) -> tuple[List[str], Dict[str, str]]:
+    return _allergy_display_entries(patient_record.get("allergies", []) or [])
+
+
+def _report_allergy_terms(content: Dict[str, Any]) -> set[str]:
+    _, normalized_to_display = _report_allergy_entries(content)
+    return set(normalized_to_display.keys())
 
 
 def _record_allergy_terms(patient_record: Dict[str, Any]) -> set[str]:
-    terms: set[str] = set()
-    for item in _med_field_normalizer.normalize_allergies(patient_record.get("allergies", []) or []):
-        terms.update(_allergy_term_variants(item))
-    return terms
+    _, normalized_to_display = _record_allergy_entries(patient_record)
+    return set(normalized_to_display.keys())
 
 
 def _allergy_terms_match(left: str, right: str) -> bool:
@@ -349,44 +368,48 @@ class RuleEngine:
                     )
 
         if consistency_rules.get("check_allergies", True):
-            report_allergies = _report_allergy_terms(content)
-            record_allergies = _record_allergy_terms(patient_record)
+            report_display, report_norm_map = _report_allergy_entries(content)
+            record_display, record_norm_map = _record_allergy_entries(patient_record)
+            report_allergies = set(report_norm_map.keys())
+            record_allergies = set(record_norm_map.keys())
             if report_allergies and record_allergies:
                 for record_term in sorted(record_allergies):
                     if any(_allergy_terms_match(record_term, report_term) for report_term in report_allergies):
                         continue
+                    missing_allergy = record_norm_map[record_term]
                     inconsistencies.append(
                         {
                             "id": "",
                             "severity": "high",
                             "section": "allergies",
                             "field": "allergies",
-                            "report_value": sorted(report_allergies),
-                            "source_value": record_term,
+                            "report_value": report_display,
+                            "source_value": record_display,
                             "source": "patient_record",
-                            "ref_id": record_term,
+                            "ref_id": missing_allergy,
                             "recommendation": (
-                                f"Document allergy '{record_term}' in the discharge report "
-                                f"or reconcile with the patient record"
+                                f"Document allergy '{missing_allergy}' in the discharge report "
+                                f"(report lists {report_display}; patient record lists {record_display})"
                             ),
                         }
                     )
                 for report_term in sorted(report_allergies):
                     if any(_allergy_terms_match(report_term, record_term) for record_term in record_allergies):
                         continue
+                    extra_allergy = report_norm_map[report_term]
                     inconsistencies.append(
                         {
                             "id": "",
                             "severity": "medium",
                             "section": "allergies",
                             "field": "allergies",
-                            "report_value": report_term,
-                            "source_value": sorted(record_allergies),
+                            "report_value": report_display,
+                            "source_value": record_display,
                             "source": "patient_record",
-                            "ref_id": report_term,
+                            "ref_id": extra_allergy,
                             "recommendation": (
-                                f"Confirm allergy '{report_term}' in the discharge report "
-                                f"against the patient record"
+                                f"Confirm allergy '{extra_allergy}' in the discharge report "
+                                f"(report lists {report_display}; patient record lists {record_display})"
                             ),
                         }
                     )

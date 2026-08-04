@@ -213,7 +213,10 @@ def test_age_and_gender_mismatch_detected_with_gender_alias():
     assert len(sex_mismatches) == 1
     assert sex_mismatches[0]["report_value"] == "MALE"
     assert sex_mismatches[0]["source_value"] == "FEMALE"
-    assert any(item.get("source_value") == "test" for item in allergy_mismatches)
+    allergy_mismatch = next(item for item in allergy_mismatches if item.get("ref_id") == "test")
+    assert allergy_mismatch["report_value"] == ["Med22"]
+    assert allergy_mismatch["source_value"] == ["Med22", "test"]
+    assert allergy_mismatch["ref_id"] == "test"
 
 
 def test_patient_age_mismatch_detected():

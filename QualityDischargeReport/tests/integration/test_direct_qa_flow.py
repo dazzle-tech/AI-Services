@@ -306,5 +306,9 @@ def test_qa_flags_age_sex_and_allergy_mismatches_from_report_header():
     assert "age" in fields
     assert "sex" in fields
     assert "allergies" in sections
-    assert any(item.get("source_value") == "test" for item in result["inconsistencies"])
+    allergy_mismatch = next(
+        item for item in result["inconsistencies"] if item.get("ref_id") == "test"
+    )
+    assert allergy_mismatch["report_value"] == ["Med22"]
+    assert allergy_mismatch["source_value"] == ["Med22", "test"]
 
