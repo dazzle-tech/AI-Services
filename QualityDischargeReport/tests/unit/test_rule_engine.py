@@ -178,6 +178,44 @@ def test_weekly_vs_daily_frequency_mismatch_detected():
     assert frequency_mismatches[0]["source_value"] == "Twice daily"
 
 
+def test_age_and_gender_mismatch_detected_with_gender_alias():
+    engine = RuleEngine()
+    content = {
+        "patient_info": {"age": 55, "sex": "MALE"},
+        "allergies": {"allergies": ["Med22"]},
+    }
+    patient_record = {
+        "age": 22,
+        "gender": "FEMALE",
+        "allergies": ["Med22", "test"],
+    }
+    quality_rules = {
+        "consistency": {
+            "check_diagnoses": False,
+            "check_medications": False,
+            "check_procedures": False,
+            "check_allergies": True,
+            "check_dates": False,
+        }
+    }
+
+    findings = engine.evaluate(content, patient_record, [], quality_rules=quality_rules)
+
+    age_mismatches = [item for item in findings["inconsistencies"] if item.get("field") == "age"]
+    sex_mismatches = [item for item in findings["inconsistencies"] if item.get("field") == "sex"]
+    allergy_mismatches = [
+        item for item in findings["inconsistencies"] if item.get("section") == "allergies"
+    ]
+
+    assert len(age_mismatches) == 1
+    assert age_mismatches[0]["report_value"] == 55
+    assert age_mismatches[0]["source_value"] == 22
+    assert len(sex_mismatches) == 1
+    assert sex_mismatches[0]["report_value"] == "MALE"
+    assert sex_mismatches[0]["source_value"] == "FEMALE"
+    assert any(item.get("source_value") == "test" for item in allergy_mismatches)
+
+
 def test_patient_age_mismatch_detected():
     engine = RuleEngine()
     content = {

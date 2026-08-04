@@ -87,7 +87,23 @@ class DischargeReportParser:
             else:
                 result[section_name] = parsed
 
+        self._merge_document_level_fields(text, result)
         return result
+
+    def _merge_document_level_fields(self, text: str, result: Dict[str, Any]) -> None:
+        """Fill patient_info and top-level diagnoses from headers anywhere in the report."""
+        fallback_info = self._parse_patient_info(text)
+        if fallback_info:
+            patient_info = result.setdefault("patient_info", {})
+            for key, value in fallback_info.items():
+                if not patient_info.get(key):
+                    patient_info[key] = value
+
+        primary_match = re.search(r"(?im)^primary\s+diagnosis[:\s]+(.+)$", text)
+        if primary_match:
+            diagnoses = result.setdefault("diagnoses", {})
+            if not diagnoses.get("primary_diagnosis"):
+                diagnoses["primary_diagnosis"] = primary_match.group(1).strip()
 
     def _split_into_sections(self, text: str) -> List[Tuple[str, Optional[str], str]]:
         inline_headers = re.finditer(
@@ -294,11 +310,21 @@ class DischargeReportParser:
         normalized = " ".join(text.split())
         if re.search(r"(?i)(nkda|no\s+known\s+(?:drug\s+)?allerg)", normalized):
             return ["No known drug allergies"]
-        allergies = []
+
+        allergies: List[str] = []
         for line in text.splitlines():
             line = line.strip().lstrip("-•").strip()
-            if line and not re.search(r"(?i)^allerg", line):
-                allergies.append(line)
+            if not line or re.search(r"(?i)^allerg(?:y|ies)\s*:?\s*$", line):
+                continue
+            line = re.sub(r"(?i)^allerg(?:y|ies)\s*:\s*", "", line).strip()
+            line = re.sub(r"(?i)^(?:the\s+)?patient\s+is\s+allergic\s+to\s+", "", line).strip()
+            line = line.rstrip(".")
+            if not line:
+                continue
+            for part in re.split(r"\s+and\s+|,", line, flags=re.IGNORECASE):
+                part = part.strip()
+                if part:
+                    allergies.append(part)
         return allergies
 
     def _extract_primary_diagnosis(self, text: str) -> Optional[str]:

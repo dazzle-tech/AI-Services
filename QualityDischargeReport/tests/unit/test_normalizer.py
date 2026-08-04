@@ -53,6 +53,26 @@ def test_normalize_compound_medication_with_weekly_frequency():
     assert normalized[1]["frequency"].lower() == "every 4 hours"
 
 
+def test_normalize_medication_with_is_prescribed_preamble():
+    """Medication lines using 'is prescribed' should still split and clean drug names."""
+    normalizer = DischargeReportNormalizer()
+    med_line = "The patient is prescribed active1 3 Capsule Twice weekly and active2 1 Mg Every 4 hours."
+
+    normalized = normalizer.normalize_medications([med_line])
+
+    assert len(normalized) == 2
+    assert normalized[0]["name"].lower() == "active1"
+    assert normalized[1]["name"].lower() == "active2"
+
+
+def test_normalize_allergies_from_narrative_sentence():
+    normalizer = DischargeReportNormalizer()
+
+    normalized = normalizer.normalize_allergies(["The patient is allergic to Med22 and test."])
+
+    assert normalized == ["Med22", "test"]
+
+
 def test_normalize_vitals():
     """Test vitals normalization."""
     normalizer = DischargeReportNormalizer()

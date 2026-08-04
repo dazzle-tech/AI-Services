@@ -245,3 +245,66 @@ def test_qa_flags_active2_dose_mismatch_from_medications_on_admission():
     assert dose_mismatches[0]["report_value"] == "1 Mg"
     assert dose_mismatches[0]["source_value"] == "5 Mg"
 
+
+def test_qa_flags_age_sex_and_allergy_mismatches_from_report_header():
+    """Demographics in the report header and allergy lists should be compared to the patient record."""
+    service = DischargeQAService()
+    discharge_report = (
+        "DISCHARGE SUMMARY\n\n"
+        "Patient ID: 1000\n"
+        "Age: 55 years\n"
+        "Gender: MALE\n"
+        "Admission Date: 2026-05-31\n"
+        "Discharge Date: Pending\n\n"
+        "Primary Diagnosis: Blood alcohol level of 60-79 mg/100 ml\n\n"
+        "ALLERGIES\n"
+        "--------------------------------------------------------------------------------\n"
+        "The patient is allergic to Med22.\n\n"
+        "DISCHARGE MEDICATIONS\n"
+        "--------------------------------------------------------------------------------\n"
+        "The patient is prescribed active1 3 Capsule Twice weekly and active2 1 Mg Every 4 hours.\n"
+    )
+    patient_record = {
+        "age": 22,
+        "gender": "FEMALE",
+        "allergies": ["Med22", "test"],
+        "medications_on_admission": [
+            {"name": "active1", "dose": "3 Capsule", "frequency": "Twice daily"},
+            {"name": "active2", "dose": "5 Mg", "frequency": "Every 4 hours"},
+        ],
+    }
+
+    class MockPromptRunner:
+        def run_qa(self, *args, **kwargs):
+            return {
+                "qa_method": "direct_qa",
+                "overall_score": 80,
+                "summary": "AI summary",
+                "parsed_report": {
+                    "format": "text",
+                    "structure_used": "standard",
+                    "content": {},
+                    "unmapped_content": [],
+                },
+                "errors": [],
+                "missing_items": [],
+                "inconsistencies": [],
+                "recommended_corrections": [],
+            }
+
+    service.prompt_runner = MockPromptRunner()
+
+    result = service.perform_qa(
+        discharge_report=discharge_report,
+        patient_record=patient_record,
+        onsite_docs=[],
+    )
+
+    fields = {item.get("field") for item in result["inconsistencies"]}
+    sections = {item.get("section") for item in result["inconsistencies"]}
+
+    assert "age" in fields
+    assert "sex" in fields
+    assert "allergies" in sections
+    assert any(item.get("source_value") == "test" for item in result["inconsistencies"])
+

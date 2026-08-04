@@ -44,17 +44,62 @@ def _normalize_text(value: Any) -> str:
     return str(value).strip().lower()
 
 
-def _allergy_terms(allergy_values: List[str], patient_record: Dict[str, Any]) -> List[str]:
-    terms: List[str] = []
-    for item in allergy_values:
-        if item:
-            terms.append(_normalize_text(item))
-            terms.append(_normalize_text(str(item).split("-")[0].split(",")[0]))
-    for item in patient_record.get("allergies", []) or []:
-        if item:
-            terms.append(_normalize_text(item))
-            terms.append(_normalize_text(str(item).split("-")[0].split(",")[0]))
-    return [term for term in terms if term]
+def _normalize_sex(value: Any) -> str:
+    normalized = _normalize_text(value)
+    if normalized in {"m", "male"}:
+        return "male"
+    if normalized in {"f", "female"}:
+        return "female"
+    return normalized
+
+
+def _patient_record_field(patient_record: Dict[str, Any], field: str) -> Any:
+    """Return patient record values using common field aliases."""
+    if field == "sex":
+        return patient_record.get("sex") or patient_record.get("gender")
+    return patient_record.get(field)
+
+
+def _report_patient_field(patient_info: Dict[str, Any], field: str) -> Any:
+    """Return report patient values using common field aliases."""
+    if field == "sex":
+        return patient_info.get("sex") or patient_info.get("gender")
+    return patient_info.get(field)
+
+
+def _allergy_term_variants(value: Any) -> List[str]:
+    text = str(value).strip()
+    if not text:
+        return []
+    variants = {_normalize_text(text)}
+    short = _normalize_text(text.split("-")[0].split(",")[0])
+    if short:
+        variants.add(short)
+    return [term for term in variants if term]
+
+
+def _report_allergy_terms(content: Dict[str, Any]) -> set[str]:
+    allergies_section = content.get("allergies", {})
+    allergy_values: List[str] = []
+    if isinstance(allergies_section, dict):
+        allergy_values = allergies_section.get("allergies", []) or []
+    elif isinstance(allergies_section, list):
+        allergy_values = allergies_section
+    terms: set[str] = set()
+    for item in _med_field_normalizer.normalize_allergies(allergy_values):
+        terms.update(_allergy_term_variants(item))
+    return terms
+
+
+def _record_allergy_terms(patient_record: Dict[str, Any]) -> set[str]:
+    terms: set[str] = set()
+    for item in _med_field_normalizer.normalize_allergies(patient_record.get("allergies", []) or []):
+        terms.update(_allergy_term_variants(item))
+    return terms
+
+
+def _allergy_terms_match(left: str, right: str) -> bool:
+    return bool(left and right and (left in right or right in left))
 
 
 def _allergy_conflicts_with_med(allergy_terms: List[str], med_name: str) -> Optional[str]:
@@ -271,11 +316,21 @@ class RuleEngine:
         if patient_info or patient_record:
             check_dates = consistency_rules.get("check_dates", True)
             for field in _patient_info_fields(check_dates):
-                report_value = patient_info.get(field)
-                record_value = patient_record.get(field)
+                report_value = _report_patient_field(patient_info, field)
+                record_value = _patient_record_field(patient_record, field)
                 if report_value in (None, "") or record_value in (None, ""):
                     continue
-                if _normalize_scalar(report_value) != _normalize_scalar(record_value):
+                report_normalized = (
+                    _normalize_scalar(report_value)
+                    if field != "sex"
+                    else _normalize_sex(report_value)
+                )
+                record_normalized = (
+                    _normalize_scalar(record_value)
+                    if field != "sex"
+                    else _normalize_sex(record_value)
+                )
+                if report_normalized != record_normalized:
                     inconsistencies.append(
                         {
                             "id": "",
@@ -289,6 +344,49 @@ class RuleEngine:
                             "recommendation": (
                                 f"Align patient {field} in the discharge report "
                                 f"({report_value}) with the patient record ({record_value})"
+                            ),
+                        }
+                    )
+
+        if consistency_rules.get("check_allergies", True):
+            report_allergies = _report_allergy_terms(content)
+            record_allergies = _record_allergy_terms(patient_record)
+            if report_allergies and record_allergies:
+                for record_term in sorted(record_allergies):
+                    if any(_allergy_terms_match(record_term, report_term) for report_term in report_allergies):
+                        continue
+                    inconsistencies.append(
+                        {
+                            "id": "",
+                            "severity": "high",
+                            "section": "allergies",
+                            "field": "allergies",
+                            "report_value": sorted(report_allergies),
+                            "source_value": record_term,
+                            "source": "patient_record",
+                            "ref_id": record_term,
+                            "recommendation": (
+                                f"Document allergy '{record_term}' in the discharge report "
+                                f"or reconcile with the patient record"
+                            ),
+                        }
+                    )
+                for report_term in sorted(report_allergies):
+                    if any(_allergy_terms_match(report_term, record_term) for record_term in record_allergies):
+                        continue
+                    inconsistencies.append(
+                        {
+                            "id": "",
+                            "severity": "medium",
+                            "section": "allergies",
+                            "field": "allergies",
+                            "report_value": report_term,
+                            "source_value": sorted(record_allergies),
+                            "source": "patient_record",
+                            "ref_id": report_term,
+                            "recommendation": (
+                                f"Confirm allergy '{report_term}' in the discharge report "
+                                f"against the patient record"
                             ),
                         }
                     )
@@ -496,7 +594,7 @@ class RuleEngine:
                 )
 
         if medication_rules.get("check_allergy_conflicts", True):
-            allergy_terms = _allergy_terms(allergy_values, patient_record)
+            allergy_terms = list(_report_allergy_terms(content) | _record_allergy_terms(patient_record))
             for med in meds:
                 if not isinstance(med, dict):
                     continue

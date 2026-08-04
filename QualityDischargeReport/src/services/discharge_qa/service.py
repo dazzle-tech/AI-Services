@@ -240,6 +240,12 @@ class DischargeQAService:
             vitals = normalized["vitals_and_key_results"]
             if "vitals_last" in vitals:
                 vitals["vitals_last"] = self.normalizer.normalize_vitals(vitals["vitals_last"])
+
+        # Normalize allergies
+        if "allergies" in normalized and isinstance(normalized["allergies"], dict):
+            allergies = normalized["allergies"]
+            if "allergies" in allergies:
+                allergies["allergies"] = self.normalizer.normalize_allergies(allergies["allergies"])
         
         # Normalize section names
         normalized = self.normalizer.normalize_section_names(normalized, template)

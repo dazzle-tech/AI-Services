@@ -34,9 +34,10 @@ _FREQ_PATTERNS: List[tuple[str, str]] = [
 ]
 _EVERY_HOURS_PATTERN = re.compile(r"\bevery\s+\d+\s+hours?\b", re.IGNORECASE)
 _MEDICATION_PREAMBLE = re.compile(
-    r"(?i)^(?:the\s+)?patient\s+(?:was\s+)?(?:prescribed|given|started\s+on|received)\s+"
+    r"(?i)^(?:the\s+)?patient\s+(?:is|was)\s+(?:prescribed|given|started\s+on|received)\s+"
 )
 _ON_ADMISSION_SUFFIX = re.compile(r"(?i)\s+on\s+admission\.?\s*$")
+_ALLERGY_PREAMBLE = re.compile(r"(?i)^(?:the\s+)?patient\s+is\s+allergic\s+to\s+")
 
 
 class DischargeReportNormalizer:
@@ -177,11 +178,25 @@ class DischargeReportNormalizer:
                 result["name"] = result["name"].replace(frequency_span, "").strip()
         
         # Clean up name - remove extra whitespace and common separators
-        result["name"] = re.sub(r"\s+", " ", result["name"]).strip()
-        result["name"] = re.sub(r"^[,:\-]\s*", "", result["name"]).strip()
+        result["name"] = self._clean_medication_name(result["name"])
         
         logger.debug(f"  Final parsed result: name='{result['name']}', dose={result['dose']}, route={result['route']}, frequency={result['frequency']}")
         return result
+
+    def _clean_medication_name(self, name: str) -> str:
+        """Strip narrative preambles and trailing punctuation from medication names."""
+        cleaned = _MEDICATION_PREAMBLE.sub("", name.strip()).strip()
+        cleaned = cleaned.rstrip(".")
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        token_match = re.search(r"\b([A-Za-z][A-Za-z0-9_-]*)\s*\.?$", cleaned)
+        if token_match and len(cleaned.split()) > 1:
+            leading = cleaned[: token_match.start()].lower()
+            if any(
+                phrase in leading
+                for phrase in ("patient", "prescribed", "given", "the ")
+            ):
+                return token_match.group(1)
+        return cleaned
 
     def _extract_frequency(self, med_str: str) -> tuple[Optional[str], Optional[str]]:
         """Return normalized frequency label and matched source span."""
@@ -199,6 +214,24 @@ class DischargeReportNormalizer:
         """Public helper for extracting a normalized frequency label."""
         frequency, _ = self._extract_frequency(med_str)
         return frequency
+
+    def normalize_allergies(self, allergy_lines: List[Any]) -> List[str]:
+        """Normalize allergy entries into comparable allergy terms."""
+        normalized: List[str] = []
+        for item in allergy_lines or []:
+            if not item:
+                continue
+            text = str(item).strip()
+            if re.search(r"(?i)(nkda|no\s+known\s+(?:drug\s+)?allerg)", text):
+                normalized.append("No known drug allergies")
+                continue
+            text = re.sub(r"(?i)^allerg(?:y|ies)\s*:\s*", "", text).strip()
+            text = _ALLERGY_PREAMBLE.sub("", text).strip().rstrip(".")
+            for part in re.split(r"\s+and\s+|,", text, flags=re.IGNORECASE):
+                part = part.strip()
+                if part:
+                    normalized.append(part)
+        return normalized
     
     def _normalize_medication_dict(self, med: Dict[str, Any]) -> Dict[str, Any]:
         """Normalize medication dictionary to standard format."""
