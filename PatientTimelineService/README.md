@@ -257,6 +257,8 @@ Important environment variables:
 
 Additional optional settings are documented in `.env.example`.
 
+## CI workflow (patient-timeline-ci.yml)
+
 ## Notes
 
 - The service never intentionally adds facts that are not present in the input.
