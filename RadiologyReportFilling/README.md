@@ -308,6 +308,8 @@ Every successful AI call is persisted to `./output/<endpoint>_<utc_timestamp>.js
 These files contain PHI; the directory is gitignored. To disable persistence,
 set `PERSIST_OUTPUT=false` in `.env`.
 
+## CI workflow (.github/workflows/radiology-report-filling-ci.yml)
+
 ## Disclaimer
 
 This service is for assistive purposes only and is not a final diagnosis.
