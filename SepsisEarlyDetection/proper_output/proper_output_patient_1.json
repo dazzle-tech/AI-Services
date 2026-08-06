@@ -15,64 +15,174 @@
   },
   "status_summary": {
     "overall_condition": "stable",
-    "one_line": "",
-    "narrative": "",
+    "one_line": "Patient is stable post-operatively with no signs of sepsis.",
+    "narrative": "Margaret Ellis is a 62-year-old female recovering from elective hip replacement surgery. Over the past 24 hours, her vital signs and laboratory values have remained stable. There are no indications of infection or sepsis, and her post-operative recovery is progressing well.",
     "sirs_criteria_met": 0,
     "qsofa_score": 0,
     "sofa_score": 0,
     "sepsis_3_criteria_met": false
   },
-  "current_vitals": {},
-  "current_labs": {},
+  "current_vitals": {
+    "HR": {
+      "value": 69,
+      "unit": "bpm",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "Resp": {
+      "value": 13,
+      "unit": "breaths/min",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "SBP": {
+      "value": 119,
+      "unit": "mmHg",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "DBP": {
+      "value": 72,
+      "unit": "mmHg",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "MAP": {
+      "value": 88,
+      "unit": "mmHg",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "O2Sat": {
+      "value": 98,
+      "unit": "%",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "Temp": {
+      "value": 36.5,
+      "unit": "\u00b0C",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "EtCO2": {
+      "value": 37,
+      "unit": "mmHg",
+      "status": "normal",
+      "trend": "stable"
+    }
+  },
+  "current_labs": {
+    "Lactate": {
+      "value": 0.9,
+      "unit": "mmol/L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "WBC": {
+      "value": 8.0,
+      "unit": "10\u00b3/\u00b5L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "Platelets": {
+      "value": 221,
+      "unit": "10\u00b3/\u00b5L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "Creatinine": {
+      "value": 0.9,
+      "unit": "mg/dL",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "Bilirubin_total": {
+      "value": 0.6,
+      "unit": "mg/dL",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "HCO3": {
+      "value": 24,
+      "unit": "mmol/L",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "BUN": {
+      "value": 14,
+      "unit": "mg/dL",
+      "status": "normal",
+      "trend": "stable"
+    },
+    "Hct": {
+      "value": 40,
+      "unit": "%",
+      "status": "normal",
+      "trend": "stable"
+    }
+  },
   "timeline_analysis": [],
   "organ_dysfunction": {
     "cardiovascular": {
       "status": "normal",
-      "notes": ""
+      "notes": "Blood pressure and heart rate are within normal limits."
     },
     "respiratory": {
       "status": "normal",
-      "notes": ""
+      "notes": "Respiratory rate and O2 saturation are stable and normal."
     },
     "renal": {
       "status": "normal",
-      "notes": ""
+      "notes": "Creatinine and BUN levels are normal, indicating normal renal function."
     },
     "hepatic": {
       "status": "normal",
-      "notes": ""
+      "notes": "Bilirubin levels are normal, indicating normal liver function."
     },
     "hematologic": {
       "status": "normal",
-      "notes": ""
+      "notes": "WBC and platelet counts are within normal ranges."
     },
     "metabolic": {
       "status": "normal",
-      "notes": ""
+      "notes": "Lactate and HCO3 levels are normal, indicating no metabolic acidosis."
     }
   },
   "watchlist": [],
   "risk_factors": {
-    "infection_source_suspected": "",
+    "infection_source_suspected": "None",
     "immunocompromised": false,
     "age_risk": false,
-    "comorbidity_burden": "low",
-    "contributing_factors": []
+    "comorbidity_burden": "moderate",
+    "contributing_factors": [
+      "Hypertension",
+      "Type 2 Diabetes"
+    ]
   },
   "forecast_24h": {
     "expected_trajectory": "stable",
-    "narrative": "",
+    "narrative": "The patient's condition is expected to remain stable over the next 24 hours. Vital signs and laboratory values have shown no significant changes, and there are no current signs of infection or sepsis. Continued monitoring is recommended to ensure ongoing stability.",
     "key_decision_points": [],
     "intervention_urgency": "routine"
   },
   "sepsis_probability_24h": {
-    "probability": 0,
+    "probability": 5,
     "risk_level": "low",
-    "confidence": "low",
+    "confidence": "high",
     "primary_drivers": [],
-    "mitigating_factors": []
+    "mitigating_factors": [
+      "Stable vital signs",
+      "Normal laboratory values"
+    ]
   },
-  "recommended_actions": [],
+  "recommended_actions": [
+    {
+      "priority": "routine",
+      "action": "Continue routine post-operative monitoring.",
+      "rationale": "The patient is stable with no signs of infection or sepsis."
+    }
+  ],
   "flags": {
     "escalate_care": false,
     "repeat_labs_needed": false,
