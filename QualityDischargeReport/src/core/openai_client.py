@@ -20,7 +20,7 @@ class OpenAIClient:
             model: Model name (defaults to OPENAI_MODEL env var)
             api_key: API key (defaults to OPENAI_API_KEY env var)
         """
-        self.model = model or os.getenv("OPENAI_MODEL", "")
+        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o")
         api_key = api_key or os.getenv("OPENAI_API_KEY")
         base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1") or None
         timeout = float(os.getenv("OPENAI_TIMEOUT", "120"))

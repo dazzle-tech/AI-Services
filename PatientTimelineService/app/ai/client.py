@@ -69,20 +69,20 @@ class AIClient:
                     prompt_length,
                 )
 
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    timeout=self.timeout,
-                    # NOTE: `chat_template_kwargs.enable_thinking` is the vLLM
-                    # convention and is silently ignored by Ollama's
-                    # OpenAI-compatible endpoint. Ollama maps `reasoning_effort`
-                    # to its internal `think` flag instead; "none" disables
-                    # thinking so the model doesn't burn max_tokens on <think>
-                    # reasoning and leave no room for the JSON answer.
-                    extra_body={"reasoning_effort": "none"},
-                )
+                create_kwargs = {
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                    "timeout": self.timeout,
+                }
+                # Ollama-only: disable thinking so local reasoning models don't
+                # burn max_tokens on <think> and leave an empty JSON answer.
+                # OpenAI cloud rejects unrecognized `reasoning_effort`.
+                if self.base_url and "11434" in self.base_url:
+                    create_kwargs["extra_body"] = {"reasoning_effort": "none"}
+
+                response = self.client.chat.completions.create(**create_kwargs)
 
                 message = response.choices[0].message
                 content = message.content

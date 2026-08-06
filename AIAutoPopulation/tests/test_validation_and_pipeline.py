@@ -247,7 +247,7 @@ def test_conflicting_vitals_flags_bp_and_hr():
 def test_every_contradiction_generates_matching_uncertainty_flag(monkeypatch):
     class DummyAIClient:
         def __init__(self):
-            self.model = "qwen3:1.7b"
+            self.model = "gpt-4o"
 
         def extract_structured_data(self, **kwargs):
             return {
@@ -287,7 +287,7 @@ def test_every_contradiction_generates_matching_uncertainty_flag(monkeypatch):
 def test_medication_source_trace_prefers_user_text(monkeypatch):
     class DummyAIClient:
         def __init__(self):
-            self.model = "qwen3:1.7b"
+            self.model = "gpt-4o"
 
         def extract_structured_data(self, **kwargs):
             return {
@@ -329,7 +329,7 @@ def test_medication_source_trace_prefers_user_text(monkeypatch):
 def test_planned_procedures_are_not_extracted_as_completed(monkeypatch):
     class DummyAIClient:
         def __init__(self):
-            self.model = "qwen3:1.7b"
+            self.model = "gpt-4o"
 
         def extract_structured_data(self, **kwargs):
             return {
@@ -354,7 +354,7 @@ def test_planned_procedures_are_not_extracted_as_completed(monkeypatch):
 def test_no_known_allergies_normalize_consistently(monkeypatch):
     class DummyAIClient:
         def __init__(self):
-            self.model = "qwen3:1.7b"
+            self.model = "gpt-4o"
 
         def extract_structured_data(self, **kwargs):
             return {
@@ -381,7 +381,7 @@ def test_no_known_allergies_normalize_consistently(monkeypatch):
 def test_service_pipeline_preserves_valid_fields_when_plan_is_a_list(monkeypatch):
     class DummyAIClient:
         def __init__(self):
-            self.model = "qwen3:1.7b"
+            self.model = "gpt-4o"
 
         def extract_structured_data(self, **kwargs):
             return {

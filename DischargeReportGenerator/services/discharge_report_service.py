@@ -44,12 +44,15 @@ class DischargeReportGenerator:
         if not self.initialized:
             if self.openai_api_key:
                 # Initialize OpenAI client (NEW API - v1.0+)
-                self.client = OpenAI(
-                    api_key=self.openai_api_key,
-                    base_url=config.OPENAI_BASE_URL or None,
-                    timeout=config.OPENAI_TIMEOUT,
-                    max_retries=config.OPENAI_MAX_RETRIES,
-                )
+                # Only pass base_url when set; empty env values make the SDK fail.
+                client_kwargs = {
+                    "api_key": self.openai_api_key,
+                    "timeout": config.OPENAI_TIMEOUT,
+                    "max_retries": config.OPENAI_MAX_RETRIES,
+                }
+                if config.OPENAI_BASE_URL:
+                    client_kwargs["base_url"] = config.OPENAI_BASE_URL
+                self.client = OpenAI(**client_kwargs)
             self.initialized = True
             logger.info("Discharge Report Generator initialized")
     

@@ -19,8 +19,8 @@ class Settings(BaseSettings):
     
     # OpenAI Configuration
     openai_api_key: str
-    openai_base_url: Optional[str] = "http://localhost:11434/v1"
-    openai_model: str = ""
+    openai_base_url: Optional[str] = None
+    openai_model: str = "gpt-4o"
     openai_temperature: float = 0.0  # Deterministic behavior
     openai_timeout: int = 120
     openai_max_retries: int = 1

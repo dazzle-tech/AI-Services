@@ -29,14 +29,14 @@ class Settings(BaseSettings):
     # Keep this optional so the service can start (e.g. to serve /health and
     # non-AI endpoints) even when an API key is not configured. AI endpoints
     # will still fail with a clear error when invoked.
-    openai_base_url: str = "http://localhost:11434/v1"
-    openai_api_key: str = "ollama"
-    openai_model: str = ""
+    openai_base_url: str = ""
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
     openai_temperature: float = 0.2
     openai_timeout: int = 120
     openai_max_retries: int = 1
     openai_retry_delay: float = 1.0
-    openai_embed_model: str = "nomic-embed-text"
+    openai_embed_model: str = "text-embedding-3-small"
 
     # RAG / domain data files (relative to project root)
     icd10_file: str = "rag_data/icd10cm.json"

@@ -18,19 +18,19 @@ class Settings(BaseSettings):
     disclaimer_text: str = "Assistive AI only. Radiologist review required. Not for final diagnosis."
 
     max_upload_mb: int = 2048
-    # Default to Ollama's OpenAI-compatible endpoint. Set OPENAI_BASE_URL=""
-    # and provide a real OPENAI_API_KEY to switch back to the OpenAI cloud API.
-    openai_base_url: str | None = "http://localhost:11434/v1"
-    openai_api_key: str | None = "ollama"
-    openai_model: str = ""
+    # Leave OPENAI_BASE_URL empty to use the OpenAI cloud API.
+    # Set OPENAI_BASE_URL to an OpenAI-compatible endpoint (e.g. Ollama) to override.
+    openai_base_url: str | None = None
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o"
     enable_image_model: bool = True
     vision_model: str = Field(
-        default="",
+        default="gpt-4o",
         validation_alias=AliasChoices("vision_model", "VISION_MODEL", "VISION_MODEL_NAME"),
     )
-    # Ollama expects image_url as a flat data-URI string, while OpenAI/vLLM/LM Studio
-    # expect the nested {"url": "...", "detail": "..."} object form.
-    vision_image_url_as_string: bool = True
+    # OpenAI expects the nested {"url": "...", "detail": "..."} object form.
+    # Set true for Ollama-style flat data-URI strings.
+    vision_image_url_as_string: bool = False
     openai_timeout: float = 120.0
     openai_max_retries: int = 1
     ct_max_slices: int = 6

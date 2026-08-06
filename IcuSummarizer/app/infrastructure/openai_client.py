@@ -24,7 +24,7 @@ class OpenAIClient:
                 service="OPENAI"
             )
         
-        self.model_name = model_name or os.getenv("MODEL_NAME", "gpt-4o")
+        self.model_name = model_name or os.getenv("MODEL_NAME") or os.getenv("OPENAI_MODEL", "gpt-4o")
         self.client = OpenAI(api_key=self.api_key)
     
     def generate_structured_completion(self, prompt: str, json_schema: Dict[str, Any],

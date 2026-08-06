@@ -35,9 +35,9 @@ async def lifespan(application: FastAPI):
         if exc.__class__.__name__ == "AuthenticationError":
             logger.error(
                 "RAG seeding failed: invalid OpenAI credentials. "
-                "Set a valid OPENAI_API_KEY, or use Ollama with "
-                "OPENAI_BASE_URL=http://localhost:11434/v1, OPENAI_API_KEY=ollama, "
-                "OPENAI_MODEL=qwen3:1.7b, and OPENAI_EMBEDDING_MODEL=nomic-embed-text."
+                "Set a valid OPENAI_API_KEY, or use a local OpenAI-compatible endpoint with "
+                "OPENAI_BASE_URL, OPENAI_API_KEY, OPENAI_MODEL=gpt-4o, and "
+                "OPENAI_EMBEDDING_MODEL=text-embedding-3-small."
             )
         else:
             logger.exception("RAG seeding failed: %s", exc)

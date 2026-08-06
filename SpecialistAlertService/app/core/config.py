@@ -18,8 +18,8 @@ class Settings(BaseSettings):
     )
 
     openai_api_key: str = ""
-    openai_base_url: str | None = "http://localhost:11434/v1"
-    openai_model: str = ""
+    openai_base_url: str | None = None
+    openai_model: str = "gpt-4o"
     openai_temperature: float = 0.1
     openai_max_tokens: int = 4000
     openai_disable_thinking: bool = True

@@ -83,12 +83,13 @@ class AIClient:
                 )
 
                 extra_body = {}
-                if settings.openai_disable_thinking:
-                    # Qwen3 (and some other locally-hosted reasoning models) emit a
-                    # <think>...</think> reasoning block by default, which eats into
-                    # max_tokens and can leave the actual JSON answer truncated.
-                    # chat_template_kwargs.enable_thinking is honored by Ollama/vLLM's
-                    # OpenAI-compatible endpoint for Qwen3; harmless no-op elsewhere.
+                # Ollama/vLLM-only: disable local model thinking. OpenAI cloud
+                # rejects unrecognized `chat_template_kwargs`.
+                if (
+                    settings.openai_disable_thinking
+                    and self.base_url
+                    and "11434" in self.base_url
+                ):
                     extra_body["chat_template_kwargs"] = {"enable_thinking": False}
 
                 response = self.client.chat.completions.create(

@@ -16,6 +16,11 @@ _VISION_MODEL_HINTS = (
     "qwen2.5vl",
     "qwen3-vl",
     "llama3.2-vision",
+    "gpt-4o",
+    "gpt-4.1",
+    "gpt-4-turbo",
+    "gpt-4-vision",
+    "gpt-5",
 )
 _NON_GENERATION_MODEL_HINTS = ("embed", "whisper", "tts", "stt", "moderation", "rerank")
 

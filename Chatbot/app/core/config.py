@@ -24,18 +24,18 @@ class Settings(BaseSettings):
     use_crewai: bool = os.getenv("USE_CREWAI", "false").lower() == "true"  # Disable CrewAI by default for faster responses
     
     # LLM Configuration
-    llm_provider: str = os.getenv("LLM_PROVIDER", "ollama")  # "ollama" or "openai"
+    llm_provider: str = os.getenv("LLM_PROVIDER", "openai")  # "ollama" or "openai"
     
     # Ollama Configuration
     ollama_host: str = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-    llm_model: str = os.getenv("LLM_MODEL", "") or os.getenv("OPENAI_MODEL", "")
-    sql_gen_model: str = os.getenv("SQL_GEN_MODEL", "") or os.getenv("OPENAI_MODEL", "")
+    llm_model: str = os.getenv("LLM_MODEL", "") or os.getenv("OPENAI_MODEL", "gpt-4o")
+    sql_gen_model: str = os.getenv("SQL_GEN_MODEL", "") or os.getenv("OPENAI_MODEL", "gpt-4o")
     
     # OpenAI Configuration
-    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "")
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    openai_model: str = os.getenv("OPENAI_MODEL", "")
-    openai_sql_gen_model: str = os.getenv("OPENAI_SQL_GEN_MODEL", "") or os.getenv("OPENAI_MODEL", "")
+    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+    openai_sql_gen_model: str = os.getenv("OPENAI_SQL_GEN_MODEL", "") or os.getenv("OPENAI_MODEL", "gpt-4o")
     openai_timeout: int = int(os.getenv("OPENAI_TIMEOUT", "120"))
     openai_max_retries: int = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
     

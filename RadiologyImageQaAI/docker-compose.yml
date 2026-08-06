@@ -22,7 +22,7 @@ services:
       - BLADDER_MISSING_IS_FAIL=${BLADDER_MISSING_IS_FAIL:-false}
       - OPENAI_ENABLED=${OPENAI_ENABLED:-false}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4.1-mini}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
       - DEIDENTIFY_BEFORE_GPT=${DEIDENTIFY_BEFORE_GPT:-true}
     env_file:
       - .env

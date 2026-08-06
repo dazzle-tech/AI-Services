@@ -30,9 +30,9 @@ class Settings(BaseSettings):
 
     # Optional OpenAI report generation (never required for QC logic)
     openai_enabled: bool = False
-    openai_base_url: str | None = "http://localhost:11434/v1"
-    openai_api_key: str | None = "ollama"
-    openai_model: str = ""
+    openai_base_url: str | None = None
+    openai_api_key: str | None = None
+    openai_model: str = "gpt-4o"
     openai_timeout: float = 120.0
     openai_max_retries: int = 1
     deidentify_before_gpt: bool = True
