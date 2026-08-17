@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     API_RELOAD: bool = False
     
     # OpenAI Settings
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "") or ""
+    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1") or "https://api.openai.com/v1"
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
     OPENAI_TEMPERATURE: float = 0.2

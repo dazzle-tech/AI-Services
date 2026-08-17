@@ -35,14 +35,19 @@ class BaseValidationService:
         """Initialize OpenAI client"""
         if not settings.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY is not set in environment variables")
-        
-        self.client = AsyncOpenAI(
-            api_key=settings.OPENAI_API_KEY,
-            base_url=settings.OPENAI_BASE_URL,
-            timeout=settings.OPENAI_TIMEOUT,
-            max_retries=settings.OPENAI_MAX_RETRIES,
-        )
-        self.base_url = settings.OPENAI_BASE_URL
+
+        # Empty/whitespace base_url must be omitted so the SDK uses the cloud default.
+        base_url = (settings.OPENAI_BASE_URL or "").strip() or None
+        client_kwargs = {
+            "api_key": settings.OPENAI_API_KEY,
+            "timeout": settings.OPENAI_TIMEOUT,
+            "max_retries": settings.OPENAI_MAX_RETRIES,
+        }
+        if base_url:
+            client_kwargs["base_url"] = base_url
+
+        self.client = AsyncOpenAI(**client_kwargs)
+        self.base_url = base_url or "https://api.openai.com/v1"
         self.model = settings.OPENAI_MODEL
         self.temperature = settings.OPENAI_TEMPERATURE
         self.max_tokens = settings.OPENAI_MAX_TOKENS

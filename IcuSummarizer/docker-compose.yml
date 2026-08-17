@@ -15,7 +15,7 @@ services:
       ollama:
         condition: service_healthy
     environment:
-      - OPENAI_BASE_URL=http://ollama:11434/v1
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
       - API_HOST=0.0.0.0
       - API_PORT=8013
     env_file:
