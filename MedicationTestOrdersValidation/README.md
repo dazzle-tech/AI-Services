@@ -275,7 +275,7 @@ OpenAI-compatible backend such as Ollama, set `OPENAI_BASE_URL` and choose a
 model name available on that server.
 
 ## CI workflow (.github/workflows/medication-test-order-val-ci.yml)
----
+----
 
 **Ready to use!** Start the service and begin validating medications and tests. 🚀
 
