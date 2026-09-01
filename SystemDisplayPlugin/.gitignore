@@ -1,0 +1,13 @@
+.env
+
+.venv/
+
+__pycache__/
+
+*.pyc
+
+.pytest_cache/
+
+*.db
+
+systemdisplay_integration_test.db

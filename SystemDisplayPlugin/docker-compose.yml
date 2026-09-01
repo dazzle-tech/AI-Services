@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: systemdisplay-postgres
+    environment:
+      POSTGRES_USER: systemdisplay
+      POSTGRES_PASSWORD: systemdisplay
+      POSTGRES_DB: systemdisplay
+    ports:
+      - "5435:5432"
+    volumes:
+      - systemdisplay_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U systemdisplay"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - systemdisplay-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: systemdisplay-redis
+    ports:
+      - "6382:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - systemdisplay-network
+
+  api:
+    build: .
+    container_name: systemdisplay-api
+    ports:
+      - "8031:8031"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://systemdisplay:systemdisplay@postgres:5432/systemdisplay
+      REDIS_URL: redis://redis:6379/0
+      USE_LLM_STUB: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - systemdisplay-network
+
+volumes:
+  systemdisplay_pg_data:
+
+networks:
+  systemdisplay-network:
+    driver: bridge
