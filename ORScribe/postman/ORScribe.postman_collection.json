@@ -1,0 +1,664 @@
+{
+  "info": {
+    "name": "ORScribe",
+    "description": "Postman collection for ORScribe — Operating Room conversation intelligence REST API.\n\nIngests OR audio, identifies surgical team roles, extracts an intraoperative timeline, and verifies WHO Surgical Safety Checklist completion.\n\nCollection variables:\n- `baseUrl` — default http://localhost:8030\n- `apiKey` — X-API-Key header value\n- `staffId` — X-Staff-Id header value\n- `caseId` — auto-set after creating a case\n\nWorkflow:\n1. Health Check\n2. Analyze Audio (one-shot, no polling)\n3. Create Case (post-hoc with audio, or streaming without audio)\n4. Upload Audio Chunk (streaming cases)\n5. Poll Get Case until status is `completed`\n6. Get Transcript / Get Checklist\n7. Update Roles (if needs_review)\n8. Approve Case",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8030"
+    },
+    {
+      "key": "apiKey",
+      "value": "change-me-to-a-secure-random-key"
+    },
+    {
+      "key": "staffId",
+      "value": "nurse-1"
+    },
+    {
+      "key": "caseId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has field status', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('status');",
+              "});",
+              "pm.test('Response has field database', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('database');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "health"]
+        },
+        "description": "Check service health (database, Redis, OpenAI configuration). No auth required."
+      },
+      "response": [
+        {
+          "name": "Healthy",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "health"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"status\": \"ok\",\n  \"database\": \"ok\",\n  \"redis\": \"ok\",\n  \"details\": {\n    \"service\": \"ORScribe\",\n    \"version\": \"1.0.0\",\n    \"openai_configured\": true,\n    \"role_id_model\": \"gpt-4o\",\n    \"record_model\": \"gpt-4o\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Analyze Audio (One-Shot)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has transcript, roles, and timeline', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('raw_transcript');",
+              "    pm.expect(json.raw_transcript.segments.length).to.be.above(0);",
+              "    pm.expect(json).to.have.property('role_map');",
+              "    if (!json.needs_review) {",
+              "        pm.expect(json.timeline).to.have.property('events');",
+              "        pm.expect(json.checklist).to.have.property('sign_in');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"}
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "audio",
+              "type": "file",
+              "src": "C:/Users/User/Desktop/AI-Services/ORScribe/samples/or_case_sample.wav",
+              "description": "Required. Must be the .wav FILE, not the samples folder. Path: ORScribe/samples/or_case_sample.wav"
+            },
+            {
+              "key": "procedure_type",
+              "value": "laparoscopic cholecystectomy",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/analyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "analyze"]
+        },
+        "description": "Upload audio and receive the full pipeline result in one response: diarized transcript, speaker roles, intraoperative timeline, and WHO checklist. No case ID or polling required. If role confidence is low, `needs_review` is true and timeline/checklist may be null."
+      },
+      "response": []
+    },
+    {
+      "name": "Create Case (Post-hoc with Audio)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 202', function () {",
+              "    pm.response.to.have.status(202);",
+              "});",
+              "pm.test('Response has field case_id', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('case_id');",
+              "    pm.collectionVariables.set('caseId', json.case_id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"}
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {"key": "procedure_type", "value": "laparoscopic cholecystectomy", "type": "text"},
+            {"key": "ingest_mode", "value": "post_hoc", "type": "text"},
+            {
+              "key": "scheduled_team",
+              "value": "{\"surgeon\": \"Dr. Smith\", \"anesthetist\": \"Dr. Jones\"}",
+              "type": "text",
+              "description": "Optional JSON string of known team members"
+            },
+            {
+              "key": "audio",
+              "type": "file",
+              "src": [],
+              "description": "Select a .wav, .mp3, or .m4a file"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases"]
+        },
+        "description": "Start a post-hoc case with a single audio file. Returns 202 Accepted with case_id. Poll Get Case until status is completed."
+      },
+      "response": [
+        {
+          "name": "202 Accepted",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"}
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "procedure_type", "value": "laparoscopic cholecystectomy", "type": "text"},
+                {"key": "ingest_mode", "value": "post_hoc", "type": "text"},
+                {"key": "audio", "type": "file", "src": []}
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases"]
+            }
+          },
+          "status": "Accepted",
+          "code": 202,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"case_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"ingesting\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Create Case (Streaming — no audio)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 202', function () {",
+              "    pm.response.to.have.status(202);",
+              "});",
+              "pm.test('Response has field case_id', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('case_id');",
+              "    pm.collectionVariables.set('caseId', json.case_id);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"}
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {"key": "procedure_type", "value": "appendectomy", "type": "text"},
+            {"key": "ingest_mode", "value": "streaming", "type": "text"}
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases"]
+        },
+        "description": "Start a live/streaming case without initial audio. Follow with Upload Audio Chunk requests."
+      },
+      "response": [
+        {
+          "name": "202 Accepted",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"}
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "procedure_type", "value": "appendectomy", "type": "text"},
+                {"key": "ingest_mode", "value": "streaming", "type": "text"}
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases"]
+            }
+          },
+          "status": "Accepted",
+          "code": 202,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"case_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"ingesting\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Upload Audio Chunk",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 202', function () {",
+              "    pm.response.to.have.status(202);",
+              "});",
+              "pm.test('Response has field chunk_index', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('chunk_index');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"}
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {"key": "chunk_index", "value": "0", "type": "text"},
+            {"key": "is_final", "value": "true", "type": "text", "description": "Set true on the last chunk"},
+            {"key": "audio", "type": "file", "src": [], "description": "5–10 minute audio chunk"}
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/audio-chunk",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases", "{{caseId}}", "audio-chunk"]
+        },
+        "description": "Push an audio chunk for a streaming case. Set is_final=true on the last chunk to trigger downstream analysis."
+      },
+      "response": [
+        {
+          "name": "202 Accepted",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"}
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {"key": "chunk_index", "value": "0", "type": "text"},
+                {"key": "is_final", "value": "true", "type": "text"},
+                {"key": "audio", "type": "file", "src": []}
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/audio-chunk",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases", "{{caseId}}", "audio-chunk"]
+            }
+          },
+          "status": "Accepted",
+          "code": 202,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"chunk_index\": 0,\n  \"status\": \"pending\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Case",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has field status', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('status');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"}
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases", "{{caseId}}"]
+        },
+        "description": "Get full case record: status, role map, timeline, checklist result, medications, instrument counts."
+      },
+      "response": [
+        {
+          "name": "Completed Case",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases", "{{caseId}}"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"completed\",\n  \"procedure_type\": \"laparoscopic cholecystectomy\",\n  \"created_by\": \"nurse-1\",\n  \"ingest_mode\": \"post_hoc\",\n  \"ingest_complete\": true,\n  \"needs_review\": false,\n  \"role_map\": {\n    \"SPEAKER_00\": {\"role\": \"surgeon\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_01\": {\"role\": \"anesthetist\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_02\": {\"role\": \"nurse\", \"confidence\": \"high\", \"needs_review\": false}\n  },\n  \"timeline\": {\"events\": []},\n  \"medications\": [],\n  \"instrument_counts\": [],\n  \"checklist_result\": {\n    \"sign_in\": {\"completed\": true, \"items_confirmed\": [], \"items_missing\": []},\n    \"time_out\": {\"completed\": true, \"items_confirmed\": [], \"items_missing\": []},\n    \"sign_out\": {\"completed\": true, \"items_confirmed\": [], \"items_missing\": []}\n  },\n  \"approved_by\": null,\n  \"approved_at\": null\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Transcript",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has raw_transcript', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('raw_transcript');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"}
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/transcript",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases", "{{caseId}}", "transcript"]
+        },
+        "description": "Get the raw diarized transcript with speaker labels and timestamps."
+      },
+      "response": [
+        {
+          "name": "Transcript",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/transcript",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases", "{{caseId}}", "transcript"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"case_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"raw_transcript\": {\n    \"segments\": [\n      {\n        \"speaker_label\": \"SPEAKER_00\",\n        \"start_time\": 0.0,\n        \"end_time\": 8.0,\n        \"text\": \"Sign in complete. Patient identity confirmed, site marked.\"\n      },\n      {\n        \"speaker_label\": \"SPEAKER_01\",\n        \"start_time\": 8.5,\n        \"end_time\": 15.0,\n        \"text\": \"Anesthesia plan reviewed. Allergies noted. Consent verified.\"\n      }\n    ]\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Get Checklist",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has sign_in', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('sign_in');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"}
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/checklist",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases", "{{caseId}}", "checklist"]
+        },
+        "description": "Get WHO Surgical Safety Checklist verification result (sign-in, time-out, sign-out phases)."
+      },
+      "response": [
+        {
+          "name": "Checklist Result",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"}
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/checklist",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases", "{{caseId}}", "checklist"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"sign_in\": {\n    \"completed\": true,\n    \"items_confirmed\": [\"patient identity confirmed\", \"site marked\"],\n    \"items_missing\": []\n  },\n  \"time_out\": {\n    \"completed\": true,\n    \"items_confirmed\": [\"team introductions\"],\n    \"items_missing\": []\n  },\n  \"sign_out\": {\n    \"completed\": true,\n    \"items_confirmed\": [\"procedure recorded\", \"specimen labeled\"],\n    \"items_missing\": []\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Update Roles",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('needs_review is false after correction', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.needs_review).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role_map\": {\n    \"SPEAKER_00\": \"surgeon\",\n    \"SPEAKER_01\": \"anesthetist\",\n    \"SPEAKER_02\": \"nurse\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/roles",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases", "{{caseId}}", "roles"]
+        },
+        "description": "Human correction of role assignments. Re-triggers timeline extraction and checklist verification."
+      },
+      "response": [
+        {
+          "name": "Roles Updated",
+          "originalRequest": {
+            "method": "PATCH",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role_map\": {\n    \"SPEAKER_00\": \"surgeon\",\n    \"SPEAKER_01\": \"anesthetist\",\n    \"SPEAKER_02\": \"nurse\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases", "{{caseId}}", "roles"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"completed\",\n  \"needs_review\": false,\n  \"role_map\": {\n    \"SPEAKER_00\": {\"role\": \"surgeon\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_01\": {\"role\": \"anesthetist\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_02\": {\"role\": \"nurse\", \"confidence\": \"high\", \"needs_review\": false}\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "Approve Case",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has approved_by', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('approved_by');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "X-API-Key", "value": "{{apiKey}}"},
+          {"key": "X-Staff-Id", "value": "{{staffId}}"},
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"user_id\": \"{{staffId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/approve",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "cases", "{{caseId}}", "approve"]
+        },
+        "description": "Clinical staff sign-off. Case must be in completed status. user_id must match X-Staff-Id header."
+      },
+      "response": [
+        {
+          "name": "Approved",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {"key": "X-API-Key", "value": "{{apiKey}}"},
+              {"key": "X-Staff-Id", "value": "{{staffId}}"},
+              {"key": "Content-Type", "value": "application/json"}
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"user_id\": \"nurse-1\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "cases", "{{caseId}}", "approve"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "cookie": [],
+          "body": "{\n  \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"completed\",\n  \"approved_by\": \"nurse-1\",\n  \"approved_at\": \"2026-08-27T08:00:00Z\"\n}"
+        }
+      ]
+    }
+  ]
+}

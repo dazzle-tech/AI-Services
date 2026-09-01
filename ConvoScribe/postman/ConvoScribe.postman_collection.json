@@ -1,0 +1,224 @@
+{
+  "info": {
+    "name": "ConvoScribe",
+    "description": "Postman collection for ConvoScribe.\n\nOnly endpoint: **POST {{baseUrl}}/api/v1/analyze**\n\nTwo request styles:\n1. **Analyze Audio** — multipart form-data (file upload).\n2. **Analyze Audio (Raw JSON)** — Body → raw → JSON with `audio_base64` and all options.\n\n**Setup**\n1. Set `baseUrl`, `apiKey`, `clinicianId`.\n2. For form-data: select a `.wav` / `.mp3` / `.m4a` file in `audio`.\n3. For JSON: paste base64 audio into `audio_base64` (a tiny silent wav is included).\n\n**Auth**\n- `X-API-Key: {{apiKey}}`\n- `X-Clinician-Id: {{clinicianId}}`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8026"
+    },
+    {
+      "key": "apiKey",
+      "value": "change-me-to-a-secure-random-key"
+    },
+    {
+      "key": "clinicianId",
+      "value": "dr-smith"
+    }
+  ],
+  "item": [
+    {
+      "name": "Analyze Audio",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has transcript and roles', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('raw_transcript');",
+              "    pm.expect(json.raw_transcript.segments.length).to.be.above(0);",
+              "    pm.expect(json).to.have.property('role_map');",
+              "    pm.expect(json).to.have.property('needs_review');",
+              "    if (!json.needs_review && json.summary) {",
+              "        pm.expect(json.summary).to.have.property('subjective');",
+              "    }",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}",
+            "description": "Must match the service API_KEY."
+          },
+          {
+            "key": "X-Clinician-Id",
+            "value": "{{clinicianId}}",
+            "description": "Clinician identity for this request."
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "audio",
+              "type": "file",
+              "src": "C:/Users/User/Desktop/AI-Services/ConvoScribe/samples/visit_overlap_sample.wav",
+              "description": "Must be a FILE not a folder. Use ConvoScribe/samples/visit_overlap_sample.wav or visit_sample.wav. If Postman shows EISDIR, click Select Files and pick the .wav itself."
+            },
+            {
+              "key": "context_type",
+              "value": "appointment",
+              "type": "text",
+              "description": "Required for a full body. One of: appointment | ward_round | operating_room | procedure | telehealth | other"
+            },
+            {
+              "key": "attendees",
+              "value": "[\"doctor\", \"nurse\", \"patient\", \"patient_companion\"]",
+              "type": "text",
+              "description": "JSON array or comma-separated list. Allowed: doctor | nurse | patient | patient_companion | surgeon | anesthetist | scrub_tech | resident | interpreter | other_staff"
+            },
+            {
+              "key": "purpose",
+              "value": "soap_note",
+              "type": "text",
+              "description": "One of: summary | soap_note | clinical_document | timeline | checklist_verification | full_transcript_review"
+            },
+            {
+              "key": "detail_level",
+              "value": "standard",
+              "type": "text",
+              "description": "One of: verbatim | standard | key_points"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/analyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "analyze"]
+        },
+        "description": "Full request body for POST /api/v1/analyze.\n\nHeaders:\n- X-API-Key\n- X-Clinician-Id\n\nForm fields:\n- audio (file, required)\n- context_type\n- attendees (JSON array)\n- purpose\n- detail_level\n\nWith purpose=soap_note the response includes summary (SOAP). Use purpose=summary or clinical_document for narrative_summary / clinical_document instead."
+      },
+      "response": [
+        {
+          "name": "200 OK — SOAP note",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}"
+              },
+              {
+                "key": "X-Clinician-Id",
+                "value": "{{clinicianId}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": "C:/Users/User/Desktop/AI-Services/ConvoScribe/samples/visit_overlap_sample.wav"
+                },
+                {
+                  "key": "context_type",
+                  "value": "appointment",
+                  "type": "text"
+                },
+                {
+                  "key": "attendees",
+                  "value": "[\"doctor\", \"nurse\", \"patient\", \"patient_companion\"]",
+                  "type": "text"
+                },
+                {
+                  "key": "purpose",
+                  "value": "soap_note",
+                  "type": "text"
+                },
+                {
+                  "key": "detail_level",
+                  "value": "standard",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analyze",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "analyze"]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"raw_transcript\": {\n    \"segments\": [\n      {\n        \"speaker_label\": \"SPEAKER_00\",\n        \"start_time\": 0.0,\n        \"end_time\": 2.4,\n        \"text\": \"Good morning, what brings you in today?\"\n      },\n      {\n        \"speaker_label\": \"SPEAKER_01\",\n        \"start_time\": 2.5,\n        \"end_time\": 5.1,\n        \"text\": \"I've had a sore throat for three days.\"\n      }\n    ]\n  },\n  \"role_map\": {\n    \"SPEAKER_00\": \"doctor\",\n    \"SPEAKER_01\": \"patient\"\n  },\n  \"role_confidence\": \"high\",\n  \"role_reasoning\": \"Speaker 0 asks clinical questions; speaker 1 reports symptoms.\",\n  \"needs_review\": false,\n  \"summary\": {\n    \"subjective\": \"I've had a sore throat for three days.\",\n    \"objective\": \"Not discussed\",\n    \"assessment\": \"Not discussed\",\n    \"plan\": \"Not discussed\",\n    \"medications_mentioned\": [],\n    \"follow_up\": \"Not discussed\",\n    \"flags\": []\n  },\n  \"narrative_summary\": null,\n  \"clinical_document\": null\n}"
+        }
+      ]
+    },
+    {
+      "name": "Analyze Audio (Raw JSON)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('Response has transcript and roles', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('raw_transcript');",
+              "    pm.expect(json.raw_transcript.segments.length).to.be.above(0);",
+              "    pm.expect(json).to.have.property('role_map');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-API-Key",
+            "value": "{{apiKey}}"
+          },
+          {
+            "key": "X-Clinician-Id",
+            "value": "{{clinicianId}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"audio_base64\": \"UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\",\n  \"filename\": \"visit.wav\",\n  \"context_type\": \"appointment\",\n  \"attendees\": [\n    \"doctor\",\n    \"nurse\",\n    \"patient\",\n    \"patient_companion\"\n  ],\n  \"purpose\": \"soap_note\",\n  \"detail_level\": \"standard\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/analyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "analyze"]
+        },
+        "description": "Same endpoint as Analyze Audio, but Body is raw JSON (application/json) instead of form-data.\n\nReplace `audio_base64` with your own file encoded as base64 (or keep the included tiny silent .wav for a smoke test).\nYou can also paste a data URL: `data:audio/wav;base64,...`"
+      },
+      "response": []
+    }
+  ]
+}
