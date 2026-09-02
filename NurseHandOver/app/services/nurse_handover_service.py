@@ -5,17 +5,14 @@ Orchestrator — the single public API for the NurseHandOver generation pipeline
 
 
 This module wires together prompt_builder → gpt_service → summary_parser.
-Routes (added later) and tests call this module; they never call the sub-services
-directly. This keeps the AI pipeline's internal structure invisible to callers.
+Routes and tests call this module; they never call the sub-services directly.
 
 Key design choices:
-- One GPT call per patient (isolated failures, independent retries).
-- All patients in a batch are processed concurrently via asyncio.gather.
-- Per-patient errors are captured in PatientSummaryResult.error rather than
-  raising exceptions, so one failed patient never aborts the whole shift.
+- Exactly one patient per API call.
+- Pipeline errors are captured in PatientSummaryResult.error rather than
+  aborting with an unhandled exception.
 """
 
-import asyncio
 from datetime import datetime, timezone
 
 from app.models.schemas import (
@@ -78,21 +75,16 @@ async def generate_patient_summary(
 
 async def generate_shift_summaries(request: GenerateSummaryRequest) -> GenerateSummaryResponse:
     """
-    Processes all patients in the request concurrently and returns a draft
-    GenerateSummaryResponse containing one result per patient.
-
-    The response has status="draft" — it becomes "confirmed" only after the
-    nurse reviews and calls /confirm-handoff (handled by routes + data_store).
+    Generates a draft SBAR for the single patient in the request.
     """
     generated_at = datetime.now(timezone.utc)
-    tasks = [generate_patient_summary(p, generated_at=generated_at) for p in request.patients]
-    results = await asyncio.gather(*tasks)
+    result = await generate_patient_summary(request.patient, generated_at=generated_at)
 
     return GenerateSummaryResponse(
         shift_id=request.shift_id,
         request_id=request.request_id or request.shift_id,
-        encounter_id=request.encounter_id,
+        encounter_id=request.encounter_id or request.patient.patient_id,
         status="draft",
         generated_at=generated_at,
-        results=list(results),
+        results=[result],
     )

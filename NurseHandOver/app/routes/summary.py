@@ -1,8 +1,6 @@
 """POST /summary/generate
 
-Generates SBAR summaries for every patient in the request. Patients are processed
-concurrently; per-patient failures are isolated and reported in the results array
-rather than aborting the whole batch.
+Generates an SBAR summary for exactly one patient per call.
 
 Summaries come back as status "draft" — the nurse reviews them in the dashboard and
 the agent persists the confirmed version to hospital.db.

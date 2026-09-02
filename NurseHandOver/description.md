@@ -40,7 +40,7 @@ health-gate and the agent's tool registry.
 
 ### `POST /summary/generate`
 
-The core AI pipeline. Generates SBAR summaries for every patient in the request, concurrently.
+The core AI pipeline. Generates an SBAR summary for **exactly one patient** per call.
 
 **Request:** CMS `patient_data` body (no headers required):
 ```json
@@ -54,7 +54,7 @@ The core AI pipeline. Generates SBAR summaries for every patient in the request,
 }
 ```
 
-**Response:** one result per patient.
+**Response:** one result for that patient.
 
 ```json
 {
@@ -86,14 +86,13 @@ The core AI pipeline. Generates SBAR summaries for every patient in the request,
 - **Watch:** Borderline vitals, pending non-urgent orders, or nurse-noted concern
 - **Stable:** All vitals within normal range, no unresolved alerts, medications on schedule
 
-Failures are isolated per patient — one LLM error never aborts the batch; it comes back as
-`success: false` with an `error` message for that patient only.
+Failures on that patient come back as `success: false` with an `error` message.
 
 ---
 
 ### AI Pipeline
 
-For each patient, in this order:
+For that patient, in this order:
 
 ```
 build_user_prompt()     →  Assembles chart data + shift notes into structured text

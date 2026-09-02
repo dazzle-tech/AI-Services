@@ -1,5 +1,8 @@
 """Tests for the CMS patient_data generate payload."""
 
+import pytest
+from pydantic import ValidationError
+
 from app.services.chart_assembler import assemble_current_status
 from app.services.cms_mapper import parse_generate_payload
 from app.services.prompt_builder import build_user_prompt
@@ -69,7 +72,7 @@ def test_parses_cms_payload_into_patient_chart():
     assert request.shift_id == "cms-handover-20260902143012"
     assert request.request_id == CMS_PAYLOAD["request_id"]
     assert request.encounter_id == "ENC-2026-004471"
-    patient = request.patients[0]
+    patient = request.patient
     assert patient.patient_id == "ENC-2026-004471"
     assert "Principal: Pneumonia, unspecified organism (J18.9)" in patient.diagnosis
     assert "Blood Transfusion:" in patient.past_medical_history
@@ -81,7 +84,7 @@ def test_parses_cms_payload_into_patient_chart():
 
 def test_cms_vitals_are_latest_snapshot_and_bp_combined():
     request = parse_generate_payload(CMS_PAYLOAD)
-    status = assemble_current_status(request.patients[0])
+    status = assemble_current_status(request.patient)
     by_type = {v.type: v for v in status.vital_signs}
     assert by_type["hr"].value == "88"
     assert by_type["bp"].value == "128/76"
@@ -106,7 +109,7 @@ def test_cms_vital_history_keeps_last_per_type():
         },
     }
     request = parse_generate_payload(payload)
-    status = assemble_current_status(request.patients[0])
+    status = assemble_current_status(request.patient)
     by_type = {v.type: str(v.value) for v in status.vital_signs}
     assert by_type["hr"] == "110"
     assert by_type["spo2"] == "95"
@@ -114,16 +117,30 @@ def test_cms_vital_history_keeps_last_per_type():
 
 def test_cms_drops_resolved_allergies():
     request = parse_generate_payload(CMS_PAYLOAD)
-    status = assemble_current_status(request.patients[0])
+    status = assemble_current_status(request.patient)
     assert [a.name for a in status.allergies] == ["Penicillin", "Peanuts"]
 
 
 def test_cms_prompt_contains_mapped_fields():
     request = parse_generate_payload(CMS_PAYLOAD)
-    prompt = build_user_prompt(request.patients[0])
+    prompt = build_user_prompt(request.patient)
     assert "Penicillin" in prompt
     assert "MRSA colonisation" in prompt
     assert "Bronchoscopy" in prompt
     assert "J18.9" in prompt
     assert "128/76" in prompt
     assert "Resolved latex" not in prompt
+
+
+def test_rejects_more_than_one_patient():
+    with pytest.raises(ValidationError, match="Exactly one patient"):
+        parse_generate_payload(
+            {
+                "shift_id": "shift-x",
+                "nurse_id": "nurse_001",
+                "patients": [
+                    {"patient_id": "pt_a", "name": "A"},
+                    {"patient_id": "pt_b", "name": "B"},
+                ],
+            }
+        )

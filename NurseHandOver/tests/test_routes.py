@@ -107,10 +107,27 @@ def test_generate_accepts_cms_patient_data(client):
     req = captured["req"]
     assert req.request_id == "cms-handover-20260902143012"
     assert req.encounter_id == "ENC-2026-004471"
-    patient = req.patients[0]
+    patient = req.patient
     assert patient.patient_id == "ENC-2026-004471"
     assert patient.allergies[0].name == "Penicillin"
     assert patient.warnings[0].text == "MRSA colonisation"
     assert patient.pending_procedures[0].name == "Bronchoscopy"
     assert "J18.9" in patient.diagnosis
+
+
+def test_generate_rejects_two_patients(client):
+    body = {
+        "shift_id": "shift-x",
+        "nurse_id": "nurse_001",
+        "patients": [
+            {"patient_id": "pt_a", "name": "A"},
+            {"patient_id": "pt_b", "name": "B"},
+        ],
+    }
+    response = client.post(
+        "/summary/generate",
+        content=json.dumps(body),
+        headers={},
+    )
+    assert response.status_code == 422
 

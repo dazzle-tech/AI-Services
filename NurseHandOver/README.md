@@ -1,6 +1,6 @@
 # NurseHandOver
 
-Stateless SBAR handoff service. The caller sends one or more patient charts; the service returns a structured Situation / Background / Assessment / Recommendation summary per patient, with a rule-based priority (`critical` | `watch` | `stable`). It does **not** store charts, shifts, or confirmed handoffs.
+Stateless SBAR handoff service. Each API call takes **one patient**; the service returns a structured Situation / Background / Assessment / Recommendation summary with a rule-based priority (`critical` | `watch` | `stable`). It does **not** store charts, shifts, or confirmed handoffs.
 
 API: http://localhost:8028  
 Docs: http://localhost:8028/docs  
@@ -37,9 +37,9 @@ docker run -p 8028:8028 --env-file .env nursehandover
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Liveness: service name, version, model, timestamp |
-| POST | `/summary/generate` | Generate SBAR drafts for every patient in the body |
+| POST | `/summary/generate` | Generate an SBAR draft for one patient |
 
-Unauthenticated. No request headers are required (including `Content-Type`). Failures are isolated per patient: one LLM error returns `success: false` for that patient and does not abort the batch. Response `status` is always `draft` — review and persistence belong to the caller.
+Unauthenticated. No request headers are required (including `Content-Type`). One patient per call. Response `status` is always `draft` — review and persistence belong to the caller.
 
 ## Example
 

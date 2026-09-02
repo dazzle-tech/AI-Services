@@ -33,7 +33,7 @@ _VITAL_FIELD_MAP = {
 
 
 def parse_generate_payload(payload: Any) -> GenerateSummaryRequest:
-    """Accept the CMS body (`patient_data`) or the legacy shift/patients body."""
+    """Accept the CMS body (`patient_data`) or a single-patient legacy body."""
     if not isinstance(payload, dict):
         return GenerateSummaryRequest.model_validate(payload)
     if "patient_data" in payload:
@@ -59,7 +59,7 @@ def cms_to_generate_request(cms: CmsHandoverRequest) -> GenerateSummaryRequest:
     return GenerateSummaryRequest(
         shift_id=cms.request_id,
         nurse_id=cms.nurse_id or "unspecified",
-        patients=[patient],
+        patient=patient,
         request_id=cms.request_id,
         encounter_id=cms.encounter_id,
         context_type=cms.context_type,

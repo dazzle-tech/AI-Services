@@ -16,7 +16,7 @@ async def test_shift_summaries_share_generated_at_and_current_status(
     request = GenerateSummaryRequest(
         shift_id="shift-1005-day",
         nurse_id="nurse_sarah_mitchell",
-        patients=[critical_patient],
+        patient=critical_patient,
     )
 
     with patch(

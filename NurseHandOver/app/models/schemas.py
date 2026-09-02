@@ -177,15 +177,34 @@ def _utcnow() -> datetime:
 
 
 class GenerateSummaryRequest(BaseModel):
-    """Internal generation request. CMS payloads are mapped onto this shape."""
+    """Internal generation request. Exactly one patient per call."""
     shift_id: str
     nurse_id: str = "unspecified"
-    patients: List[Patient] = Field(..., min_length=1)
+    patient: Patient
     request_id: Optional[str] = None
     encounter_id: Optional[str] = None
     context_type: Optional[str] = None
     purpose: Optional[str] = None
     detail_level: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _exactly_one_patient(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        if value.get("patient") is not None:
+            if value.get("patients"):
+                raise ValueError("Send a single 'patient' (or patient_data); do not also send 'patients'")
+            return value
+        patients = value.get("patients")
+        if patients is None:
+            return value
+        if not isinstance(patients, list) or len(patients) != 1:
+            raise ValueError("Exactly one patient is allowed per API call")
+        data = dict(value)
+        data["patient"] = patients[0]
+        data.pop("patients", None)
+        return data
 
 
 # ---------------------------------------------------------------------------
