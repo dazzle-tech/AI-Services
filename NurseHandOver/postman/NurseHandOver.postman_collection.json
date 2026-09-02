@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "NurseHandOver",
-    "description": "Postman collection for NurseHandOver — stateless SBAR generation.\n\nNo request headers are required (including Content-Type). Set baseUrl (default http://localhost:8028).\n\n**Setup**\n1. Import this collection.\n2. Start the service: `python main.py` in NurseHandOver (port 8028).\n3. Run **Generate SBAR — full shift (3 patients)** for a complete request body.",
+    "description": "Postman collection for NurseHandOver — stateless SBAR generation.\n\nPrimary body is CMS patient_data (request_id, encounter_id, patient_data). No request headers are required (including Content-Type). Set baseUrl (default http://localhost:8028).\n\n**Setup**\n1. Import this collection.\n2. Start the service: `python main.py` in NurseHandOver (port 8028).\n3. Run **Generate SBAR — CMS patient_data**.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -74,7 +74,54 @@
       ]
     },
     {
-      "name": "Generate SBAR — full shift (3 patients)",
+      "name": "Generate SBAR — CMS patient_data",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Echoes CMS ids', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('draft');",
+              "    pm.expect(json.request_id).to.eql('cms-handover-20260902143012');",
+              "    pm.expect(json.encounter_id).to.eql('ENC-2026-004471');",
+              "    pm.expect(json.results).to.have.lengthOf(1);",
+              "    pm.expect(json.results[0].patient_id).to.eql('ENC-2026-004471');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"cms-handover-20260902143012\",\n  \"context_type\": \"nursing_handover\",\n  \"purpose\": \"shift_handover\",\n  \"detail_level\": \"standard\",\n  \"encounter_id\": \"ENC-2026-004471\",\n  \"patient_data\": {\n    \"allergies\": [\n      {\n        \"allergy_description\": \"Penicillin\",\n        \"allergy_type_description\": \"Drug\"\n      },\n      {\n        \"allergy_description\": \"Peanuts\",\n        \"allergy_type_description\": \"Food\"\n      }\n    ],\n    \"warnings\": [\n      {\n        \"virus_description\": \"MRSA colonisation\",\n        \"type\": \"Infection Control\"\n      },\n      {\n        \"virus_description\": \"Hepatitis B carrier\",\n        \"type\": \"Blood-borne\"\n      }\n    ],\n    \"last_hospital_course\": \"Admitted 28/08 via ED with community-acquired pneumonia. Started on IV ceftriaxone, weaned to oral on day 3. Oxygen requirement reduced from 4 L to room air. Mobilising with a frame. Awaiting physiotherapy review before discharge planning.\",\n    \"past_medical_history\": [\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Acetone, Others: Acetone, Start Date: 28/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Azorubin S stain, Note: asas, Start Date: 25/05/2025\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: gluten, Start Date: 06/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Ibuprofen, Start Date: 30/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Proteins, Note: asas, Start Date: 14/05/2025\"\n      },\n      {\n        \"record_type\": \"Blood Transfusion\",\n        \"record_description\": \"Blood Transfusion: Yes, When: 16/05/2025, Where: Hand\"\n      },\n      {\n        \"record_type\": \"Family History\",\n        \"record_description\": \"Type: Heart Disease, Congenital Deformities: true, Specify: 4wr, Other: ewr\"\n      },\n      {\n        \"record_type\": \"Hospitalization History\",\n        \"record_description\": \"Reason of Admission: gf, Admit Date: 14/05/2025, Hospital Name: dsg, Duration: 1.00, Duration Type: Day\"\n      },\n      {\n        \"record_type\": \"Immunization History\",\n        \"record_description\": \"Immunization History: Known, Hepatitis B: Known\"\n      }\n    ],\n    \"diagnosis\": [\n      {\n        \"diagnosis_type\": \"Principal\",\n        \"diagnosis_code\": \"J18.9\",\n        \"diagnosis_description\": \"Pneumonia, unspecified organism\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"I48.0\",\n        \"diagnosis_description\": \"Paroxysmal atrial fibrillation\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"E11.9\",\n        \"diagnosis_description\": \"Type 2 diabetes mellitus without complications\"\n      }\n    ],\n    \"vital_signs\": {\n      \"respiratory_rate\": \"18\",\n      \"bp_diastolic\": \"76\",\n      \"bp_systolic\": \"128\",\n      \"pain_score\": \"3\",\n      \"pulse_rate\": \"88\",\n      \"spo2_pct\": \"95\",\n      \"temperature_c\": \"37.4\"\n    },\n    \"pending_operations\": [\n      {\n        \"operation_name\": \"Bronchoscopy\",\n        \"requested_date\": \"2026-09-04T09:00:00\"\n      },\n      {\n        \"operation_name\": \"PICC line insertion\",\n        \"requested_date\": \"2026-09-03T14:30:00\"\n      }\n    ]\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/summary/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "summary",
+            "generate"
+          ]
+        },
+        "description": "Primary generate body: CMS request_id / encounter_id / patient_data. No request headers. Requires OPENAI_API_KEY on the server."
+      },
+      "response": []
+    },
+    {
+      "name": "Generate SBAR — legacy shift/patients",
       "event": [
         {
           "listen": "test",
@@ -115,7 +162,7 @@
             "generate"
           ]
         },
-        "description": "Full POST /summary/generate body: one shift, three patients covering critical / watch / stable chart shapes (vitals, medications, pending_orders, alerts, nurse_notes).\n\nNo request headers. Requires OPENAI_API_KEY on the server. Response status is always draft."
+        "description": "Legacy POST /summary/generate body (shift_id + patients[]). Still accepted. No request headers."
       },
       "response": [
         {

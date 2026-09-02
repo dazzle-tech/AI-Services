@@ -40,3 +40,6 @@ async def test_shift_summaries_share_generated_at_and_current_status(
     assert result.current_status.diagnosis == critical_patient.diagnosis
     assert result.current_status.past_medical_history == critical_patient.past_medical_history
     assert result.current_status.hospital_course == critical_patient.hospital_course
+    assert "**Situation**" in result.formatted_text
+    assert "**Diagnosis**" in result.formatted_text
+    assert "**Allergies**" in result.summary.formatted_text or "**Allergies**" in result.formatted_text

@@ -130,6 +130,7 @@ def build_user_prompt(
         allergy_lines = "\n".join(
             "  - "
             f"{a.name}"
+            + (f" | Type: {a.category}" if a.category else "")
             + (f" | Reaction: {a.reaction}" if a.reaction else "")
             + (f" | Status: {a.status}" if a.status else "")
             for a in status.allergies
@@ -142,6 +143,7 @@ def build_user_prompt(
         warning_lines = "\n".join(
             "  - "
             f"{w.text}"
+            + (f" | Type: {w.category}" if w.category else "")
             + (f" | Status: {w.status}" if w.status else "")
             for w in status.warnings
         )

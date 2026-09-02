@@ -38,9 +38,12 @@ class TestValidInput:
         assert isinstance(result.flags, list)
         assert len(result.flags) > 0
 
-    def test_generated_at_is_set(self, valid_gpt_response_critical):
+    def test_formatted_text_uses_bold_headlines(self, valid_gpt_response_critical):
         result = parse_and_validate(valid_gpt_response_critical, "pt_001")
-        assert result.generated_at is not None
+        assert result.formatted_text is not None
+        for headline in ("**Situation**", "**Background**", "**Assessment**", "**Recommendation**", "**Flags**"):
+            assert headline in result.formatted_text
+        assert result.situation in result.formatted_text
 
     def test_generated_at_can_be_supplied(self, valid_gpt_response_critical):
         from datetime import datetime, timezone

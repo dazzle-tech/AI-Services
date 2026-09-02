@@ -34,6 +34,42 @@ def _fake_response():
     )
 
 
+CMS_BODY = {
+    "request_id": "cms-handover-20260902143012",
+    "context_type": "nursing_handover",
+    "purpose": "shift_handover",
+    "detail_level": "standard",
+    "encounter_id": "ENC-2026-004471",
+    "patient_data": {
+        "allergies": [{"allergy_description": "Penicillin", "allergy_type_description": "Drug"}],
+        "warnings": [{"virus_description": "MRSA colonisation", "type": "Infection Control"}],
+        "last_hospital_course": "Admitted with pneumonia.",
+        "past_medical_history": [
+            {"record_type": "Family History", "record_description": "Type: Heart Disease"}
+        ],
+        "diagnosis": [
+            {
+                "diagnosis_type": "Principal",
+                "diagnosis_code": "J18.9",
+                "diagnosis_description": "Pneumonia, unspecified organism",
+            }
+        ],
+        "vital_signs": {
+            "respiratory_rate": "18",
+            "bp_diastolic": "76",
+            "bp_systolic": "128",
+            "pain_score": "3",
+            "pulse_rate": "88",
+            "spo2_pct": "95",
+            "temperature_c": "37.4",
+        },
+        "pending_operations": [
+            {"operation_name": "Bronchoscopy", "requested_date": "2026-09-04T09:00:00"}
+        ],
+    },
+}
+
+
 def test_generate_without_any_headers(client):
     with patch(
         "app.routes.summary.generate_shift_summaries",
@@ -52,3 +88,29 @@ def test_health_without_headers(client):
     response = client.get("/health", headers={})
     assert response.status_code == 200
     assert response.json()["status"] == "ok"
+
+
+def test_generate_accepts_cms_patient_data(client):
+    captured = {}
+
+    async def fake_generate(req):
+        captured["req"] = req
+        return _fake_response()
+
+    with patch("app.routes.summary.generate_shift_summaries", new=fake_generate):
+        response = client.post(
+            "/summary/generate",
+            content=json.dumps(CMS_BODY),
+            headers={},
+        )
+    assert response.status_code == 200
+    req = captured["req"]
+    assert req.request_id == "cms-handover-20260902143012"
+    assert req.encounter_id == "ENC-2026-004471"
+    patient = req.patients[0]
+    assert patient.patient_id == "ENC-2026-004471"
+    assert patient.allergies[0].name == "Penicillin"
+    assert patient.warnings[0].text == "MRSA colonisation"
+    assert patient.pending_procedures[0].name == "Bronchoscopy"
+    assert "J18.9" in patient.diagnosis
+

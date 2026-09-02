@@ -42,12 +42,15 @@ health-gate and the agent's tool registry.
 
 The core AI pipeline. Generates SBAR summaries for every patient in the request, concurrently.
 
-**Request:**
+**Request:** CMS `patient_data` body (no headers required):
 ```json
 {
-  "shift_id": "shift-1005-day",
-  "nurse_id": "nurse_sarah_mitchell",
-  "patients": [ /* one or more Patient objects — see Data Models */ ]
+  "request_id": "cms-handover-20260902143012",
+  "context_type": "nursing_handover",
+  "purpose": "shift_handover",
+  "detail_level": "standard",
+  "encounter_id": "ENC-2026-004471",
+  "patient_data": { }
 }
 ```
 

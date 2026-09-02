@@ -25,6 +25,7 @@ from app.models.schemas import (
     GenerateSummaryResponse,
 )
 from app.services.chart_assembler import assemble_current_status
+from app.services.format_markdown import render_handover_document
 from app.services.prompt_builder import get_system_prompt, build_user_prompt
 from app.services.gpt_service import call_gpt
 from app.services.summary_parser import parse_and_validate
@@ -62,6 +63,7 @@ async def generate_patient_summary(
             success=True,
             summary=summary,
             current_status=current_status,
+            formatted_text=render_handover_document(summary, current_status),
         )
 
     except Exception as e:
@@ -69,6 +71,7 @@ async def generate_patient_summary(
             patient_id=patient.patient_id,
             success=False,
             current_status=current_status,
+            formatted_text=render_handover_document(None, current_status),
             error=str(e),
         )
 
@@ -87,6 +90,8 @@ async def generate_shift_summaries(request: GenerateSummaryRequest) -> GenerateS
 
     return GenerateSummaryResponse(
         shift_id=request.shift_id,
+        request_id=request.request_id or request.shift_id,
+        encounter_id=request.encounter_id,
         status="draft",
         generated_at=generated_at,
         results=list(results),

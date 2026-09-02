@@ -6,7 +6,7 @@ patient chart in the request and gets SBAR summaries back. Nothing is persisted 
 Chart fields are deliberately tolerant (Optional) because they are assembled from a
 live EMR where any single value may be missing.
 """
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Any, List, Optional, Union
 from datetime import datetime, timezone
 from enum import Enum
@@ -55,6 +55,7 @@ class NurseNote(BaseModel):
 class Allergy(BaseModel):
     """Allergy entry. Resolved items are dropped when the handover chart is assembled."""
     name: str
+    category: Optional[str] = Field(None, description="e.g. Drug, Food")
     reaction: Optional[str] = None
     status: Optional[str] = Field(
         None,
@@ -69,6 +70,7 @@ class Allergy(BaseModel):
 class ClinicalWarning(BaseModel):
     """Clinical warning/alert. Resolved items are dropped when the handover chart is assembled."""
     text: str
+    category: Optional[str] = Field(None, description="e.g. Infection Control")
     status: Optional[str] = Field(
         None,
         description="e.g. 'not resolved', 'active', 'resolved'",
@@ -92,7 +94,7 @@ class PendingProcedure(BaseModel):
 
 class Patient(BaseModel):
     patient_id: str
-    name: str
+    name: str = Field(default="not recorded")
     age: Optional[int] = None
     bed: Optional[str] = None
     diagnosis: Optional[str] = None
@@ -175,10 +177,83 @@ def _utcnow() -> datetime:
 
 
 class GenerateSummaryRequest(BaseModel):
-    """Submitted at shift end to trigger SBAR generation for one or more patients."""
+    """Internal generation request. CMS payloads are mapped onto this shape."""
     shift_id: str
-    nurse_id: str
+    nurse_id: str = "unspecified"
     patients: List[Patient] = Field(..., min_length=1)
+    request_id: Optional[str] = None
+    encounter_id: Optional[str] = None
+    context_type: Optional[str] = None
+    purpose: Optional[str] = None
+    detail_level: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# CMS / EMR inbound chart (the public generate body)
+# ---------------------------------------------------------------------------
+
+class CmsAllergy(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    allergy_description: str
+    allergy_type_description: Optional[str] = None
+    status: Optional[str] = None
+    resolved: Optional[bool] = None
+    is_resolved: Optional[bool] = None
+
+
+class CmsWarning(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    virus_description: str
+    type: Optional[str] = None
+    status: Optional[str] = None
+    resolved: Optional[bool] = None
+    is_resolved: Optional[bool] = None
+
+
+class CmsHistoryRecord(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    record_type: Optional[str] = None
+    record_description: Optional[str] = None
+
+
+class CmsDiagnosis(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    diagnosis_type: Optional[str] = None
+    diagnosis_code: Optional[str] = None
+    diagnosis_description: Optional[str] = None
+
+
+class CmsPendingOperation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    operation_name: str
+    requested_date: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class CmsPatientData(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    allergies: List[CmsAllergy] = Field(default_factory=list)
+    warnings: List[CmsWarning] = Field(default_factory=list)
+    last_hospital_course: Optional[str] = None
+    past_medical_history: Union[List[CmsHistoryRecord], str, None] = None
+    diagnosis: Union[List[CmsDiagnosis], str, None] = None
+    vital_signs: Any = None
+    pending_operations: List[CmsPendingOperation] = Field(default_factory=list)
+    name: Optional[str] = None
+    patient_id: Optional[str] = None
+
+
+class CmsHandoverRequest(BaseModel):
+    """Public generate body from the hospital CMS."""
+    model_config = ConfigDict(extra="ignore")
+    request_id: str
+    encounter_id: str
+    patient_data: CmsPatientData
+    context_type: Optional[str] = None
+    purpose: Optional[str] = None
+    detail_level: Optional[str] = None
+    nurse_id: Optional[str] = None
 
 
 class SBARSummary(BaseModel):
@@ -191,6 +266,18 @@ class SBARSummary(BaseModel):
     recommendation: str
     flags: List[str] = []
     generated_at: datetime = Field(default_factory=_utcnow)
+    formatted_text: Optional[str] = Field(
+        None,
+        description="SBAR as markdown with bold section headlines",
+    )
+
+    @model_validator(mode="after")
+    def _fill_formatted_text(self):
+        if not self.formatted_text:
+            from app.services.format_markdown import render_sbar_markdown
+
+            self.formatted_text = render_sbar_markdown(self)
+        return self
 
 
 class PatientSummaryResult(BaseModel):
@@ -200,11 +287,17 @@ class PatientSummaryResult(BaseModel):
     success: bool
     summary: Optional[SBARSummary] = None
     current_status: Optional[PatientCurrentStatus] = None
+    formatted_text: Optional[str] = Field(
+        None,
+        description="Full handover as markdown with bold section headlines",
+    )
     error: Optional[str] = None
 
 
 class GenerateSummaryResponse(BaseModel):
     shift_id: str
+    request_id: Optional[str] = None
+    encounter_id: Optional[str] = None
     status: str = "draft"
     generated_at: datetime = Field(default_factory=_utcnow)
     results: List[PatientSummaryResult]

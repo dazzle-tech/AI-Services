@@ -45,41 +45,35 @@ Unauthenticated. No request headers are required (including `Content-Type`). Fai
 
 ```bash
 curl -X POST http://localhost:8028/summary/generate \
-  -H "Content-Type: application/json" \
   -d '{
-    "shift_id": "shift-1005-day",
-    "nurse_id": "nurse_sarah_mitchell",
-    "patients": [
-      {
-        "patient_id": "pt_001",
-        "name": "Margaret O'\''Brien",
-        "age": 72,
-        "bed": "4A",
-        "diagnosis": "Community-acquired pneumonia",
-        "admission_date": "2025-03-09",
-        "vitals": {
-          "hr": 108,
-          "bp": "94/61",
-          "temp": 38.6,
-          "rr": 22,
-          "spo2": 91,
-          "last_updated": "14:45"
-        },
-        "medications": [
-          {
-            "name": "Amoxicillin-Clavulanate 1.2g IV",
-            "route": "IV",
-            "due": "15:00",
-            "status": "pending"
-          }
-        ],
-        "pending_orders": ["Repeat chest X-ray — awaiting porter"],
-        "alerts": ["SpO2 dropped to 91% at 14:30"],
-        "nurse_notes": [
-          {"time": "14:30", "text": "SpO2 fell to 91%. Applied 4L O2. Dr. Patel informed."}
-        ]
-      }
-    ]
+    "request_id": "cms-handover-20260902143012",
+    "context_type": "nursing_handover",
+    "purpose": "shift_handover",
+    "detail_level": "standard",
+    "encounter_id": "ENC-2026-004471",
+    "patient_data": {
+      "allergies": [{"allergy_description": "Penicillin", "allergy_type_description": "Drug"}],
+      "warnings": [{"virus_description": "MRSA colonisation", "type": "Infection Control"}],
+      "last_hospital_course": "Admitted 28/08 via ED with community-acquired pneumonia.",
+      "past_medical_history": [
+        {"record_type": "Blood Transfusion", "record_description": "Yes, 16/05/2025"}
+      ],
+      "diagnosis": [
+        {"diagnosis_type": "Principal", "diagnosis_code": "J18.9", "diagnosis_description": "Pneumonia, unspecified organism"}
+      ],
+      "vital_signs": {
+        "pulse_rate": "88",
+        "bp_systolic": "128",
+        "bp_diastolic": "76",
+        "temperature_c": "37.4",
+        "respiratory_rate": "18",
+        "spo2_pct": "95",
+        "pain_score": "3"
+      },
+      "pending_operations": [
+        {"operation_name": "Bronchoscopy", "requested_date": "2026-09-04T09:00:00"}
+      ]
+    }
   }'
 ```
 
@@ -89,7 +83,7 @@ Priority cues used in the system prompt:
 - **Watch:** Borderline vitals, pending non-urgent orders, or nurse-noted concern
 - **Stable:** Vitals in range, no unresolved alerts, medications on schedule
 
-Required on each patient: `patient_id`, `name`. Everything else is optional.
+Required: `request_id`, `encounter_id`, and `patient_data`. No request headers.
 
 ## Environment variables
 

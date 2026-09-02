@@ -15,7 +15,8 @@ import json
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import ValidationError
 
-from app.models.schemas import GenerateSummaryRequest, GenerateSummaryResponse
+from app.models.schemas import GenerateSummaryResponse
+from app.services.cms_mapper import parse_generate_payload
 from app.services.nurse_handover_service import generate_shift_summaries
 
 router = APIRouter()
@@ -41,7 +42,7 @@ async def generate_summaries(request: Request) -> GenerateSummaryResponse:
             detail=f"Request body must be JSON: {exc}",
         ) from exc
     try:
-        body = GenerateSummaryRequest.model_validate(payload)
+        body = parse_generate_payload(payload)
     except ValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
