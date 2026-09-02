@@ -31,7 +31,8 @@ there. That keeps `hospital.db` the single source of truth, in line with the res
 
 ## API
 
-Runs on **port 8028** (`PORT` env var). All endpoints consume and return JSON.
+Runs on **port 8028** (`PORT` env var). Endpoints consume and return JSON. No request
+headers are required, including `Content-Type`.
 
 ### `GET /health`
 Health check. Returns service name, version, active model, and timestamp. Used by the compose

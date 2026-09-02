@@ -39,7 +39,7 @@ docker run -p 8028:8028 --env-file .env nursehandover
 | GET | `/health` | Liveness: service name, version, model, timestamp |
 | POST | `/summary/generate` | Generate SBAR drafts for every patient in the body |
 
-Unauthenticated. Failures are isolated per patient: one LLM error returns `success: false` for that patient and does not abort the batch. Response `status` is always `draft` — review and persistence belong to the caller.
+Unauthenticated. No request headers are required (including `Content-Type`). Failures are isolated per patient: one LLM error returns `success: false` for that patient and does not abort the batch. Response `status` is always `draft` — review and persistence belong to the caller.
 
 ## Example
 

@@ -4,6 +4,11 @@ conftest.py
 Shared pytest fixtures available to all test files.
 """
 
+import os
+
+# gpt_service builds an OpenAI client at import time.
+os.environ.setdefault("OPENAI_API_KEY", "test-key-for-tests")
+
 import pytest
 from app.models.schemas import (
     Allergy,

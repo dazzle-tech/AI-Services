@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "NurseHandOver",
-    "description": "Postman collection for NurseHandOver — stateless SBAR generation.\n\nAuth is disabled. Set baseUrl (default http://localhost:8028).\n\n**Setup**\n1. Import this collection.\n2. Start the service: `python main.py` in NurseHandOver (port 8028).\n3. Run **Generate SBAR — full shift (3 patients)** for a complete request body.",
+    "description": "Postman collection for NurseHandOver — stateless SBAR generation.\n\nNo request headers are required (including Content-Type). Set baseUrl (default http://localhost:8028).\n\n**Setup**\n1. Import this collection.\n2. Start the service: `python main.py` in NurseHandOver (port 8028).\n3. Run **Generate SBAR — full shift (3 patients)** for a complete request body.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -95,12 +95,7 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
+        "header": [],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"shift_id\": \"shift-1005-day\",\n  \"nurse_id\": \"nurse_sarah_mitchell\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_001\",\n      \"name\": \"Margaret O'Brien\",\n      \"age\": 72,\n      \"bed\": \"4A\",\n      \"diagnosis\": \"Community-acquired pneumonia\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 108,\n        \"bp\": \"94/61\",\n        \"temp\": 38.6,\n        \"rr\": 22,\n        \"spo2\": 91,\n        \"last_updated\": \"14:45\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amoxicillin-Clavulanate 1.2g IV\",\n          \"route\": \"IV\",\n          \"due\": \"15:00\",\n          \"status\": \"pending\"\n        },\n        {\n          \"name\": \"Paracetamol 1g\",\n          \"route\": \"Oral\",\n          \"due\": \"12:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Repeat chest X-ray ordered — awaiting porter\",\n        \"Blood cultures x2 — not yet collected\"\n      ],\n      \"alerts\": [\n        \"SpO2 dropped to 91% at 14:30 — supplemental O2 applied\"\n      ],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:15\",\n          \"text\": \"Patient alert and orientated. Persistent productive cough.\"\n        },\n        {\n          \"time\": \"14:30\",\n          \"text\": \"SpO2 fell to 91%. Applied 4L O2. Dr. Patel informed. IV antibiotics delayed, cannula re-sited at 14:50.\"\n        }\n      ]\n    },\n    {\n      \"patient_id\": \"pt_002\",\n      \"name\": \"James Thornton\",\n      \"age\": 58,\n      \"bed\": \"4B\",\n      \"diagnosis\": \"Post-operative day 2 — laparoscopic appendectomy\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 98,\n        \"bp\": \"118/74\",\n        \"temp\": 37.8,\n        \"rr\": 18,\n        \"spo2\": 96,\n        \"last_updated\": \"14:00\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Oxycodone 5mg\",\n          \"route\": \"Oral\",\n          \"due\": \"14:00\",\n          \"status\": \"given\"\n        },\n        {\n          \"name\": \"Metoclopramide 10mg\",\n          \"route\": \"IV\",\n          \"due\": \"18:00\",\n          \"status\": \"pending\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Wound check and dressing change due at 18:00\"\n      ],\n      \"alerts\": [],\n      \"nurse_notes\": [\n        {\n          \"time\": \"13:30\",\n          \"text\": \"Patient reported nausea — not vomiting. Ondansetron PRN administered. Pain 4/10.\"\n        }\n      ]\n    },\n    {\n      \"patient_id\": \"pt_003\",\n      \"name\": \"Dorothy Chen\",\n      \"age\": 45,\n      \"bed\": \"4C\",\n      \"diagnosis\": \"Hypertensive urgency — BP now controlled\",\n      \"admission_date\": \"2025-03-10\",\n      \"vitals\": {\n        \"hr\": 72,\n        \"bp\": \"138/86\",\n        \"temp\": 36.8,\n        \"rr\": 16,\n        \"spo2\": 98,\n        \"last_updated\": \"13:30\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amlodipine 10mg\",\n          \"route\": \"Oral\",\n          \"due\": \"08:00\",\n          \"status\": \"given\"\n        },\n        {\n          \"name\": \"Ramipril 5mg\",\n          \"route\": \"Oral\",\n          \"due\": \"08:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Discharge planning — social work referral in progress\"\n      ],\n      \"alerts\": [],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:30\",\n          \"text\": \"All morning medications administered. BP improving.\"\n        }\n      ]\n    }\n  ]\n}",
@@ -120,19 +115,14 @@
             "generate"
           ]
         },
-        "description": "Full POST /summary/generate body: one shift, three patients covering critical / watch / stable chart shapes (vitals, medications, pending_orders, alerts, nurse_notes).\n\nRequires OPENAI_API_KEY on the server. Response status is always draft."
+        "description": "Full POST /summary/generate body: one shift, three patients covering critical / watch / stable chart shapes (vitals, medications, pending_orders, alerts, nurse_notes).\n\nNo request headers. Requires OPENAI_API_KEY on the server. Response status is always draft."
       },
       "response": [
         {
           "name": "200 OK — three SBAR drafts",
           "originalRequest": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/summary/generate",
               "host": [
@@ -182,12 +172,7 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
+        "header": [],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"shift_id\": \"shift-minimal\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_min\",\n      \"name\": \"Alex Rivera\"\n    }\n  ]\n}",
@@ -214,12 +199,7 @@
           "name": "200 OK",
           "originalRequest": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/summary/generate",
               "host": [
@@ -264,12 +244,7 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {
-            "key": "Content-Type",
-            "value": "application/json"
-          }
-        ],
+        "header": [],
         "body": {
           "mode": "raw",
           "raw": "{\n  \"shift_id\": \"shift-invalid\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": []\n}",
@@ -289,19 +264,14 @@
             "generate"
           ]
         },
-        "description": "patients must contain at least one Patient. Empty list returns FastAPI 422."
+        "description": "patients must contain at least one Patient. Empty list returns 422. No request headers."
       },
       "response": [
         {
           "name": "422 Unprocessable Entity",
           "originalRequest": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/summary/generate",
               "host": [
@@ -327,7 +297,7 @@
             }
           ],
           "cookie": [],
-          "body": "{\n  \"detail\": [\n    {\n      \"type\": \"too_short\",\n      \"loc\": [\n        \"body\",\n        \"patients\"\n      ],\n      \"msg\": \"List should have at least 1 item after validation, not 0\",\n      \"input\": []\n    }\n  ]\n}"
+          "body": "{\n  \"detail\": [\n    {\n      \"type\": \"too_short\",\n      \"loc\": [\n        \"patients\"\n      ],\n      \"msg\": \"List should have at least 1 item after validation, not 0\",\n      \"input\": []\n    }\n  ]\n}"
         }
       ]
     }
