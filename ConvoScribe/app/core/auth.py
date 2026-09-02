@@ -1,11 +1,14 @@
-"""API authentication and role-based access control."""
+"""API authentication (X-API-Key disabled).
+
+X-API-Key checks are off until re-enabled. Keep this module so clinician
+headers can be restored without rewriting routes.
+"""
 
 from dataclasses import dataclass
 from typing import Optional
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Header, HTTPException, status
 
-from app.core.config import settings
 from app.db.models import SessionRecord
 
 
@@ -18,18 +21,7 @@ class AuthContext:
     role: str = "clinician"
 
 
-def verify_api_key(x_api_key: str = Header(..., alias="X-API-Key")) -> AuthContext:
-    """Validate API key on every request."""
-    if x_api_key != settings.api_key:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or missing API key",
-        )
-    return AuthContext(api_key_valid=True)
-
-
 def get_clinician_context(
-    auth: AuthContext = Depends(verify_api_key),
     x_clinician_id: Optional[str] = Header(None, alias="X-Clinician-Id"),
 ) -> AuthContext:
     """Attach clinician identity for RBAC-protected endpoints."""
@@ -38,8 +30,7 @@ def get_clinician_context(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="X-Clinician-Id header required",
         )
-    auth.clinician_id = x_clinician_id
-    return auth
+    return AuthContext(api_key_valid=True, clinician_id=x_clinician_id)
 
 
 def assert_session_access(session: SessionRecord, clinician_id: str) -> None:
