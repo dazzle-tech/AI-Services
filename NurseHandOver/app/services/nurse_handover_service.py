@@ -31,6 +31,7 @@ from app.services.summary_parser import parse_and_validate
 async def generate_patient_summary(
     patient: Patient,
     generated_at: datetime | None = None,
+    handover_nurse: str = "",
 ) -> PatientSummaryResult:
     """
     Runs the full pipeline for a single patient:
@@ -47,7 +48,11 @@ async def generate_patient_summary(
 
     try:
         system_prompt = get_system_prompt()
-        user_prompt   = build_user_prompt(patient, current_status=current_status)
+        user_prompt   = build_user_prompt(
+            patient,
+            current_status=current_status,
+            handover_nurse=handover_nurse,
+        )
         raw_response  = await call_gpt(system_prompt, user_prompt)
         summary       = parse_and_validate(
             raw_response,
@@ -60,7 +65,12 @@ async def generate_patient_summary(
             success=True,
             summary=summary,
             current_status=current_status,
-            formatted_text=render_handover_document(summary, current_status),
+            formatted_text=render_handover_document(
+                summary,
+                current_status,
+                handover_nurse=handover_nurse,
+                generated_at=stamp,
+            ),
         )
 
     except Exception as e:
@@ -68,7 +78,12 @@ async def generate_patient_summary(
             patient_id=patient.patient_id,
             success=False,
             current_status=current_status,
-            formatted_text=render_handover_document(None, current_status),
+            formatted_text=render_handover_document(
+                None,
+                current_status,
+                handover_nurse=handover_nurse,
+                generated_at=stamp,
+            ),
             error=str(e),
         )
 
@@ -78,13 +93,17 @@ async def generate_shift_summaries(request: GenerateSummaryRequest) -> GenerateS
     Generates a draft SBAR for the single patient in the request.
     """
     generated_at = datetime.now(timezone.utc)
-    result = await generate_patient_summary(request.patient, generated_at=generated_at)
+    result = await generate_patient_summary(
+        request.patient,
+        generated_at=generated_at,
+        handover_nurse=request.handover_nurse,
+    )
+    body = result.formatted_text or ""
+    if not result.success and result.error:
+        body = f"{body}\n\n**Error**\n{result.error}".strip()
 
     return GenerateSummaryResponse(
-        shift_id=request.shift_id,
-        request_id=request.request_id or request.shift_id,
-        encounter_id=request.encounter_id or request.patient.patient_id,
-        status="draft",
+        formatted_text=body,
+        generated_by_ai_for=request.handover_nurse,
         generated_at=generated_at,
-        results=[result],
     )

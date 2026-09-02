@@ -8,11 +8,7 @@ from app.services.cms_mapper import parse_generate_payload
 from app.services.prompt_builder import build_user_prompt
 
 CMS_PAYLOAD = {
-    "request_id": "cms-handover-20260902143012",
-    "context_type": "nursing_handover",
-    "purpose": "shift_handover",
-    "detail_level": "standard",
-    "encounter_id": "ENC-2026-004471",
+    "handover_nurse": "Sarah Mitchell",
     "patient_data": {
         "allergies": [
             {"allergy_description": "Penicillin", "allergy_type_description": "Drug"},
@@ -69,11 +65,9 @@ CMS_PAYLOAD = {
 
 def test_parses_cms_payload_into_patient_chart():
     request = parse_generate_payload(CMS_PAYLOAD)
-    assert request.shift_id == "cms-handover-20260902143012"
-    assert request.request_id == CMS_PAYLOAD["request_id"]
-    assert request.encounter_id == "ENC-2026-004471"
+    assert request.handover_nurse == "Sarah Mitchell"
     patient = request.patient
-    assert patient.patient_id == "ENC-2026-004471"
+    assert patient.patient_id == "unspecified"
     assert "Principal: Pneumonia, unspecified organism (J18.9)" in patient.diagnosis
     assert "Blood Transfusion:" in patient.past_medical_history
     assert "community-acquired pneumonia" in patient.hospital_course
@@ -96,8 +90,7 @@ def test_cms_vitals_are_latest_snapshot_and_bp_combined():
 
 def test_cms_vital_history_keeps_last_per_type():
     payload = {
-        "request_id": "req-1",
-        "encounter_id": "ENC-1",
+        "handover_nurse": "Sarah Mitchell",
         "patient_data": {
             "vital_signs": {
                 "pulse_rate": [

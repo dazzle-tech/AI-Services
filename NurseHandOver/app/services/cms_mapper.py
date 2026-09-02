@@ -44,7 +44,7 @@ def parse_generate_payload(payload: Any) -> GenerateSummaryRequest:
 
 def cms_to_generate_request(cms: CmsHandoverRequest) -> GenerateSummaryRequest:
     data = cms.patient_data
-    patient_id = data.patient_id or cms.encounter_id
+    patient_id = data.patient_id or "unspecified"
     patient = Patient(
         patient_id=patient_id,
         name=data.name or "not recorded",
@@ -57,14 +57,8 @@ def cms_to_generate_request(cms: CmsHandoverRequest) -> GenerateSummaryRequest:
         pending_procedures=_map_operations(data.pending_operations),
     )
     return GenerateSummaryRequest(
-        shift_id=cms.request_id,
-        nurse_id=cms.nurse_id or "unspecified",
+        handover_nurse=cms.handover_nurse,
         patient=patient,
-        request_id=cms.request_id,
-        encounter_id=cms.encounter_id,
-        context_type=cms.context_type,
-        purpose=cms.purpose,
-        detail_level=cms.detail_level,
     )
 
 

@@ -39,18 +39,14 @@ docker run -p 8028:8028 --env-file .env nursehandover
 | GET | `/health` | Liveness: service name, version, model, timestamp |
 | POST | `/summary/generate` | Generate an SBAR draft for one patient |
 
-Unauthenticated. No request headers are required (including `Content-Type`). One patient per call. Response `status` is always `draft` — review and persistence belong to the caller.
+Unauthenticated. No request headers. One patient per call. Send `handover_nurse` (the signed-in nurse). The response is only `formatted_text`, `generated_by_ai_for`, and `generated_at`.
 
 ## Example
 
 ```bash
 curl -X POST http://localhost:8028/summary/generate \
   -d '{
-    "request_id": "cms-handover-20260902143012",
-    "context_type": "nursing_handover",
-    "purpose": "shift_handover",
-    "detail_level": "standard",
-    "encounter_id": "ENC-2026-004471",
+    "handover_nurse": "Sarah Mitchell",
     "patient_data": {
       "allergies": [{"allergy_description": "Penicillin", "allergy_type_description": "Drug"}],
       "warnings": [{"virus_description": "MRSA colonisation", "type": "Infection Control"}],
@@ -83,7 +79,7 @@ Priority cues used in the system prompt:
 - **Watch:** Borderline vitals, pending non-urgent orders, or nurse-noted concern
 - **Stable:** Vitals in range, no unresolved alerts, medications on schedule
 
-Required: `request_id`, `encounter_id`, and `patient_data`. No request headers.
+Required: `handover_nurse` and `patient_data`. No request headers.
 
 ## Environment variables
 

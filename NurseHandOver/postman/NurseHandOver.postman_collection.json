@@ -81,13 +81,12 @@
           "script": {
             "exec": [
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('Echoes CMS ids', function () {",
+              "pm.test('Slim generate response', function () {",
               "    var json = pm.response.json();",
-              "    pm.expect(json.status).to.eql('draft');",
-              "    pm.expect(json.request_id).to.eql('cms-handover-20260902143012');",
-              "    pm.expect(json.encounter_id).to.eql('ENC-2026-004471');",
-              "    pm.expect(json.results).to.have.lengthOf(1);",
-              "    pm.expect(json.results[0].patient_id).to.eql('ENC-2026-004471');",
+              "    pm.expect(json).to.have.property('formatted_text');",
+              "    pm.expect(json).to.have.property('generated_by_ai_for');",
+              "    pm.expect(json).to.have.property('generated_at');",
+              "    pm.expect(json).to.not.have.property('results');",
               "});"
             ],
             "type": "text/javascript"
@@ -99,7 +98,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request_id\": \"cms-handover-20260902143012\",\n  \"context_type\": \"nursing_handover\",\n  \"purpose\": \"shift_handover\",\n  \"detail_level\": \"standard\",\n  \"encounter_id\": \"ENC-2026-004471\",\n  \"patient_data\": {\n    \"allergies\": [\n      {\n        \"allergy_description\": \"Penicillin\",\n        \"allergy_type_description\": \"Drug\"\n      },\n      {\n        \"allergy_description\": \"Peanuts\",\n        \"allergy_type_description\": \"Food\"\n      }\n    ],\n    \"warnings\": [\n      {\n        \"virus_description\": \"MRSA colonisation\",\n        \"type\": \"Infection Control\"\n      },\n      {\n        \"virus_description\": \"Hepatitis B carrier\",\n        \"type\": \"Blood-borne\"\n      }\n    ],\n    \"last_hospital_course\": \"Admitted 28/08 via ED with community-acquired pneumonia. Started on IV ceftriaxone, weaned to oral on day 3. Oxygen requirement reduced from 4 L to room air. Mobilising with a frame. Awaiting physiotherapy review before discharge planning.\",\n    \"past_medical_history\": [\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Acetone, Others: Acetone, Start Date: 28/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Azorubin S stain, Note: asas, Start Date: 25/05/2025\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: gluten, Start Date: 06/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Ibuprofen, Start Date: 30/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Proteins, Note: asas, Start Date: 14/05/2025\"\n      },\n      {\n        \"record_type\": \"Blood Transfusion\",\n        \"record_description\": \"Blood Transfusion: Yes, When: 16/05/2025, Where: Hand\"\n      },\n      {\n        \"record_type\": \"Family History\",\n        \"record_description\": \"Type: Heart Disease, Congenital Deformities: true, Specify: 4wr, Other: ewr\"\n      },\n      {\n        \"record_type\": \"Hospitalization History\",\n        \"record_description\": \"Reason of Admission: gf, Admit Date: 14/05/2025, Hospital Name: dsg, Duration: 1.00, Duration Type: Day\"\n      },\n      {\n        \"record_type\": \"Immunization History\",\n        \"record_description\": \"Immunization History: Known, Hepatitis B: Known\"\n      }\n    ],\n    \"diagnosis\": [\n      {\n        \"diagnosis_type\": \"Principal\",\n        \"diagnosis_code\": \"J18.9\",\n        \"diagnosis_description\": \"Pneumonia, unspecified organism\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"I48.0\",\n        \"diagnosis_description\": \"Paroxysmal atrial fibrillation\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"E11.9\",\n        \"diagnosis_description\": \"Type 2 diabetes mellitus without complications\"\n      }\n    ],\n    \"vital_signs\": {\n      \"respiratory_rate\": \"18\",\n      \"bp_diastolic\": \"76\",\n      \"bp_systolic\": \"128\",\n      \"pain_score\": \"3\",\n      \"pulse_rate\": \"88\",\n      \"spo2_pct\": \"95\",\n      \"temperature_c\": \"37.4\"\n    },\n    \"pending_operations\": [\n      {\n        \"operation_name\": \"Bronchoscopy\",\n        \"requested_date\": \"2026-09-04T09:00:00\"\n      },\n      {\n        \"operation_name\": \"PICC line insertion\",\n        \"requested_date\": \"2026-09-03T14:30:00\"\n      }\n    ]\n  }\n}",
+          "raw": "{\n  \"patient_data\": {\n    \"allergies\": [\n      {\n        \"allergy_description\": \"Penicillin\",\n        \"allergy_type_description\": \"Drug\"\n      },\n      {\n        \"allergy_description\": \"Peanuts\",\n        \"allergy_type_description\": \"Food\"\n      }\n    ],\n    \"warnings\": [\n      {\n        \"virus_description\": \"MRSA colonisation\",\n        \"type\": \"Infection Control\"\n      },\n      {\n        \"virus_description\": \"Hepatitis B carrier\",\n        \"type\": \"Blood-borne\"\n      }\n    ],\n    \"last_hospital_course\": \"Admitted 28/08 via ED with community-acquired pneumonia. Started on IV ceftriaxone, weaned to oral on day 3. Oxygen requirement reduced from 4 L to room air. Mobilising with a frame. Awaiting physiotherapy review before discharge planning.\",\n    \"past_medical_history\": [\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Acetone, Others: Acetone, Start Date: 28/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Azorubin S stain, Note: asas, Start Date: 25/05/2025\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: gluten, Start Date: 06/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Ibuprofen, Start Date: 30/04/2026\"\n      },\n      {\n        \"record_type\": \"Allergy\",\n        \"record_description\": \"Description: Proteins, Note: asas, Start Date: 14/05/2025\"\n      },\n      {\n        \"record_type\": \"Blood Transfusion\",\n        \"record_description\": \"Blood Transfusion: Yes, When: 16/05/2025, Where: Hand\"\n      },\n      {\n        \"record_type\": \"Family History\",\n        \"record_description\": \"Type: Heart Disease, Congenital Deformities: true, Specify: 4wr, Other: ewr\"\n      },\n      {\n        \"record_type\": \"Hospitalization History\",\n        \"record_description\": \"Reason of Admission: gf, Admit Date: 14/05/2025, Hospital Name: dsg, Duration: 1.00, Duration Type: Day\"\n      },\n      {\n        \"record_type\": \"Immunization History\",\n        \"record_description\": \"Immunization History: Known, Hepatitis B: Known\"\n      }\n    ],\n    \"diagnosis\": [\n      {\n        \"diagnosis_type\": \"Principal\",\n        \"diagnosis_code\": \"J18.9\",\n        \"diagnosis_description\": \"Pneumonia, unspecified organism\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"I48.0\",\n        \"diagnosis_description\": \"Paroxysmal atrial fibrillation\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"E11.9\",\n        \"diagnosis_description\": \"Type 2 diabetes mellitus without complications\"\n      }\n    ],\n    \"vital_signs\": {\n      \"respiratory_rate\": \"18\",\n      \"bp_diastolic\": \"76\",\n      \"bp_systolic\": \"128\",\n      \"pain_score\": \"3\",\n      \"pulse_rate\": \"88\",\n      \"spo2_pct\": \"95\",\n      \"temperature_c\": \"37.4\"\n    },\n    \"pending_operations\": [\n      {\n        \"operation_name\": \"Bronchoscopy\",\n        \"requested_date\": \"2026-09-04T09:00:00\"\n      },\n      {\n        \"operation_name\": \"PICC line insertion\",\n        \"requested_date\": \"2026-09-03T14:30:00\"\n      }\n    ]\n  },\n  \"handover_nurse\": \"Sarah Mitchell\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -116,7 +115,7 @@
             "generate"
           ]
         },
-        "description": "Primary generate body: CMS request_id / encounter_id / patient_data. No request headers. Requires OPENAI_API_KEY on the server."
+        "description": "Generate body: handover_nurse + patient_data only. No request headers. Requires OPENAI_API_KEY on the server."
       },
       "response": []
     },
@@ -128,11 +127,12 @@
           "script": {
             "exec": [
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('One patient result', function () {",
+              "pm.test('Slim generate response', function () {",
               "    var json = pm.response.json();",
-              "    pm.expect(json.status).to.eql('draft');",
-              "    pm.expect(json.results).to.have.lengthOf(1);",
-              "    pm.expect(json.results[0].patient_id).to.eql('pt_001');",
+              "    pm.expect(json).to.have.property('formatted_text');",
+              "    pm.expect(json).to.have.property('generated_by_ai_for');",
+              "    pm.expect(json).to.have.property('generated_at');",
+              "    pm.expect(json).to.not.have.property('results');",
               "});"
             ],
             "type": "text/javascript"
@@ -144,7 +144,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"shift_id\": \"shift-1005-day\",\n  \"nurse_id\": \"nurse_sarah_mitchell\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_001\",\n      \"name\": \"Margaret O'Brien\",\n      \"age\": 72,\n      \"bed\": \"4A\",\n      \"diagnosis\": \"Community-acquired pneumonia\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 108,\n        \"bp\": \"94/61\",\n        \"temp\": 38.6,\n        \"rr\": 22,\n        \"spo2\": 91,\n        \"last_updated\": \"14:45\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amoxicillin-Clavulanate 1.2g IV\",\n          \"route\": \"IV\",\n          \"due\": \"15:00\",\n          \"status\": \"pending\"\n        },\n        {\n          \"name\": \"Paracetamol 1g\",\n          \"route\": \"Oral\",\n          \"due\": \"12:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Repeat chest X-ray ordered — awaiting porter\",\n        \"Blood cultures x2 — not yet collected\"\n      ],\n      \"alerts\": [\n        \"SpO2 dropped to 91% at 14:30 — supplemental O2 applied\"\n      ],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:15\",\n          \"text\": \"Patient alert and orientated. Persistent productive cough.\"\n        },\n        {\n          \"time\": \"14:30\",\n          \"text\": \"SpO2 fell to 91%. Applied 4L O2. Dr. Patel informed. IV antibiotics delayed, cannula re-sited at 14:50.\"\n        }\n      ]\n    }\n  ]\n}",
+          "raw": "{\n  \"shift_id\": \"shift-1005-day\",\n  \"nurse_id\": \"nurse_sarah_mitchell\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_001\",\n      \"name\": \"Margaret O'Brien\",\n      \"age\": 72,\n      \"bed\": \"4A\",\n      \"diagnosis\": \"Community-acquired pneumonia\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 108,\n        \"bp\": \"94/61\",\n        \"temp\": 38.6,\n        \"rr\": 22,\n        \"spo2\": 91,\n        \"last_updated\": \"14:45\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amoxicillin-Clavulanate 1.2g IV\",\n          \"route\": \"IV\",\n          \"due\": \"15:00\",\n          \"status\": \"pending\"\n        },\n        {\n          \"name\": \"Paracetamol 1g\",\n          \"route\": \"Oral\",\n          \"due\": \"12:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Repeat chest X-ray ordered — awaiting porter\",\n        \"Blood cultures x2 — not yet collected\"\n      ],\n      \"alerts\": [\n        \"SpO2 dropped to 91% at 14:30 — supplemental O2 applied\"\n      ],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:15\",\n          \"text\": \"Patient alert and orientated. Persistent productive cough.\"\n        },\n        {\n          \"time\": \"14:30\",\n          \"text\": \"SpO2 fell to 91%. Applied 4L O2. Dr. Patel informed. IV antibiotics delayed, cannula re-sited at 14:50.\"\n        }\n      ]\n    }\n  ],\n  \"handover_nurse\": \"nurse_sarah_mitchell\"\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -206,10 +206,12 @@
           "script": {
             "exec": [
               "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-              "pm.test('Has results', function () {",
+              "pm.test('Slim generate response', function () {",
               "    var json = pm.response.json();",
-              "    pm.expect(json.results).to.be.an('array');",
-              "    pm.expect(json.results[0].patient_id).to.eql('pt_min');",
+              "    pm.expect(json).to.have.property('formatted_text');",
+              "    pm.expect(json).to.have.property('generated_by_ai_for');",
+              "    pm.expect(json).to.have.property('generated_at');",
+              "    pm.expect(json).to.not.have.property('results');",
               "});"
             ],
             "type": "text/javascript"
@@ -221,7 +223,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"shift_id\": \"shift-minimal\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_min\",\n      \"name\": \"Alex Rivera\"\n    }\n  ]\n}",
+          "raw": "{\n  \"shift_id\": \"shift-minimal\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_min\",\n      \"name\": \"Alex Rivera\"\n    }\n  ],\n  \"handover_nurse\": \"nurse_001\"\n}",
           "options": {
             "raw": {
               "language": "json"

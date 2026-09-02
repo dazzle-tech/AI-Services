@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.models.schemas import GenerateSummaryResponse, PatientSummaryResult
+from app.models.schemas import GenerateSummaryResponse
 from main import app
 
 MINIMAL_BODY = {
@@ -25,21 +25,14 @@ def client():
 def _fake_response():
     stamp = datetime(2026, 9, 2, 8, 0, tzinfo=timezone.utc)
     return GenerateSummaryResponse(
-        shift_id="shift-minimal",
-        status="draft",
+        formatted_text="**Situation**\nStable.",
+        generated_by_ai_for="nurse_001",
         generated_at=stamp,
-        results=[
-            PatientSummaryResult(patient_id="pt_min", success=True, summary=None, error=None),
-        ],
     )
 
 
 CMS_BODY = {
-    "request_id": "cms-handover-20260902143012",
-    "context_type": "nursing_handover",
-    "purpose": "shift_handover",
-    "detail_level": "standard",
-    "encounter_id": "ENC-2026-004471",
+    "handover_nurse": "Sarah Mitchell",
     "patient_data": {
         "allergies": [{"allergy_description": "Penicillin", "allergy_type_description": "Drug"}],
         "warnings": [{"virus_description": "MRSA colonisation", "type": "Infection Control"}],
@@ -81,7 +74,8 @@ def test_generate_without_any_headers(client):
             headers={},
         )
     assert response.status_code == 200
-    assert response.json()["shift_id"] == "shift-minimal"
+    assert response.json()["generated_by_ai_for"] == "nurse_001"
+    assert "formatted_text" in response.json()
 
 
 def test_health_without_headers(client):
@@ -105,10 +99,8 @@ def test_generate_accepts_cms_patient_data(client):
         )
     assert response.status_code == 200
     req = captured["req"]
-    assert req.request_id == "cms-handover-20260902143012"
-    assert req.encounter_id == "ENC-2026-004471"
+    assert req.handover_nurse == "Sarah Mitchell"
     patient = req.patient
-    assert patient.patient_id == "ENC-2026-004471"
     assert patient.allergies[0].name == "Penicillin"
     assert patient.warnings[0].text == "MRSA colonisation"
     assert patient.pending_procedures[0].name == "Bronchoscopy"

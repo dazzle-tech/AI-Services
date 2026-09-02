@@ -178,33 +178,48 @@ def _utcnow() -> datetime:
 
 class GenerateSummaryRequest(BaseModel):
     """Internal generation request. Exactly one patient per call."""
-    shift_id: str
-    nurse_id: str = "unspecified"
+    handover_nurse: str
     patient: Patient
-    request_id: Optional[str] = None
-    encounter_id: Optional[str] = None
-    context_type: Optional[str] = None
-    purpose: Optional[str] = None
-    detail_level: Optional[str] = None
+    shift_id: str = "unspecified"
 
     @model_validator(mode="before")
     @classmethod
-    def _exactly_one_patient(cls, value: Any) -> Any:
+    def _normalize_request(cls, value: Any) -> Any:
         if not isinstance(value, dict):
             return value
-        if value.get("patient") is not None:
-            if value.get("patients"):
+        data = dict(value)
+        nurse = _handover_nurse_name(data.get("handover_nurse")) or _handover_nurse_name(
+            data.get("nurse_id")
+        )
+        if not nurse:
+            raise ValueError("handover_nurse is required (signed-in nurse)")
+        data["handover_nurse"] = nurse
+        if data.get("patient") is not None:
+            if data.get("patients"):
                 raise ValueError("Send a single 'patient' (or patient_data); do not also send 'patients'")
-            return value
-        patients = value.get("patients")
+            return data
+        patients = data.get("patients")
         if patients is None:
-            return value
+            return data
         if not isinstance(patients, list) or len(patients) != 1:
             raise ValueError("Exactly one patient is allowed per API call")
-        data = dict(value)
         data["patient"] = patients[0]
         data.pop("patients", None)
         return data
+
+
+def _handover_nurse_name(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return str(
+            value.get("name")
+            or value.get("display_name")
+            or value.get("full_name")
+            or value.get("id")
+            or ""
+        ).strip()
+    return str(value).strip()
 
 
 # ---------------------------------------------------------------------------
@@ -266,13 +281,22 @@ class CmsPatientData(BaseModel):
 class CmsHandoverRequest(BaseModel):
     """Public generate body from the hospital CMS."""
     model_config = ConfigDict(extra="ignore")
-    request_id: str
-    encounter_id: str
+    handover_nurse: str
     patient_data: CmsPatientData
-    context_type: Optional[str] = None
-    purpose: Optional[str] = None
-    detail_level: Optional[str] = None
-    nurse_id: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _require_handover_nurse(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        nurse = _handover_nurse_name(data.get("handover_nurse")) or _handover_nurse_name(
+            data.get("nurse_id")
+        )
+        if not nurse:
+            raise ValueError("handover_nurse is required (signed-in nurse)")
+        data["handover_nurse"] = nurse
+        return data
 
 
 class SBARSummary(BaseModel):
@@ -314,9 +338,7 @@ class PatientSummaryResult(BaseModel):
 
 
 class GenerateSummaryResponse(BaseModel):
-    shift_id: str
-    request_id: Optional[str] = None
-    encounter_id: Optional[str] = None
-    status: str = "draft"
+    """Public generate response — markdown handover plus who it was generated for."""
+    formatted_text: str
+    generated_by_ai_for: str = Field(..., description="Signed-in handover nurse")
     generated_at: datetime = Field(default_factory=_utcnow)
-    results: List[PatientSummaryResult]
