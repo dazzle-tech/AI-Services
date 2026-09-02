@@ -20,42 +20,55 @@ from datetime import datetime, timezone
 
 from app.models.schemas import (
     Patient,
-    SBARSummary,
     PatientSummaryResult,
     GenerateSummaryRequest,
     GenerateSummaryResponse,
 )
+from app.services.chart_assembler import assemble_current_status
 from app.services.prompt_builder import get_system_prompt, build_user_prompt
 from app.services.gpt_service import call_gpt
 from app.services.summary_parser import parse_and_validate
 
 
-async def generate_patient_summary(patient: Patient) -> PatientSummaryResult:
+async def generate_patient_summary(
+    patient: Patient,
+    generated_at: datetime | None = None,
+) -> PatientSummaryResult:
     """
     Runs the full pipeline for a single patient:
-        1. Build prompts
-        2. Call GPT-4o
-        3. Parse and validate response
+        1. Assemble current-status chart (filter resolved / latest vitals)
+        2. Build prompts
+        3. Call GPT-4o
+        4. Parse and validate response
 
     Returns a PatientSummaryResult with success=True and a populated summary,
     or success=False with an error message if anything in the pipeline fails.
     """
+    stamp = generated_at or datetime.now(timezone.utc)
+    current_status = assemble_current_status(patient, generated_at=stamp)
+
     try:
         system_prompt = get_system_prompt()
-        user_prompt   = build_user_prompt(patient)
+        user_prompt   = build_user_prompt(patient, current_status=current_status)
         raw_response  = await call_gpt(system_prompt, user_prompt)
-        summary       = parse_and_validate(raw_response, patient.patient_id)
+        summary       = parse_and_validate(
+            raw_response,
+            patient.patient_id,
+            generated_at=stamp,
+        )
 
         return PatientSummaryResult(
             patient_id=patient.patient_id,
             success=True,
             summary=summary,
+            current_status=current_status,
         )
 
     except Exception as e:
         return PatientSummaryResult(
             patient_id=patient.patient_id,
             success=False,
+            current_status=current_status,
             error=str(e),
         )
 
@@ -68,12 +81,13 @@ async def generate_shift_summaries(request: GenerateSummaryRequest) -> GenerateS
     The response has status="draft" — it becomes "confirmed" only after the
     nurse reviews and calls /confirm-handoff (handled by routes + data_store).
     """
-    tasks = [generate_patient_summary(p) for p in request.patients]
+    generated_at = datetime.now(timezone.utc)
+    tasks = [generate_patient_summary(p, generated_at=generated_at) for p in request.patients]
     results = await asyncio.gather(*tasks)
 
     return GenerateSummaryResponse(
         shift_id=request.shift_id,
         status="draft",
-        generated_at=datetime.now(timezone.utc),
+        generated_at=generated_at,
         results=list(results),
     )

@@ -5,7 +5,15 @@ Shared pytest fixtures available to all test files.
 """
 
 import pytest
-from app.models.schemas import Patient, Vitals, Medication, NurseNote
+from app.models.schemas import (
+    Allergy,
+    ClinicalWarning,
+    Medication,
+    NurseNote,
+    Patient,
+    PendingProcedure,
+    Vitals,
+)
 
 
 @pytest.fixture
@@ -17,6 +25,8 @@ def critical_patient() -> Patient:
         age=72,
         bed="4A",
         diagnosis="Community-acquired pneumonia",
+        past_medical_history="COPD, type 2 diabetes",
+        hospital_course="Admitted with productive cough and hypoxia; IV antibiotics started day 1.",
         admission_date="2025-03-09",
         vitals=Vitals(hr=108, bp="94/61", temp=38.6, rr=22, spo2=91, last_updated="14:45"),
         medications=[
@@ -26,6 +36,18 @@ def critical_patient() -> Patient:
         pending_orders=[
             "Repeat chest X-ray ordered — awaiting porter",
             "Blood cultures x2 — not yet collected",
+        ],
+        pending_procedures=[
+            PendingProcedure(name="Repeat chest X-ray", status="pending"),
+            PendingProcedure(name="Prior bronchoscopy", status="completed"),
+        ],
+        allergies=[
+            Allergy(name="Penicillin", status="not resolved", reaction="anaphylaxis"),
+            Allergy(name="Seasonal pollen", status="resolved"),
+        ],
+        warnings=[
+            ClinicalWarning(text="Fall risk — bed rails up", status="not resolved"),
+            ClinicalWarning(text="Isolation discontinued", status="resolved"),
         ],
         alerts=["SpO2 dropped to 91% at 14:30 — supplemental O2 applied"],
         nurse_notes=[

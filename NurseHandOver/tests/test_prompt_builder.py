@@ -92,3 +92,34 @@ class TestUserPrompt:
         prompt = build_user_prompt(watch_patient)
         assert isinstance(prompt, str)
         assert len(prompt) > 200  # sanity check — must be a substantive prompt
+
+    def test_includes_current_status_fields(self, critical_patient):
+        prompt = build_user_prompt(critical_patient)
+        assert "Community-acquired pneumonia" in prompt
+        assert "COPD, type 2 diabetes" in prompt
+        assert "Hospital Course" in prompt
+        assert "Handover generated at:" in prompt
+        assert "Penicillin" in prompt
+        assert "Fall risk" in prompt
+        assert "Repeat chest X-ray" in prompt
+
+    def test_excludes_resolved_allergies_and_warnings(self, critical_patient):
+        prompt = build_user_prompt(critical_patient)
+        assert "Seasonal pollen" not in prompt
+        assert "Isolation discontinued" not in prompt
+        assert "Prior bronchoscopy" not in prompt
+
+    def test_includes_latest_vital_history_only(self):
+        from app.models.schemas import Patient, VitalSignReading
+
+        patient = Patient(
+            patient_id="pt_v",
+            name="Vital Case",
+            vital_signs=[
+                VitalSignReading(type="hr", value=70, recorded_at="2026-09-01T08:00:00+00:00"),
+                VitalSignReading(type="hr", value=110, recorded_at="2026-09-02T14:00:00+00:00"),
+            ],
+        )
+        prompt = build_user_prompt(patient)
+        assert "110" in prompt
+        assert "  Heart Rate        : 110 bpm" in prompt

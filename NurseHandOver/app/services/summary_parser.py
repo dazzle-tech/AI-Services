@@ -12,13 +12,18 @@ Keeping this separate means:
 
 import json
 from datetime import datetime, timezone
+from typing import Optional
 
 from pydantic import ValidationError
 
 from app.models.schemas import SBARSummary
 
 
-def parse_and_validate(raw_json: str, patient_id: str) -> SBARSummary:
+def parse_and_validate(
+    raw_json: str,
+    patient_id: str,
+    generated_at: Optional[datetime] = None,
+) -> SBARSummary:
     """
     Parses the raw GPT-4o JSON string into a validated SBARSummary.
 
@@ -53,8 +58,8 @@ def parse_and_validate(raw_json: str, patient_id: str) -> SBARSummary:
     # Step 3: Enforce correct patient_id regardless of what GPT returned
     data["patient_id"] = patient_id
 
-    # Step 4: Stamp generation time
-    data["generated_at"] = datetime.now(timezone.utc)
+    # Step 4: Stamp generation time (caller may pass a shared batch timestamp)
+    data["generated_at"] = generated_at or datetime.now(timezone.utc)
 
     # Step 5: Validate against schema
     try:

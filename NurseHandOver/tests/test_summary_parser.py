@@ -42,6 +42,13 @@ class TestValidInput:
         result = parse_and_validate(valid_gpt_response_critical, "pt_001")
         assert result.generated_at is not None
 
+    def test_generated_at_can_be_supplied(self, valid_gpt_response_critical):
+        from datetime import datetime, timezone
+
+        stamp = datetime(2026, 9, 2, 8, 0, tzinfo=timezone.utc)
+        result = parse_and_validate(valid_gpt_response_critical, "pt_001", generated_at=stamp)
+        assert result.generated_at == stamp
+
     def test_patient_id_overrides_gpt_value(self, valid_gpt_response_critical):
         """
         Even if GPT hallucinates a different patient_id, the parser
