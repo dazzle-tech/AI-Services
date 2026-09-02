@@ -25,7 +25,6 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8031
     api_reload: bool = False
-    api_key: str = "dev-api-key-change-me"
     log_level: str = "INFO"
 
     # OpenAI Configuration
@@ -50,10 +49,6 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql://systemdisplay:systemdisplay@localhost:5435/systemdisplay"
     )
-
-    # Redis — used only for health-check parity with ORScribe/ConvoScribe.
-    # This service has no Celery workers (no audio ingest / async pipeline).
-    redis_url: str = "redis://localhost:6382/0"
 
 
 settings = Settings()

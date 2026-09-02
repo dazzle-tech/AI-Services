@@ -45,8 +45,8 @@ class ViewDecoder(BaseModel):
 
 class ReshapeRequest(BaseModel):
     stage1_output: Dict[str, Any]
-    context: ContextType
-    purpose: Purpose
+    context: ContextType = "other"
+    purpose: Purpose = "summary"
     views: Optional[List[ViewDecoder]] = None
     view_ids: Optional[List[str]] = None
     # Backward-compatible single-view aliases
@@ -87,5 +87,4 @@ class ReshapeResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     database: str
-    redis: str
     details: Dict[str, Any] = Field(default_factory=dict)

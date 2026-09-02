@@ -3,7 +3,6 @@
 import logging
 from typing import Any, Dict
 
-import redis
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -84,7 +83,6 @@ async def get_decoder(
 @router.get("/health", response_model=HealthResponse)
 async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
     db_status = "ok"
-    redis_status = "ok"
     details: Dict[str, Any] = {"service": settings.api_title, "version": settings.api_version}
 
     try:
@@ -93,16 +91,9 @@ async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
         db_status = "error"
         details["database_error"] = str(exc)
 
-    try:
-        client = redis.from_url(settings.redis_url)
-        client.ping()
-    except Exception as exc:
-        redis_status = "error"
-        details["redis_error"] = str(exc)
-
     if settings.openai_api_key:
         details["openai_configured"] = True
         details["mapping_model"] = settings.mapping_model
 
-    overall = "ok" if db_status == "ok" and redis_status == "ok" else "degraded"
-    return HealthResponse(status=overall, database=db_status, redis=redis_status, details=details)
+    overall = "ok" if db_status == "ok" else "degraded"
+    return HealthResponse(status=overall, database=db_status, details=details)

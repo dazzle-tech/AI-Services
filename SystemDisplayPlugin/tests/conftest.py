@@ -15,11 +15,9 @@ from main import app
 
 @pytest.fixture(autouse=True)
 def test_env(monkeypatch):
-    monkeypatch.setenv("API_KEY", "test-api-key")
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("USE_LLM_STUB", "true")
-    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     reload_settings()
     reset_engine()
 

@@ -20,19 +20,6 @@ services:
     networks:
       - systemdisplay-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: systemdisplay-redis
-    ports:
-      - "6382:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - systemdisplay-network
-
   api:
     build: .
     container_name: systemdisplay-api
@@ -42,12 +29,9 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://systemdisplay:systemdisplay@postgres:5432/systemdisplay
-      REDIS_URL: redis://redis:6379/0
-      USE_LLM_STUB: "true"
+      USE_LLM_STUB: "false"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     networks:
       - systemdisplay-network

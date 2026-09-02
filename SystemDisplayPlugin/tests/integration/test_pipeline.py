@@ -94,8 +94,6 @@ def test_reshape_does_not_require_headers(client):
         "/api/v1/reshape",
         json={
             "stage1_output": SOAP_NOTE,
-            "context": "appointment",
-            "purpose": "soap_note",
             "view_decoder": EHR_SOAP_CARD,
         },
     )
