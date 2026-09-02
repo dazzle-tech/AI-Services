@@ -4,9 +4,10 @@ AI-powered service for validating medications and diagnostic test orders against
 
 ## Overview
 
-This service provides two main validation capabilities:
+This service provides three main validation capabilities:
 1. **Medication Validation** - Validates medications against patient data for drug interactions, contraindications, dosing issues
 2. **Test Validation** - Validates diagnostic test orders for appropriateness, contraindications, and sequencing issues
+3. **Allergy-Drug Validation** - Checks proposed drugs against documented allergies (patient details optional)
 
 ## Architecture
 
@@ -189,6 +190,56 @@ POST /api/v1/validate/tests
   ],
   "tests": [
     "Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New"
+  ]
+}
+```
+
+**Response:** Same structure as medication validation.
+
+### 5. Allergy-Drug Validation
+```
+POST /api/v1/validate/allergy-drugs
+```
+
+Checks proposed drugs against documented allergies. `patient` is optional and may be omitted or empty. At least one drug is required. Allergies may be empty.
+
+**Request Body:**
+```json
+{
+  "patient": {
+    "fullName": "John Doe",
+    "gender": "Male",
+    "dob": "2022-02-02",
+    "chiefComplaint": "Chest pain",
+    "primaryDiagnosis": "I20.0,Unstable angina"
+  },
+  "allergies": [
+    {
+      "allergy_description": "Penicillin",
+      "allergy_type_description": "Drug"
+    }
+  ],
+  "drugs": [
+    {
+      "drug_name": "Penicillin"
+    }
+  ]
+}
+```
+
+Minimal request (no patient):
+```json
+{
+  "allergies": [
+    {
+      "allergy_description": "Penicillin",
+      "allergy_type_description": "Drug"
+    }
+  ],
+  "drugs": [
+    {
+      "drug_name": "Penicillin"
+    }
   ]
 }
 ```

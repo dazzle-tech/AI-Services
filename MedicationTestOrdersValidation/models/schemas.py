@@ -39,6 +39,108 @@ class Encounter(BaseModel):
         return v if isinstance(v, str) else str(v)
 
 
+class OptionalPatient(BaseModel):
+    """Optional demographics for allergy-drug checks. All fields may be omitted."""
+    fullName: Optional[str] = Field(None, description="Patient full name")
+    gender: Optional[str] = Field(None, description="Patient gender")
+    dob: Optional[str] = Field(None, description="Date of birth (YYYY-MM-DD)")
+    chiefComplaint: Optional[str] = Field(None, description="Chief complaint")
+    primaryDiagnosis: Optional[str] = Field(None, description="Primary diagnosis with ICD code")
+    mrn: Optional[str] = None
+
+    class Config:
+        extra = "ignore"
+
+
+class AllergyEntry(BaseModel):
+    """Allergy in CMS shape."""
+    allergy_description: str = Field(..., description="Allergen name")
+    allergy_type_description: Optional[str] = Field(None, description="e.g. Drug, Food")
+    status: Optional[str] = None
+    resolved: Optional[bool] = None
+
+    class Config:
+        extra = "ignore"
+
+    @validator("allergy_description")
+    def allergy_not_blank(cls, value: str) -> str:
+        cleaned = (value or "").strip()
+        if not cleaned:
+            raise ValueError("allergy_description cannot be empty")
+        return cleaned
+
+
+class DrugEntry(BaseModel):
+    """Proposed drug to check against allergies."""
+    drug_name: str = Field(..., description="Drug name")
+
+    class Config:
+        extra = "ignore"
+
+    @validator("drug_name")
+    def drug_not_blank(cls, value: str) -> str:
+        cleaned = (value or "").strip()
+        if not cleaned:
+            raise ValueError("drug_name cannot be empty")
+        return cleaned
+
+
+class AllergyDrugValidationRequest(BaseModel):
+    """Allergy vs proposed-drug check. Patient details are optional."""
+    patient: Optional[OptionalPatient] = None
+    allergies: List[AllergyEntry] = Field(default_factory=list)
+    drugs: List[DrugEntry] = Field(..., min_length=1, description="Drugs to validate")
+
+    @validator("allergies", pre=True)
+    def coerce_allergies(cls, value):
+        if value is None:
+            return []
+        if not isinstance(value, list):
+            return value
+        coerced = []
+        for item in value:
+            if isinstance(item, str):
+                coerced.append({"allergy_description": item})
+            else:
+                coerced.append(item)
+        return coerced
+
+    @validator("drugs", pre=True)
+    def coerce_drugs(cls, value):
+        if not isinstance(value, list):
+            return value
+        coerced = []
+        for item in value:
+            if isinstance(item, str):
+                coerced.append({"drug_name": item})
+            else:
+                coerced.append(item)
+        return coerced
+
+    class Config:
+        extra = "ignore"
+        json_schema_extra = {
+            "example": {
+                "patient": {
+                    "fullName": "John Doe",
+                    "gender": "Male",
+                    "dob": "2022-02-02",
+                    "chiefComplaint": "Chest pain",
+                    "primaryDiagnosis": "I20.0,Unstable angina"
+                },
+                "allergies": [
+                    {
+                        "allergy_description": "Penicillin",
+                        "allergy_type_description": "Drug"
+                    }
+                ],
+                "drugs": [
+                    {"drug_name": "Penicillin"}
+                ]
+            }
+        }
+
+
 class Diagnosis(BaseModel):
     """Diagnosis information model"""
     type: str = Field(..., description="Type of diagnosis")

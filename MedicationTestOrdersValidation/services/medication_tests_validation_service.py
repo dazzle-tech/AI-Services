@@ -8,6 +8,7 @@ from datetime import datetime
 from models.schemas import (
     MedicationValidationRequest,
     TestValidationRequest,
+    AllergyDrugValidationRequest,
     Diagnosis,
     ValidationResponse,
     QuickSummary,
@@ -355,4 +356,111 @@ Respond with a JSON object containing:
         formatted = []
         for i, test in enumerate(tests, 1):
             formatted.append(f"{i}. {test}")
+        return "\n".join(formatted)
+
+
+class AllergyDrugValidationService(BaseValidationService):
+    """Service for checking proposed drugs against documented allergies."""
+
+    async def validate(self, request: AllergyDrugValidationRequest) -> ValidationResponse:
+        patient_label = "unknown"
+        if request.patient and request.patient.fullName:
+            patient_label = request.patient.fullName
+        logger.info("Starting allergy-drug validation for patient %s", patient_label)
+
+        user_message = self._prepare_allergy_drug_message(request)
+        api_response = await self.call_openai(
+            system_prompt=settings.ALLERGY_DRUG_VALIDATION_SYSTEM_PROMPT,
+            user_message=user_message,
+        )
+        result = self.parse_validation_response(api_response)
+        logger.info("Allergy-drug validation completed: %s", result.quick_summary.overall_status)
+        return result
+
+    def _prepare_allergy_drug_message(self, request: AllergyDrugValidationRequest) -> str:
+        patient_block = self._format_optional_patient(request.patient)
+        allergies_block = self._format_allergies(request.allergies)
+        drugs_block = self._format_drugs(request.drugs)
+
+        return f"""Please check the following drugs against the patient's documented allergies.
+
+PATIENT INFORMATION (optional; omit from reasoning if not provided):
+{patient_block}
+
+DOCUMENTED ALLERGIES:
+{allergies_block}
+
+DRUGS TO VALIDATE:
+{drugs_block}
+
+Please analyze for:
+1. Direct match between a listed allergy and a listed drug
+2. Cross-reactivity (same drug class)
+3. Whether missing patient details change the conclusion (they should not invent data)
+4. Safer alternatives when a conflict is found
+
+Respond with a JSON object containing:
+{{
+  "quick_summary": {{
+    "overall_status": "SAFE|CAUTION|CONTRAINDICATED",
+    "top_priority": "Most critical issue or 'No allergy-drug conflicts found'"
+  }},
+  "detailed_validations": [
+    {{
+      "item": "drug name",
+      "severity": "critical|high|moderate|low|info",
+      "issue": "description of the issue",
+      "recommendation": "recommended action",
+      "evidence": "clinical reasoning"
+    }}
+  ],
+  "recommended_alternatives": [
+    {{
+      "original_item": "drug name",
+      "alternative": "suggested alternative",
+      "rationale": "reason for recommendation"
+    }}
+  ],
+  "confidence_score": 0.95
+}}
+"""
+
+    def _format_optional_patient(self, patient) -> str:
+        if patient is None:
+            return "- Not provided"
+
+        lines = []
+        if patient.fullName:
+            lines.append(f"- Name: {patient.fullName}")
+        if patient.gender:
+            lines.append(f"- Gender: {patient.gender}")
+        if patient.dob:
+            lines.append(f"- Date of Birth: {patient.dob}")
+        if patient.chiefComplaint:
+            lines.append(f"- Chief Complaint: {patient.chiefComplaint}")
+        if patient.primaryDiagnosis:
+            lines.append(f"- Primary Diagnosis: {patient.primaryDiagnosis}")
+        if patient.mrn:
+            lines.append(f"- MRN: {patient.mrn}")
+        return "\n".join(lines) if lines else "- Not provided"
+
+    def _format_allergies(self, allergies) -> str:
+        if not allergies:
+            return "- None documented"
+        formatted = []
+        for i, allergy in enumerate(allergies, 1):
+            allergy_type = allergy.allergy_type_description or "unspecified type"
+            extra = []
+            if allergy.status:
+                extra.append(f"status={allergy.status}")
+            if allergy.resolved is True:
+                extra.append("resolved")
+            suffix = f" ({', '.join(extra)})" if extra else ""
+            formatted.append(f"{i}. {allergy.allergy_description} [{allergy_type}]{suffix}")
+        return "\n".join(formatted)
+
+    def _format_drugs(self, drugs) -> str:
+        formatted = []
+        for i, drug in enumerate(drugs, 1):
+            formatted.append(f"{i}. {drug.drug_name}")
         return "\n".join(formatted)

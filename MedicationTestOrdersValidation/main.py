@@ -7,11 +7,13 @@ import logging
 from models.schemas import (
     MedicationValidationRequest,
     TestValidationRequest,
+    AllergyDrugValidationRequest,
     ValidationResponse
 )
 from services.medication_tests_validation_service import (
     MedicationValidationService,
-    TestValidationService
+    TestValidationService,
+    AllergyDrugValidationService
 )
 from config import settings
 
@@ -32,6 +34,7 @@ app = FastAPI(
 # Initialize services
 medication_service = MedicationValidationService()
 test_service = TestValidationService()
+allergy_drug_service = AllergyDrugValidationService()
 
 
 @app.get("/")
@@ -44,6 +47,7 @@ async def root():
         "endpoints": {
             "medication_validation": "/api/v1/validate/medication",
             "test_validation": "/api/v1/validate/tests",
+            "allergy_drug_validation": "/api/v1/validate/allergy-drugs",
             "health": "/health"
         }
     }
@@ -56,7 +60,8 @@ async def health_check():
         "status": "healthy",
         "services": {
             "medication_validation": "operational",
-            "test_validation": "operational"
+            "test_validation": "operational",
+            "allergy_drug_validation": "operational"
         }
     }
 
@@ -126,6 +131,39 @@ async def validate_tests(request: TestValidationRequest) -> ValidationResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Test validation failed: {str(e)}"
+        )
+
+
+@app.post(
+    "/api/v1/validate/allergy-drugs",
+    response_model=ValidationResponse,
+    status_code=status.HTTP_200_OK
+)
+async def validate_allergy_drugs(request: AllergyDrugValidationRequest) -> ValidationResponse:
+    """
+    Check proposed drugs against documented allergies.
+
+    Patient demographics are optional. At least one drug is required.
+    """
+    try:
+        patient_label = "unknown"
+        if request.patient and request.patient.fullName:
+            patient_label = request.patient.fullName
+        logger.info("Processing allergy-drug validation for patient: %s", patient_label)
+
+        result = await allergy_drug_service.validate(request)
+
+        logger.info(
+            "Allergy-drug validation completed - Status: %s",
+            result.quick_summary.overall_status,
+        )
+        return result
+
+    except Exception as e:
+        logger.error("Error in allergy-drug validation: %s", str(e), exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Allergy-drug validation failed: {str(e)}"
         )
 
 

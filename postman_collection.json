@@ -1974,7 +1974,7 @@
       "item": [
         {
           "name": "Medication Test Orders Validation API",
-          "description": "API collection for testing medication and test validation endpoints. Set base_url to http://localhost:8006 or http://YOUR_SERVER_IP:8006 for remote access.",
+          "description": "API collection for testing medication, test, and allergy-drug validation endpoints. Set base_url to http://localhost:8006 or http://YOUR_SERVER_IP:8006 for remote access.",
           "item": [
             {
               "name": "Health Check",
@@ -2081,6 +2081,42 @@
                   "raw": "{\n  \"patient\": {\n    \"mrn\": \"1003\",\n    \"fullName\": \"Test Patient\",\n    \"gender\": \"Female\",\n    \"dob\": \"1975-05-15\"\n  },\n  \"encounter\": {\n    \"visitId\": \"163\",\n    \"visitType\": \"Emergency\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Chest pain\",\n    \"patientAge\": \"50y 7m\",\n    \"primaryDiagnosis\": \"I21.9,Acute MI\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"I21.9,Acute MI\"\n    }\n  ],\n  \"tests\": [\n    \"Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New\",\n    \"Order Type: Laboratory | Test Name: Troponin | Internal Code: TROP00 | Status: New\",\n    \"Order Type: Imaging | Test Name: Chest X-Ray | Internal Code: CXR00 | Status: New\"\n  ]\n}"
                 },
                 "url": "{{medicationtestordersvalidation_base_url}}/api/v1/validate/tests"
+              },
+              "response": []
+            },
+            {
+              "name": "Allergy-Drug Validation - With Patient",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"patient\": {\n    \"fullName\": \"John Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2022-02-02\",\n    \"chiefComplaint\": \"Chest pain\",\n    \"primaryDiagnosis\": \"I20.0,Unstable angina\"\n  },\n  \"allergies\": [\n    {\n      \"allergy_description\": \"Penicillin\",\n      \"allergy_type_description\": \"Drug\"\n    }\n  ],\n  \"drugs\": [\n    {\n      \"drug_name\": \"Penicillin\"\n    }\n  ]\n}"
+                },
+                "url": "{{medicationtestordersvalidation_base_url}}/api/v1/validate/allergy-drugs"
+              },
+              "response": []
+            },
+            {
+              "name": "Allergy-Drug Validation - Without Patient",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"allergies\": [\n    {\n      \"allergy_description\": \"Penicillin\",\n      \"allergy_type_description\": \"Drug\"\n    }\n  ],\n  \"drugs\": [\n    {\n      \"drug_name\": \"Penicillin\"\n    }\n  ]\n}"
+                },
+                "url": "{{medicationtestordersvalidation_base_url}}/api/v1/validate/allergy-drugs"
               },
               "response": []
             }
