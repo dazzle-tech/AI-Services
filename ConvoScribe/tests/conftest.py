@@ -46,4 +46,4 @@ def db_session():
 
 @pytest.fixture
 def auth_headers():
-    return {"X-Clinician-Id": "clinician-1"}
+    return {}

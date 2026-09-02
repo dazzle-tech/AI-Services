@@ -5,11 +5,11 @@ import json
 import logging
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
+from fastapi import APIRouter, HTTPException, Request, UploadFile, status
 from pydantic import ValidationError
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
-from app.core.auth import get_clinician_context, AuthContext
+from app.core.auth import AuthContext
 from app.core.config import settings
 from app.models.schemas import AnalyzeAudioResponse, AnalyzeJsonRequest, TranscriptionRequestOptions, options_from_form
 from app.services.pipeline_service import process_audio
@@ -47,7 +47,7 @@ def _analyze_bytes(
     logger.info(
         "Audio analyzed synchronously",
         extra={
-            "clinician_id": clinician.clinician_id,
+            "clinician_id": clinician.clinician_id if clinician else None,
             "event_type": "analyze",
             "needs_review": result.needs_review,
             "segment_count": len(result.raw_transcript.segments),
@@ -66,10 +66,7 @@ def _analyze_bytes(
 
 
 @router.post("/analyze", response_model=AnalyzeAudioResponse)
-async def analyze_audio(
-    request: Request,
-    clinician: AuthContext = Depends(get_clinician_context),
-) -> AnalyzeAudioResponse:
+async def analyze_audio(request: Request) -> AnalyzeAudioResponse:
     content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
 
     if content_type == "application/json":
@@ -94,7 +91,7 @@ async def analyze_audio(
             purpose=payload.purpose,
             detail_level=payload.detail_level,
         )
-        return _analyze_bytes(data, payload.filename, options, clinician)
+        return _analyze_bytes(data, payload.filename, options, AuthContext())
 
     form = await request.form()
     audio = form.get("audio")
@@ -110,7 +107,7 @@ async def analyze_audio(
         _form_str(form.get("purpose")),
         _form_str(form.get("detail_level")),
     )
-    return _analyze_bytes(data, audio.filename or "audio.wav", prompt_options, clinician)
+    return _analyze_bytes(data, audio.filename or "audio.wav", prompt_options, AuthContext())
 
 
 def _form_str(value) -> str | None:

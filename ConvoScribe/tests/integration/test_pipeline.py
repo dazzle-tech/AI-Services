@@ -94,11 +94,10 @@ def test_analyze_low_confidence_needs_review(client, auth_headers, monkeypatch):
     assert body["summary"] is None
 
 
-def test_analyze_does_not_require_api_key(client, auth_headers):
+def test_analyze_does_not_require_headers(client):
     audio_bytes = _make_silent_wav()
     files = {"audio": ("visit.wav", audio_bytes, "audio/wav")}
-    assert "X-API-Key" not in auth_headers
-    response = client.post("/api/v1/analyze", files=files, headers=auth_headers)
+    response = client.post("/api/v1/analyze", files=files)
     assert response.status_code == 200
 
 

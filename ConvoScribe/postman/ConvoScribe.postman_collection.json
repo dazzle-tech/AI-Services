@@ -1,17 +1,13 @@
 {
   "info": {
     "name": "ConvoScribe",
-    "description": "Postman collection for ConvoScribe.\n\nOnly endpoint: **POST {{baseUrl}}/api/v1/analyze**\n\nTwo request styles:\n1. **Analyze Audio** — multipart form-data (file upload).\n2. **Analyze Audio (Raw JSON)** — Body → raw → JSON with `audio_base64` and all options.\n\n**Setup**\n1. Set `baseUrl`, `clinicianId`.\n2. For form-data: select a `.wav` / `.mp3` / `.m4a` file in `audio`.\n3. For JSON: paste base64 audio into `audio_base64` (a tiny silent wav is included).\n\n**Auth**\n- Auth is currently disabled for `X-API-Key`. Send requests with no API key.\n- `X-Clinician-Id: {{clinicianId}}`",
+    "description": "Postman collection for ConvoScribe.\n\nOnly endpoint: **POST {{baseUrl}}/api/v1/analyze**\n\nTwo request styles:\n1. **Analyze Audio** — multipart form-data (file upload).\n2. **Analyze Audio (Raw JSON)** — Body → raw → JSON with `audio_base64` and all options.\n\n**Setup**\n1. Set `baseUrl`.\n2. For form-data: select a `.wav` / `.mp3` / `.m4a` file in `audio`.\n3. For JSON: paste base64 audio into `audio_base64` (a tiny silent wav is included).\n\n**Auth**\n- No headers required. Send requests without X-API-Key or X-Clinician-Id.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:8026"
-    },
-    {
-      "key": "clinicianId",
-      "value": "dr-smith"
     }
   ],
   "item": [
@@ -42,13 +38,7 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {
-            "key": "X-Clinician-Id",
-            "value": "{{clinicianId}}",
-            "description": "Clinician identity for this request."
-          }
-        ],
+        "header": [],
         "body": {
           "mode": "formdata",
           "formdata": [
@@ -89,19 +79,14 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "analyze"]
         },
-        "description": "Full request body for POST /api/v1/analyze.\n\nHeaders:\n- X-Clinician-Id\n\nForm fields:\n- audio (file, required)\n- context_type\n- attendees (JSON array)\n- purpose\n- detail_level\n\nWith purpose=soap_note the response includes summary (SOAP). Use purpose=summary or clinical_document for narrative_summary / clinical_document instead."
+        "description": "Full request body for POST /api/v1/analyze.\n\nNo auth headers.\n\nForm fields:\n- audio (file, required)\n- context_type\n- attendees (JSON array)\n- purpose\n- detail_level\n\nWith purpose=soap_note the response includes summary (SOAP). Use purpose=summary or clinical_document for narrative_summary / clinical_document instead."
       },
       "response": [
         {
           "name": "200 OK — SOAP note",
           "originalRequest": {
             "method": "POST",
-            "header": [
-              {
-                "key": "X-Clinician-Id",
-                "value": "{{clinicianId}}"
-              }
-            ],
+            "header": [],
             "body": {
               "mode": "formdata",
               "formdata": [
@@ -176,10 +161,6 @@
       "request": {
         "method": "POST",
         "header": [
-          {
-            "key": "X-Clinician-Id",
-            "value": "{{clinicianId}}"
-          },
           {
             "key": "Content-Type",
             "value": "application/json"
