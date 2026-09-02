@@ -204,8 +204,9 @@ def test_multi_view_reshape_populates_three_seed_views():
     )
     by_id = {item.view_id: item for item in result.results}
     assert set(by_id) == {"soap_note", "vital_signs", "measurement"}
-    assert by_id["soap_note"].data["Subjective"] == SOAP_NOTE["subjective"]
-    assert by_id["soap_note"].data["Plan"] == SOAP_NOTE["plan"]
+    assert by_id["soap_note"].data["Assessments"] == SOAP_NOTE["assessment"]
+    assert by_id["soap_note"].data["HPI"] == SOAP_NOTE["subjective"]
+    assert by_id["soap_note"].data["TreatmentPlans"] == SOAP_NOTE["plan"]
     assert by_id["vital_signs"].data["Temperature"] == "36.8"
     assert by_id["vital_signs"].data["SpO2"] == "98"
     assert by_id["measurement"].data["WeightKg"] == "71.4"
@@ -231,35 +232,25 @@ def test_optional_measurement_gaps_do_not_affect_other_views():
 
 
 def test_note_summarize_is_one_llm_call_batched_across_views():
-    extra_soap = SOAP_NOTE_DECODER.model_copy(deep=True)
-    extra_soap.fields.append(
-        DecoderField(
-            field_name="plan_brief",
-            field_type="string",
-            source_path="plan",
-            transform="summarize",
-            transform_hint="One short sentence",
-            required=False,
-        )
-    )
     mock_client = MagicMock()
     mock_client.complete_json.return_value = {
-        "soap_note::plan_brief": "Ibuprofen PRN; two-week follow-up.",
+        "soap_note::TreatmentPlans": "Ibuprofen PRN; two-week follow-up.",
         "measurement::Note": "Weight after shoes off; reduced appetite.",
     }
     result = reshape_many(
         ENCOUNTER_STAGE1,
-        [extra_soap, VITAL_SIGNS_DECODER, MEASUREMENT_DECODER],
+        [SOAP_NOTE_DECODER, VITAL_SIGNS_DECODER, MEASUREMENT_DECODER],
         context="appointment",
         purpose="soap_note",
         client=mock_client,
     )
     assert mock_client.complete_json.call_count == 1
     user_prompt = mock_client.complete_json.call_args.kwargs["user_prompt"]
-    assert "soap_note::plan_brief" in user_prompt
+    assert "soap_note::TreatmentPlans" in user_prompt
+    assert "soap_note::HPI" in user_prompt
     assert "measurement::Note" in user_prompt
     by_id = {item.view_id: item for item in result.results}
-    assert by_id["soap_note"].data["plan_brief"] == "Ibuprofen PRN; two-week follow-up."
+    assert by_id["soap_note"].data["TreatmentPlans"] == "Ibuprofen PRN; two-week follow-up."
     assert by_id["measurement"].data["Note"] == "Weight after shoes off; reduced appetite."
 
 
@@ -289,6 +280,6 @@ def test_one_view_required_failure_does_not_fail_batch():
         purpose="soap_note",
     )
     by_id = {item.view_id: item for item in result.results}
-    assert by_id["soap_note"].data["Assessment"] == SOAP_NOTE["assessment"]
+    assert by_id["soap_note"].data["Assessments"] == SOAP_NOTE["assessment"]
     assert by_id["broken_required"].data["missing_a"] is None
     assert len(by_id["broken_required"].warnings) >= 2

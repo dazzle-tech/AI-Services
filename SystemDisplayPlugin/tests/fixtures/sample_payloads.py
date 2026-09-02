@@ -101,6 +101,74 @@ ENCOUNTER_STAGE1 = {
     },
 }
 
+FULL_CHART_STAGE1 = {
+    **ENCOUNTER_STAGE1,
+    "subjective": "Patient reports a 3-day frontal headache without fever. Companion notes poor oral intake since yesterday.",
+    "raw_transcript": {
+        "segments": [
+            {
+                "speaker_label": "SPEAKER_00",
+                "start_time": 0.0,
+                "end_time": 3.2,
+                "text": "Good morning, what brings you in today?",
+            },
+            {
+                "speaker_label": "SPEAKER_01",
+                "start_time": 3.3,
+                "end_time": 8.1,
+                "text": "I've had a 3-day frontal headache without fever.",
+            },
+            {
+                "speaker_label": "SPEAKER_02",
+                "start_time": 8.2,
+                "end_time": 11.0,
+                "text": "She has not been eating well since yesterday.",
+            },
+            {
+                "speaker_label": "SPEAKER_00",
+                "start_time": 11.2,
+                "end_time": 16.0,
+                "text": "Temperature 36.8, sats 98, blood pressure 122 over 78, pulse 72, pain 2, respirations 16. Weight 71.4 kilograms, height 168 centimetres.",
+            },
+        ]
+    },
+    "role_map": {
+        "SPEAKER_00": "doctor",
+        "SPEAKER_01": "patient",
+        "SPEAKER_02": "other",
+    },
+    "role_confidence": "high",
+    "role_reasoning": "Speaker 0 asks clinical questions and records vitals; speaker 1 reports symptoms; speaker 2 is a companion.",
+    "needs_review": False,
+    "summary": {
+        "subjective": "Patient reports a 3-day frontal headache without fever. Companion notes poor oral intake since yesterday.",
+        "objective": "Alert, afebrile, neurological exam unremarkable.",
+        "assessment": "Tension-type headache.",
+        "plan": "Ibuprofen as needed. Follow up in two weeks if symptoms persist.",
+        "medications_mentioned": ["ibuprofen"],
+        "follow_up": "two weeks",
+        "flags": [],
+    },
+    "narrative_summary": None,
+    "clinical_document": None,
+}
+
+
+def full_chart_reshape_request() -> dict:
+    from app.fixtures.decoders import MEASUREMENT_DECODER, SOAP_NOTE_DECODER, VITAL_SIGNS_DECODER
+
+    return {
+        "context": "appointment",
+        "purpose": "soap_note",
+        "views": [
+            SOAP_NOTE_DECODER.model_dump(),
+            VITAL_SIGNS_DECODER.model_dump(),
+            MEASUREMENT_DECODER.model_dump(),
+        ],
+        "stage1_output": FULL_CHART_STAGE1,
+    }
+
+
 ENCOUNTER_STAGE1_OPTIONALS_MISSING = {
     **SOAP_NOTE,
     "vitals": {

@@ -7,6 +7,7 @@ from tests.fixtures.sample_payloads import (
     ENCOUNTER_STAGE1,
     ENCOUNTER_STAGE1_OPTIONALS_MISSING,
     SOAP_NOTE,
+    full_chart_reshape_request,
 )
 
 
@@ -74,7 +75,21 @@ def test_get_unknown_decoder_404(client):
     assert response.status_code == 404
 
 
-def test_reshape_works_without_api_key(client):
+def test_reshape_full_inline_chart_views(client):
+    response = client.post("/api/v1/reshape", json=full_chart_reshape_request())
+    assert response.status_code == 200
+    by_id = {item["view_id"]: item for item in response.json()["results"]}
+    assert set(by_id) == {"soap_note", "vital_signs", "measurement"}
+    soap = by_id["soap_note"]["data"]
+    assert soap["Assessments"] == SOAP_NOTE["assessment"]
+    assert "ChiefComplaint" in soap
+    assert "HPI" in soap
+    assert "TreatmentPlans" in soap
+    assert by_id["vital_signs"]["data"]["Temperature"] == "36.8"
+    assert by_id["measurement"]["data"]["WeightKg"] == "71.4"
+
+
+def test_reshape_does_not_require_headers(client):
     response = client.post(
         "/api/v1/reshape",
         json={
@@ -85,6 +100,7 @@ def test_reshape_works_without_api_key(client):
         },
     )
     assert response.status_code == 200
+    assert response.json()["results"]
 
 
 def test_reshape_three_seeded_views_in_one_call(client):
@@ -92,6 +108,7 @@ def test_reshape_three_seeded_views_in_one_call(client):
         "app.services.mapping_service.AIClient"
     ) as mock_cls:
         mock_cls.return_value.complete_json.return_value = {
+            "soap_note::HPI": SOAP_NOTE["subjective"],
             "measurement::Note": "Weight after shoes off; reduced appetite.",
             "Note": "Weight after shoes off; reduced appetite.",
         }
@@ -107,7 +124,8 @@ def test_reshape_three_seeded_views_in_one_call(client):
     assert response.status_code == 200
     by_id = {item["view_id"]: item for item in response.json()["results"]}
     assert set(by_id) == {"soap_note", "vital_signs", "measurement"}
-    assert by_id["soap_note"]["data"]["Subjective"] == SOAP_NOTE["subjective"]
+    assert by_id["soap_note"]["data"]["Assessments"] == SOAP_NOTE["assessment"]
+    assert by_id["soap_note"]["data"]["HPI"] == SOAP_NOTE["subjective"]
     assert by_id["vital_signs"]["data"]["PulseRate"] == "72"
     assert by_id["measurement"]["data"]["HeightLengthCm"] == "168"
     assert mock_cls.return_value.complete_json.call_count == 1
@@ -144,6 +162,6 @@ def test_reshape_one_failed_view_does_not_422_when_others_succeed(client):
     )
     assert response.status_code == 200
     by_id = {item["view_id"]: item for item in response.json()["results"]}
-    assert by_id["soap_note"]["data"]["Assessment"] == SOAP_NOTE["assessment"]
+    assert by_id["soap_note"]["data"]["Assessments"] == SOAP_NOTE["assessment"]
     assert by_id["vital_signs"]["data"]["Temperature"] is None
     assert len(by_id["vital_signs"]["warnings"]) >= 1
