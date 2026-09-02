@@ -4,8 +4,7 @@ This document outlines the recommended VM specifications needed to deploy all AI
 
 ## Services Overview
 
-### Service Ports (Docker Compose host ports)
-- **Radiology QC AI**: 8000
+### Service Ports (Docker Compose / local HTTP)
 - **Patient Timeline**: 8001
 - **Nurse Task Prioritization**: 8002
 - **Lab Result Interpreter**: 8003
@@ -21,8 +20,22 @@ This document outlines the recommended VM specifications needed to deploy all AI
 - **ICU Summarizer**: 8013
 - **Specialist Alert**: 8014
 - **Medical Image Interpretation Assist**: 8015
-- **Sepsis Early Detection**: 8023
+- **Radiology Image QA AI**: 8016
 - **Chatbot Orchestrator API**: 8017
+- **Chatbot SQL Generator**: 8018
+- **Chatbot Validator**: 8019
+- **Chatbot Formatter**: 8020
+- **Chatbot WhatsApp Adapter**: 8021
+- **Medical Image Template Autofill**: 8022
+- **Sepsis Early Detection**: 8023
+- **Radiology Report Filling**: 8024
+- **Billing Coder**: 8025
+- **ConvoScribe**: 8026
+- **STT Service (Radiology)**: 8027
+- **NurseHandOver**: 8028
+- **ORScribe**: 8030
+- **System Display Plugin**: 8031
+- **Radiology Workflow**: 8090
 - **Chatbot UI/Web (if enabled)**: 8080
 
 ## Infrastructure Requirements
@@ -122,7 +135,6 @@ This document outlines the recommended VM specifications needed to deploy all AI
 
 | Service | Port | Notes |
 |---------|------|-------|
-| Radiology QC AI | 8000 | CT/X-ray intake; CT QC supported |
 | Patient Timeline | 8001 | Standalone service |
 | Nurse Task Prioritization | 8002 | Standalone service |
 | Lab Result Interpreter | 8003 | Standalone service |
@@ -138,11 +150,25 @@ This document outlines the recommended VM specifications needed to deploy all AI
 | ICU Summarizer | 8013 | Standalone service |
 | Specialist Alert | 8014 | Standalone service |
 | Medical Image Interpretation Assist | 8015 | Standalone service |
-| Sepsis Early Detection | 8023 | Standalone service |
+| Radiology Image QA AI | 8016 | Standalone service |
 | Chatbot Orchestrator API | 8017 | Standalone service |
+| Chatbot SQL Generator | 8018 | Chatbot subprocess |
+| Chatbot Validator | 8019 | Chatbot subprocess |
+| Chatbot Formatter | 8020 | Chatbot subprocess |
+| Chatbot WhatsApp Adapter | 8021 | Chatbot subprocess |
+| Medical Image Template Autofill | 8022 | Standalone service |
+| Sepsis Early Detection | 8023 | Standalone service |
+| Radiology Report Filling | 8024 | Standalone service |
+| Billing Coder | 8025 | Standalone service |
+| ConvoScribe | 8026 | Standalone service |
+| STT Service (Radiology) | 8027 | Standalone service |
+| NurseHandOver | 8028 | Standalone service |
+| ORScribe | 8030 | Standalone service |
+| System Display Plugin | 8031 | Standalone service |
+| Radiology Workflow | 8090 | Standalone service |
 | Chatbot UI/Web | 8080 | Optional |
-| Redis | 6379 | Infrastructure |
-| PostgreSQL | 5432 | Infrastructure (optional) |
+| Redis | 6379 | Infrastructure (host mapping differs per compose) |
+| PostgreSQL | 5432 | Infrastructure (host mapping differs per compose) |
 | HTTP/HTTPS | 80, 443 | Reverse proxy (if used) |
 
 ## Windows Firewall Configuration
@@ -156,7 +182,7 @@ New-NetFirewallRule -DisplayName "HTTP" -Direction Inbound -LocalPort 80 -Protoc
 New-NetFirewallRule -DisplayName "HTTPS" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow
 
 # Allow service ports
-New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8000-8023,8080 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8001-8031,8080,8090 -Protocol TCP -Action Allow
 
 # Allow Redis (internal only - restrict to localhost)
 New-NetFirewallRule -DisplayName "Redis" -Direction Inbound -LocalPort 6379 -Protocol TCP -Action Allow -RemoteAddress 127.0.0.1

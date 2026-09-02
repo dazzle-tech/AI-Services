@@ -28,7 +28,7 @@ git push origin main
 **Build and run with Docker:**
 ```bash
 docker build -t clinical-recommendations-service .
-docker run -p 8004:8004 --env-file .env clinical-recommendations-service
+docker run -p 8007:8007 --env-file .env clinical-recommendations-service
 ```
 
 **Or use Docker Compose:**
@@ -60,7 +60,7 @@ Optional:
 - `OPENAI_MODEL` - Default: `qwen3:1.7b`
 - `OPENAI_TEMPERATURE` - Default: `0.3`
 - `OPENAI_MAX_TOKENS` - Default: `1500`
-- `API_PORT` - Default: `8004` (or `8080` for App Platform)
+- `API_PORT` - Default: `8007` (or `8080` for App Platform)
 
 ## 🔍 Health Check
 

@@ -104,7 +104,7 @@ OPENAI_MAX_TOKENS=1500
 
 # API Server Configuration
 API_HOST=0.0.0.0
-API_PORT=8004
+API_PORT=8007
 API_RELOAD=False
 
 # Service Configuration
@@ -126,16 +126,16 @@ source venv/bin/activate     # Linux/Mac
 python main.py
 ```
 
-The service will start on `http://localhost:8004`
+The service will start on `http://localhost:8007`
 
 ### Production Mode
 
 ```bash
 # Using uvicorn directly
-uvicorn main:app --host 0.0.0.0 --port 8004
+uvicorn main:app --host 0.0.0.0 --port 8007
 
 # Or with gunicorn (for production)
-gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8004
+gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8007
 ```
 
 ## API Endpoints
@@ -254,15 +254,15 @@ Returns service health status.
 ## API Documentation
 
 Once the service is running, you can access:
-- **Swagger UI**: `http://localhost:8004/docs`
-- **ReDoc**: `http://localhost:8004/redoc`
+- **Swagger UI**: `http://localhost:8007/docs`
+- **ReDoc**: `http://localhost:8007/redoc`
 
 ## Testing with Postman
 
 ### Quick Test Request
 
 1. **Method**: POST
-2. **URL**: `http://localhost:8004/api/v1/recommendations`
+2. **URL**: `http://localhost:8007/api/v1/recommendations`
 3. **Headers**: 
    ```
    Content-Type: application/json
@@ -325,7 +325,7 @@ The service handles various error scenarios:
 | `OPENAI_TEMPERATURE` | Model temperature | `0.3` |
 | `OPENAI_MAX_TOKENS` | Max tokens in response | `1500` |
 | `API_HOST` | Server host | `0.0.0.0` |
-| `API_PORT` | Server port | `8004` |
+| `API_PORT` | Server port | `8007` |
 | `API_RELOAD` | Enable auto-reload | `False` |
 | `ENABLE_USAGE_TRACKING` | Track token usage | `True` |
 

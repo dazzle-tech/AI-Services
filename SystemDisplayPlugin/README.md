@@ -28,13 +28,13 @@ python main.py
 # or: uvicorn main:app --reload --port 8031
 ```
 
-All requests require header `X-API-Key`.
+All requests are currently unauthenticated (API key disabled).
 
 ## API endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/v1/reshape` | Map `stage1_output` using an inline `view_decoder` or stored `view_id` |
+| POST | `/api/v1/reshape` | Map `stage1_output` onto one or more views (`views` / `view_ids`; aliases `view_decoder` / `view_id` still work) |
 | POST | `/api/v1/decoders` | Register / upsert a `ViewDecoder` for reuse |
 | GET | `/api/v1/decoders/{view_id}` | Retrieve a stored decoder |
 | GET | `/api/v1/health` | Service health |
@@ -43,7 +43,6 @@ All requests require header `X-API-Key`.
 
 ```bash
 curl -X POST http://localhost:8031/api/v1/reshape \
-  -H "X-API-Key: change-me-to-a-secure-random-key" \
   -H "Content-Type: application/json" \
   -d '{
     "stage1_output": {
@@ -51,29 +50,37 @@ curl -X POST http://localhost:8031/api/v1/reshape \
       "objective": "Alert, afebrile.",
       "assessment": "Tension-type headache.",
       "plan": "Ibuprofen as needed. Follow up in two weeks.",
-      "medications_mentioned": ["ibuprofen"],
-      "follow_up": "two weeks",
-      "flags": []
+      "vitals": {
+        "temperature_c": "36.8",
+        "spo2_pct": "98",
+        "bp_systolic": "122",
+        "bp_diastolic": "78",
+        "pulse_rate": "72",
+        "pain_score": "2",
+        "resp_rate": "16"
+      },
+      "measurements": {
+        "weight_kg": "71.4",
+        "height_cm": "168",
+        "note": "Weight after shoes removed."
+      }
     },
     "context": "appointment",
     "purpose": "soap_note",
-    "view_decoder": {
-      "view_id": "ehr_soap_card",
-      "view_name": "EHR SOAP card",
-      "fields": [
-        {"field_name": "hpi", "field_type": "string", "source_path": "subjective"},
-        {"field_name": "dx", "field_type": "string", "source_path": "assessment"}
-      ]
-    }
+    "view_ids": ["soap_note", "vital_signs", "measurement"]
   }'
 ```
+
+Seeded at startup: `soap_note`, `vital_signs`, `measurement`. Response is `{ "results": [ { "view_id", "data", "warnings" } ] }`. A view that cannot resolve required fields is reported in `results` with warnings; the request is 422 only if **no** view succeeds.
+
+`view_decoder` / `view_id` aliases still accept a single inline decoder or stored id.
 
 ## Environment variables
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `API_PORT` | `8031` | Server port |
-| `API_KEY` | — | Request authentication |
+| `API_KEY` | — | Unused while auth is disabled |
 | `OPENAI_API_KEY` | — | OpenAI API key (non-direct transforms) |
 | `MAPPING_MODEL` | `gpt-4o` | Model for summarize/concat/split/extract |
 | `USE_LLM_STUB` | `false` | Deterministic offline transforms |

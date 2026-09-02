@@ -14,7 +14,7 @@ This is a pure backend API with no UI — designed to be called by other service
 
 ## Service port
 
-Default: **8013** (env: `PORT`).
+Default: **8027** (env: `PORT`).
 
 ## Layout
 
@@ -68,7 +68,7 @@ Edit `.env`. Most useful knobs:
 
 | Var | Default | Meaning |
 |-----|---------|---------|
-| `PORT` | `8013` | HTTP port |
+| `PORT` | `8027` | HTTP port |
 | `WHISPER_MODEL` | `medium` | `tiny` / `base` / `small` / `medium` / `large-v2` / `large-v3` |
 | `WHISPER_DEVICE` | `auto` | `auto` / `cuda` / `cpu` |
 | `WHISPER_COMPUTE_TYPE` | (auto) | `float16` / `int8_float16` (GPU); `int8` / `float32` (CPU) |
@@ -101,7 +101,7 @@ internal microservice:
 
 ## API
 
-OpenAPI docs once the server is running: <http://localhost:8013/docs>
+OpenAPI docs once the server is running: <http://localhost:8027/docs>
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -137,7 +137,7 @@ Response: `text`, `raw_text` (optional), `language`, `language_probability`,
 
 ### Postman (REST)
 
-Import the unified repo collection at [../postman_collection.json](../postman_collection.json) → **STT_Service** folder. Set `stt_service_base_url` to `http://localhost:8013`.
+Import the unified repo collection at [../postman_collection.json](../postman_collection.json) → **STT_Service** folder. Set `stt_service_base_url` to `http://localhost:8027`.
 
 > **Postman cannot record audio from your microphone**, so the WebSocket request in the
 > collection is documentation only. Use the Python script below for live mic testing.

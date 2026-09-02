@@ -3979,7 +3979,7 @@
       "item": [
         {
           "name": "Radiology STT API",
-          "description": "Postman collection for the Specialized Speech-to-Text for Radiology service.\n\n## Setup\n1. Import this collection into Postman.\n2. Set the collection variable `base_url` (default: `http://localhost:8013`).\n3. For `/transcribe` and `/transcribe/chunk`, attach an audio file (wav/mp3/m4a/webm/ogg/flac) in the `file` form field.\n\n## Notes on WebSocket / live mic\nPostman does support WebSocket (New > WebSocket Request), but it cannot capture audio from your microphone. To test the live-streaming endpoint and the mic capture path, use `tests/test_live_mic.py` provided with the service.",
+          "description": "Postman collection for the Specialized Speech-to-Text for Radiology service.\n\n## Setup\n1. Import this collection into Postman.\n2. Set the collection variable `base_url` (default: `http://localhost:8027`).\n3. For `/transcribe` and `/transcribe/chunk`, attach an audio file (wav/mp3/m4a/webm/ogg/flac) in the `file` form field.\n\n## Notes on WebSocket / live mic\nPostman does support WebSocket (New > WebSocket Request), but it cannot capture audio from your microphone. To test the live-streaming endpoint and the mic capture path, use `tests/test_live_mic.py` provided with the service.",
           "item": [
             {
               "name": "Health",
@@ -4124,7 +4124,7 @@
                     "transcribe"
                   ]
                 },
-                "description": "Real-time streaming endpoint. URL: `ws://localhost:8013/api/v1/ws/transcribe`.\n\nProtocol:\n  1. After connect, send a JSON text frame: `{\"type\": \"start\", \"sample_rate\": 16000, \"channels\": 1, \"language\": \"en\"}`\n  2. Server replies with `{\"type\": \"ready\", ...}`.\n  3. Send binary frames containing little-endian int16 PCM samples at the declared sample rate.\n  4. Server emits `{\"type\": \"partial\", \"text\": ...}` messages every ~chunk_seconds.\n  5. Send `{\"type\": \"stop\"}` (or close) to finalize. Server returns `{\"type\": \"final\", \"text\": ..., \"segments\": [...]}`.\n\nPostman cannot record microphone audio, so use `tests/test_live_mic.py` (Python) provided with this service to exercise this endpoint."
+                "description": "Real-time streaming endpoint. URL: `ws://localhost:8027/api/v1/ws/transcribe`.\n\nProtocol:\n  1. After connect, send a JSON text frame: `{\"type\": \"start\", \"sample_rate\": 16000, \"channels\": 1, \"language\": \"en\"}`\n  2. Server replies with `{\"type\": \"ready\", ...}`.\n  3. Send binary frames containing little-endian int16 PCM samples at the declared sample rate.\n  4. Server emits `{\"type\": \"partial\", \"text\": ...}` messages every ~chunk_seconds.\n  5. Send `{\"type\": \"stop\"}` (or close) to finalize. Server returns `{\"type\": \"final\", \"text\": ..., \"segments\": [...]}`.\n\nPostman cannot record microphone audio, so use `tests/test_live_mic.py` (Python) provided with this service to exercise this endpoint."
               }
             }
           ]
@@ -5209,7 +5209,7 @@
     },
     {
       "key": "labresultinterpreterservice_base_url",
-      "value": "http://localhost:8000"
+      "value": "http://localhost:8003"
     },
     {
       "key": "medicalguidelinevalidation_base_url",
@@ -5229,7 +5229,7 @@
     },
     {
       "key": "nursetaskprioritizationservice_base_url",
-      "value": "http://localhost:8000"
+      "value": "http://localhost:8002"
     },
     {
       "key": "ocrparsingservice_base_url",
@@ -5237,7 +5237,7 @@
     },
     {
       "key": "patienttimelineservice_base_url",
-      "value": "http://localhost:8000"
+      "value": "http://localhost:8001"
     },
     {
       "key": "qualitydischargereport_base_url",
@@ -5245,7 +5245,7 @@
     },
     {
       "key": "radiolgyworkflow_base_url",
-      "value": "http://localhost:8000"
+      "value": "http://localhost:8090"
     },
     {
       "key": "radiologyimageqaai_base_url",
@@ -5261,23 +5261,23 @@
     },
     {
       "key": "sepsisearlydetection_base_url",
-      "value": "http://localhost:8000"
+      "value": "http://localhost:8023"
     },
     {
       "key": "smartdischargeplannerservice_base_url",
-      "value": "http://localhost:8000"
+      "value": "http://localhost:8004"
     },
     {
       "key": "specialistalertservice_base_url",
-      "value": "http://localhost:8000"
+      "value": "http://localhost:8014"
     },
     {
       "key": "stt_service_base_url",
-      "value": "http://localhost:8013"
+      "value": "http://localhost:8027"
     },
     {
       "key": "summarizationservice_base_url",
-      "value": "http://localhost:8004"
+      "value": "http://localhost:8009"
     }
   ]
 }

@@ -1,0 +1,354 @@
+{
+  "info": {
+    "name": "SystemDisplayPlugin",
+    "description": "Postman collection for SystemDisplayPlugin — stage-2 mapper that reshapes ConvoScribe / ORScribe JSON onto a target view schema. It does not regenerate clinical content.\n\nAuth is currently disabled. Send requests with no X-API-Key.\n\n**Setup**\n1. Import this collection.\n2. Set baseUrl (default http://localhost:8031).\n3. Run **Reshape — SOAP + Vital Signs + Measurement (full)** for the three chart views in one call.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8031"
+    },
+    {
+      "key": "viewId",
+      "value": "ehr_soap_card"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        },
+        "description": "Database / Redis / OpenAI health. No API key required."
+      },
+      "response": []
+    },
+    {
+      "name": "Register decoder",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Created', function () { pm.response.to.have.status(201); });",
+              "var json = pm.response.json();",
+              "if (json.view_id) { pm.collectionVariables.set('viewId', json.view_id); }"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"view_id\": \"ehr_soap_card\",\n  \"view_name\": \"EHR SOAP card\",\n  \"fields\": [\n    {\n      \"field_name\": \"hpi\",\n      \"field_type\": \"string\",\n      \"source_path\": \"summary.subjective\",\n      \"transform\": \"direct\",\n      \"transform_hint\": null,\n      \"required\": true\n    },\n    {\n      \"field_name\": \"exam\",\n      \"field_type\": \"string\",\n      \"source_path\": \"summary.objective\",\n      \"transform\": \"direct\",\n      \"transform_hint\": null,\n      \"required\": true\n    },\n    {\n      \"field_name\": \"dx\",\n      \"field_type\": \"string\",\n      \"source_path\": \"summary.assessment\",\n      \"transform\": \"direct\",\n      \"transform_hint\": null,\n      \"required\": true\n    },\n    {\n      \"field_name\": \"plan_brief\",\n      \"field_type\": \"string\",\n      \"source_path\": \"summary.plan\",\n      \"transform\": \"summarize\",\n      \"transform_hint\": \"One short sentence. Do not add clinical facts that are not in the source.\",\n      \"required\": true\n    },\n    {\n      \"field_name\": \"meds\",\n      \"field_type\": \"list\",\n      \"source_path\": \"summary.medications_mentioned\",\n      \"transform\": \"direct\",\n      \"transform_hint\": null,\n      \"required\": true\n    },\n    {\n      \"field_name\": \"follow_up\",\n      \"field_type\": \"string\",\n      \"source_path\": \"summary.follow_up\",\n      \"transform\": \"direct\",\n      \"transform_hint\": null,\n      \"required\": false\n    },\n    {\n      \"field_name\": \"flags\",\n      \"field_type\": \"list\",\n      \"source_path\": \"summary.flags\",\n      \"transform\": \"direct\",\n      \"transform_hint\": null,\n      \"required\": false\n    },\n    {\n      \"field_name\": \"needs_review\",\n      \"field_type\": \"boolean\",\n      \"source_path\": \"needs_review\",\n      \"transform\": \"direct\",\n      \"transform_hint\": null,\n      \"required\": true\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/decoders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "decoders"
+          ]
+        },
+        "description": "Upsert a stored ViewDecoder. Full body: view_id, view_name, fields[]. Each field: field_name, field_type (string|list|boolean|object|date), source_path, transform (direct|summarize|concat|split|extract), transform_hint, required."
+      },
+      "response": []
+    },
+    {
+      "name": "Get decoder",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/decoders/{{viewId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "decoders",
+            "{{viewId}}"
+          ]
+        },
+        "description": "Fetch a stored decoder by view_id (set by Register decoder)."
+      },
+      "response": []
+    },
+    {
+      "name": "Reshape — full inline decoder",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Has mapped results', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json).to.have.property('results');",
+              "    pm.expect(json.results[0]).to.have.property('view_id');",
+              "    pm.expect(json.results[0]).to.have.property('data');",
+              "    pm.expect(json.results[0]).to.have.property('warnings');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"context\": \"appointment\",\n  \"purpose\": \"soap_note\",\n  \"stage1_output\": {\n    \"raw_transcript\": {\n      \"segments\": [\n        {\n          \"speaker_label\": \"SPEAKER_00\",\n          \"start_time\": 0.0,\n          \"end_time\": 3.2,\n          \"text\": \"Good morning, what brings you in today?\"\n        },\n        {\n          \"speaker_label\": \"SPEAKER_01\",\n          \"start_time\": 3.3,\n          \"end_time\": 8.1,\n          \"text\": \"I've had a 3-day frontal headache without fever.\"\n        },\n        {\n          \"speaker_label\": \"SPEAKER_02\",\n          \"start_time\": 8.2,\n          \"end_time\": 11.0,\n          \"text\": \"She has not been eating well since yesterday.\"\n        }\n      ]\n    },\n    \"role_map\": {\n      \"SPEAKER_00\": \"doctor\",\n      \"SPEAKER_01\": \"patient\",\n      \"SPEAKER_02\": \"other\"\n    },\n    \"role_confidence\": \"high\",\n    \"role_reasoning\": \"Speaker 0 asks clinical questions; speaker 1 reports symptoms; speaker 2 is a companion.\",\n    \"needs_review\": false,\n    \"summary\": {\n      \"subjective\": \"Patient reports a 3-day frontal headache without fever. Companion notes poor oral intake since yesterday.\",\n      \"objective\": \"Alert, afebrile, neurological exam unremarkable.\",\n      \"assessment\": \"Tension-type headache.\",\n      \"plan\": \"Ibuprofen as needed. Follow up in two weeks if symptoms persist.\",\n      \"medications_mentioned\": [\"ibuprofen\"],\n      \"follow_up\": \"two weeks\",\n      \"flags\": []\n    },\n    \"narrative_summary\": null,\n    \"clinical_document\": null\n  },\n  \"view_decoder\": {\n    \"view_id\": \"ehr_soap_card\",\n    \"view_name\": \"EHR SOAP card\",\n    \"fields\": [\n      {\n        \"field_name\": \"hpi\",\n        \"field_type\": \"string\",\n        \"source_path\": \"summary.subjective\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"exam\",\n        \"field_type\": \"string\",\n        \"source_path\": \"summary.objective\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"dx\",\n        \"field_type\": \"string\",\n        \"source_path\": \"summary.assessment\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"plan_brief\",\n        \"field_type\": \"string\",\n        \"source_path\": \"summary.plan\",\n        \"transform\": \"summarize\",\n        \"transform_hint\": \"One short sentence. Do not add clinical facts that are not in the source.\",\n        \"required\": true\n      },\n      {\n        \"field_name\": \"meds\",\n        \"field_type\": \"list\",\n        \"source_path\": \"summary.medications_mentioned\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"follow_up\",\n        \"field_type\": \"string\",\n        \"source_path\": \"summary.follow_up\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": false\n      },\n      {\n        \"field_name\": \"flags\",\n        \"field_type\": \"list\",\n        \"source_path\": \"summary.flags\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": false\n      },\n      {\n        \"field_name\": \"needs_review\",\n        \"field_type\": \"boolean\",\n        \"source_path\": \"needs_review\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"roles\",\n        \"field_type\": \"object\",\n        \"source_path\": \"role_map\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": false\n      },\n      {\n        \"field_name\": \"transcript_blob\",\n        \"field_type\": \"string\",\n        \"source_path\": \"raw_transcript.segments\",\n        \"transform\": \"concat\",\n        \"transform_hint\": \"Join segment text with spaces\",\n        \"required\": false\n      },\n      {\n        \"field_name\": \"first_speaker\",\n        \"field_type\": \"string\",\n        \"source_path\": \"raw_transcript.segments.0.speaker_label\",\n        \"transform\": \"extract\",\n        \"transform_hint\": null,\n        \"required\": false\n      },\n      {\n        \"field_name\": \"plan_tokens\",\n        \"field_type\": \"list\",\n        \"source_path\": \"summary.plan\",\n        \"transform\": \"split\",\n        \"transform_hint\": \"Split on periods\",\n        \"required\": false\n      }\n    ]\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reshape",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "reshape"
+          ]
+        },
+        "description": "Full ReshapeRequest body. Prefer views[] / view_ids[]; aliases view_decoder / view_id still work and may be mixed.\n\nRequired:\n- stage1_output — ConvoScribe/ORScribe JSON (example is a full ConvoScribe /analyze response)\n- context — appointment | ward_round | operating_room | procedure | telehealth | other\n- purpose — summary | soap_note | clinical_document | timeline | checklist_verification | full_transcript_review\n- views and/or view_ids (at least one)\n\nResponse: { results: [{ view_id, data, warnings }] }. 422 only if no view succeeds."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reshape",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reshape"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"results\": [\n    {\n      \"view_id\": \"ehr_soap_card\",\n      \"data\": {\n        \"hpi\": \"Patient reports a 3-day frontal headache without fever. Companion notes poor oral intake since yesterday.\",\n        \"exam\": \"Alert, afebrile, neurological exam unremarkable.\",\n        \"dx\": \"Tension-type headache.\",\n        \"plan_brief\": \"Ibuprofen as needed; follow up in two weeks if symptoms persist.\",\n        \"meds\": [\"ibuprofen\"],\n        \"follow_up\": \"two weeks\",\n        \"flags\": [],\n        \"needs_review\": false\n      },\n      \"warnings\": []\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "Reshape — stored view_id",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"context\": \"appointment\",\n  \"purpose\": \"soap_note\",\n  \"view_id\": \"ehr_soap_card\",\n  \"stage1_output\": {\n    \"raw_transcript\": {\n      \"segments\": [\n        {\n          \"speaker_label\": \"SPEAKER_00\",\n          \"start_time\": 0.0,\n          \"end_time\": 3.2,\n          \"text\": \"Good morning, what brings you in today?\"\n        },\n        {\n          \"speaker_label\": \"SPEAKER_01\",\n          \"start_time\": 3.3,\n          \"end_time\": 8.1,\n          \"text\": \"I've had a 3-day frontal headache without fever.\"\n        }\n      ]\n    },\n    \"role_map\": {\n      \"SPEAKER_00\": \"doctor\",\n      \"SPEAKER_01\": \"patient\"\n    },\n    \"role_confidence\": \"high\",\n    \"role_reasoning\": \"Speaker 0 asks clinical questions; speaker 1 reports symptoms.\",\n    \"needs_review\": false,\n    \"summary\": {\n      \"subjective\": \"Patient reports a 3-day frontal headache without fever.\",\n      \"objective\": \"Alert, afebrile, neurological exam unremarkable.\",\n      \"assessment\": \"Tension-type headache.\",\n      \"plan\": \"Ibuprofen as needed. Follow up in two weeks if symptoms persist.\",\n      \"medications_mentioned\": [\"ibuprofen\"],\n      \"follow_up\": \"two weeks\",\n      \"flags\": []\n    },\n    \"narrative_summary\": null,\n    \"clinical_document\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reshape",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "reshape"
+          ]
+        },
+        "description": "Same reshape contract, but uses a stored decoder. Run **Register decoder** first. Body still includes full stage1_output, context, purpose, and view_id."
+      },
+      "response": []
+    },
+    {
+      "name": "Reshape — ORScribe timeline (full body)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"context\": \"operating_room\",\n  \"purpose\": \"timeline\",\n  \"stage1_output\": {\n    \"raw_transcript\": {\n      \"segments\": [\n        {\n          \"speaker_label\": \"SPEAKER_00\",\n          \"start_time\": 22.0,\n          \"end_time\": 25.0,\n          \"text\": \"Incision made.\"\n        },\n        {\n          \"speaker_label\": \"SPEAKER_01\",\n          \"start_time\": 70.0,\n          \"end_time\": 74.0,\n          \"text\": \"Giving propofol 100 milligrams.\"\n        }\n      ]\n    },\n    \"role_map\": {\n      \"SPEAKER_00\": {\n        \"role\": \"surgeon\",\n        \"confidence\": \"high\",\n        \"needs_review\": false\n      },\n      \"SPEAKER_01\": {\n        \"role\": \"anesthetist\",\n        \"confidence\": \"high\",\n        \"needs_review\": false\n      }\n    },\n    \"role_reasoning\": \"SPEAKER_00: surgeon (high); SPEAKER_01: anesthetist (high).\",\n    \"needs_review\": false,\n    \"timeline\": {\n      \"events\": [\n        {\n          \"timestamp\": \"00:00:22\",\n          \"type\": \"incision\",\n          \"speaker_role\": \"surgeon\",\n          \"description\": \"Incision made\"\n        },\n        {\n          \"timestamp\": \"00:01:10\",\n          \"type\": \"medication\",\n          \"speaker_role\": \"anesthetist\",\n          \"description\": \"Propofol given\"\n        }\n      ]\n    },\n    \"medications\": [\n      {\n        \"timestamp\": \"00:01:10\",\n        \"drug\": \"propofol\",\n        \"dose\": \"100 mg\",\n        \"administered_by_role\": \"anesthetist\"\n      }\n    ],\n    \"instrument_counts\": [],\n    \"checklist\": {\n      \"sign_in\": {\n        \"completed\": true,\n        \"items_confirmed\": [\"patient identity\", \"site marked\"],\n        \"items_missing\": []\n      },\n      \"time_out\": {\n        \"completed\": true,\n        \"items_confirmed\": [\"team introductions\", \"procedure confirmation\"],\n        \"items_missing\": []\n      },\n      \"sign_out\": {\n        \"completed\": false,\n        \"items_confirmed\": [],\n        \"items_missing\": [\"instrument count\", \"specimen labeling\"]\n      }\n    }\n  },\n  \"view_decoder\": {\n    \"view_id\": \"or_timeline_card\",\n    \"view_name\": \"OR timeline card\",\n    \"fields\": [\n      {\n        \"field_name\": \"events\",\n        \"field_type\": \"list\",\n        \"source_path\": \"timeline.events\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"meds\",\n        \"field_type\": \"list\",\n        \"source_path\": \"medications\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"sign_out_complete\",\n        \"field_type\": \"boolean\",\n        \"source_path\": \"checklist.sign_out.completed\",\n        \"transform\": \"direct\",\n        \"transform_hint\": null,\n        \"required\": true\n      },\n      {\n        \"field_name\": \"incision_time\",\n        \"field_type\": \"string\",\n        \"source_path\": \"timeline.events.0.timestamp\",\n        \"transform\": \"extract\",\n        \"transform_hint\": null,\n        \"required\": false\n      }\n    ]\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reshape",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "reshape"
+          ]
+        },
+        "description": "Full reshape body for an ORScribe-style timeline + checklist payload (context=operating_room, purpose=timeline)."
+      },
+      "response": []
+    },
+    {
+      "name": "Reshape — SOAP + Vital Signs + Measurement (full)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Returns SOAP, Vital Signs, and Measurement', function () {",
+              "    var json = pm.response.json();",
+              "    var ids = (json.results || []).map(function (r) { return r.view_id; });",
+              "    pm.expect(ids).to.include('soap_note');",
+              "    pm.expect(ids).to.include('vital_signs');",
+              "    pm.expect(ids).to.include('measurement');",
+              "    var byId = {};",
+              "    json.results.forEach(function (r) { byId[r.view_id] = r.data; });",
+              "    pm.expect(byId.soap_note.Subjective).to.be.a('string');",
+              "    pm.expect(byId.vital_signs.Temperature).to.eql('36.8');",
+              "    pm.expect(byId.measurement['WeightKg']).to.eql('71.4');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"context\": \"appointment\",\n  \"purpose\": \"soap_note\",\n  \"views\": [\n    {\n      \"view_id\": \"soap_note\",\n      \"view_name\": \"SOAP Note\",\n      \"fields\": [\n        {\n          \"field_name\": \"Subjective\",\n          \"field_type\": \"string\",\n          \"source_path\": \"subjective\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"Objective\",\n          \"field_type\": \"string\",\n          \"source_path\": \"objective\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"Assessment\",\n          \"field_type\": \"string\",\n          \"source_path\": \"assessment\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"Plan\",\n          \"field_type\": \"string\",\n          \"source_path\": \"plan\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        }\n      ]\n    },\n    {\n      \"view_id\": \"vital_signs\",\n      \"view_name\": \"Vital Signs\",\n      \"fields\": [\n        {\n          \"field_name\": \"Temperature\",\n          \"field_type\": \"string\",\n          \"source_path\": \"vitals.temperature_c\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"SpO2\",\n          \"field_type\": \"string\",\n          \"source_path\": \"vitals.spo2_pct\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"BPSystolic\",\n          \"field_type\": \"string\",\n          \"source_path\": \"vitals.bp_systolic\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"BPDiastolic\",\n          \"field_type\": \"string\",\n          \"source_path\": \"vitals.bp_diastolic\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"PulseRate\",\n          \"field_type\": \"string\",\n          \"source_path\": \"vitals.pulse_rate\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"Pain\",\n          \"field_type\": \"string\",\n          \"source_path\": \"vitals.pain_score\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"RespiratoryRate\",\n          \"field_type\": \"string\",\n          \"source_path\": \"vitals.resp_rate\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        }\n      ]\n    },\n    {\n      \"view_id\": \"measurement\",\n      \"view_name\": \"Measurement\",\n      \"fields\": [\n        {\n          \"field_name\": \"WeightKg\",\n          \"field_type\": \"string\",\n          \"source_path\": \"measurements.weight_kg\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"HeightLengthCm\",\n          \"field_type\": \"string\",\n          \"source_path\": \"measurements.height_cm\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": true\n        },\n        {\n          \"field_name\": \"BMI\",\n          \"field_type\": \"string\",\n          \"source_path\": \"measurements.bmi\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": false\n        },\n        {\n          \"field_name\": \"HeadCircumferenceCm\",\n          \"field_type\": \"string\",\n          \"source_path\": \"measurements.head_circumference_cm\",\n          \"transform\": \"direct\",\n          \"transform_hint\": null,\n          \"required\": false\n        },\n        {\n          \"field_name\": \"Note\",\n          \"field_type\": \"string\",\n          \"source_path\": \"measurements.note\",\n          \"transform\": \"summarize\",\n          \"transform_hint\": \"condense any free-text note from the encounter into one short clinical remark\",\n          \"required\": false\n        }\n      ]\n    }\n  ],\n  \"stage1_output\": {\n    \"raw_transcript\": {\n      \"segments\": [\n        {\n          \"speaker_label\": \"SPEAKER_00\",\n          \"start_time\": 0.0,\n          \"end_time\": 3.2,\n          \"text\": \"Good morning, what brings you in today?\"\n        },\n        {\n          \"speaker_label\": \"SPEAKER_01\",\n          \"start_time\": 3.3,\n          \"end_time\": 8.1,\n          \"text\": \"I've had a 3-day frontal headache without fever.\"\n        },\n        {\n          \"speaker_label\": \"SPEAKER_02\",\n          \"start_time\": 8.2,\n          \"end_time\": 11.0,\n          \"text\": \"She has not been eating well since yesterday.\"\n        },\n        {\n          \"speaker_label\": \"SPEAKER_00\",\n          \"start_time\": 11.2,\n          \"end_time\": 16.0,\n          \"text\": \"Temperature 36.8, sats 98, blood pressure 122 over 78, pulse 72, pain 2, respirations 16. Weight 71.4 kilograms, height 168 centimetres.\"\n        }\n      ]\n    },\n    \"role_map\": {\n      \"SPEAKER_00\": \"doctor\",\n      \"SPEAKER_01\": \"patient\",\n      \"SPEAKER_02\": \"other\"\n    },\n    \"role_confidence\": \"high\",\n    \"role_reasoning\": \"Speaker 0 asks clinical questions and records vitals; speaker 1 reports symptoms; speaker 2 is a companion.\",\n    \"needs_review\": false,\n    \"summary\": {\n      \"subjective\": \"Patient reports a 3-day frontal headache without fever. Companion notes poor oral intake since yesterday.\",\n      \"objective\": \"Alert, afebrile, neurological exam unremarkable.\",\n      \"assessment\": \"Tension-type headache.\",\n      \"plan\": \"Ibuprofen as needed. Follow up in two weeks if symptoms persist.\",\n      \"medications_mentioned\": [\n        \"ibuprofen\"\n      ],\n      \"follow_up\": \"two weeks\",\n      \"flags\": []\n    },\n    \"subjective\": \"Patient reports a 3-day frontal headache without fever. Companion notes poor oral intake since yesterday.\",\n    \"objective\": \"Alert, afebrile, neurological exam unremarkable.\",\n    \"assessment\": \"Tension-type headache.\",\n    \"plan\": \"Ibuprofen as needed. Follow up in two weeks if symptoms persist.\",\n    \"medications_mentioned\": [\n      \"ibuprofen\"\n    ],\n    \"follow_up\": \"two weeks\",\n    \"flags\": [],\n    \"vitals\": {\n      \"temperature_c\": \"36.8\",\n      \"spo2_pct\": \"98\",\n      \"bp_systolic\": \"122\",\n      \"bp_diastolic\": \"78\",\n      \"pulse_rate\": \"72\",\n      \"pain_score\": \"2\",\n      \"resp_rate\": \"16\"\n    },\n    \"measurements\": {\n      \"weight_kg\": \"71.4\",\n      \"height_cm\": \"168\",\n      \"bmi\": \"25.3\",\n      \"head_circumference_cm\": \"55\",\n      \"note\": \"Weight taken after shoes removed; patient reports recent appetite loss.\"\n    },\n    \"narrative_summary\": null,\n    \"clinical_document\": null\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reshape",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "reshape"
+          ]
+        },
+        "description": "Full single-call example that populates all three chart views from one stage1_output:\n- soap_note (SOAP Note)\n- vital_signs (Vital Signs — view 1)\n- measurement (Measurement — view 2)\n\nThe body includes the complete inline `views` definitions (every field, source_path, and transform) plus a ConvoScribe-style payload with flattened SOAP fields, `vitals`, and `measurements`.\n\nEquivalent stored-decoder call after startup seed: `view_ids: [\"soap_note\", \"vital_signs\", \"measurement\"]` (omit `views`).\n\nConvoScribe/ORScribe do not yet emit structured vitals/measurements; those objects are included here so the mapping succeeds. SOAP decoder paths are top-level subjective/objective/assessment/plan (also duplicated under summary for a realistic /analyze envelope)."
+      },
+      "response": [
+        {
+          "name": "200 OK — three views",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reshape",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reshape"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"results\": [\n    {\n      \"view_id\": \"soap_note\",\n      \"data\": {\n        \"Subjective\": \"Patient reports a 3-day frontal headache without fever. Companion notes poor oral intake since yesterday.\",\n        \"Objective\": \"Alert, afebrile, neurological exam unremarkable.\",\n        \"Assessment\": \"Tension-type headache.\",\n        \"Plan\": \"Ibuprofen as needed. Follow up in two weeks if symptoms persist.\"\n      },\n      \"warnings\": []\n    },\n    {\n      \"view_id\": \"vital_signs\",\n      \"data\": {\n        \"Temperature\": \"36.8\",\n        \"SpO2\": \"98\",\n        \"BPSystolic\": \"122\",\n        \"BPDiastolic\": \"78\",\n        \"PulseRate\": \"72\",\n        \"Pain\": \"2\",\n        \"RespiratoryRate\": \"16\"\n      },\n      \"warnings\": []\n    },\n    {\n      \"view_id\": \"measurement\",\n      \"data\": {\n        \"WeightKg\": \"71.4\",\n        \"HeightLengthCm\": \"168\",\n        \"BMI\": \"25.3\",\n        \"HeadCircumferenceCm\": \"55\",\n        \"Note\": \"Weight after shoes off; reduced appetite.\"\n      },\n      \"warnings\": []\n    }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}

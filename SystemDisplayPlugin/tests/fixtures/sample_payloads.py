@@ -78,3 +78,43 @@ EHR_SOAP_CARD = {
         },
     ],
 }
+
+# Flattened SOAP + assumed vitals/measurements objects. ConvoScribe/ORScribe do not
+# currently emit `vitals` or `measurements`; this is the contract we map onto.
+ENCOUNTER_STAGE1 = {
+    **SOAP_NOTE,
+    "vitals": {
+        "temperature_c": "36.8",
+        "spo2_pct": "98",
+        "bp_systolic": "122",
+        "bp_diastolic": "78",
+        "pulse_rate": "72",
+        "pain_score": "2",
+        "resp_rate": "16",
+    },
+    "measurements": {
+        "weight_kg": "71.4",
+        "height_cm": "168",
+        "bmi": "25.3",
+        "head_circumference_cm": "55",
+        "note": "Weight taken after shoes removed; patient reports recent appetite loss.",
+    },
+}
+
+ENCOUNTER_STAGE1_OPTIONALS_MISSING = {
+    **SOAP_NOTE,
+    "vitals": {
+        "temperature_c": "36.8",
+        "spo2_pct": "98",
+        "bp_systolic": "122",
+        "bp_diastolic": "78",
+        "pulse_rate": "72",
+        "pain_score": "2",
+        "resp_rate": "16",
+    },
+    "measurements": {
+        "weight_kg": "71.4",
+        "height_cm": "168",
+        "note": "Weight taken after shoes removed; patient reports recent appetite loss.",
+    },
+}

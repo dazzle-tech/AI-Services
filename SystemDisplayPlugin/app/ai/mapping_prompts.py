@@ -46,7 +46,8 @@ def build_system_prompt(*, context: str, purpose: str) -> str:
         "Never regenerate, infer, or fabricate clinical content.",
         CONTEXT_FRAGMENTS.get(context, CONTEXT_FRAGMENTS["other"]),
         PURPOSE_FRAGMENTS.get(purpose, PURPOSE_FRAGMENTS["summary"]),
-        "Return a single JSON object whose keys are exactly the listed field_name values. "
+        "Return a single JSON object whose keys are exactly the listed field_name values "
+        "(these may be namespaced as view_id::original_field_name when mapping several views). "
         "Each value must match the field's field_type (string, list, boolean, object, or date as ISO-like string). "
         "Do not include markdown or commentary outside the JSON object.",
     ]
@@ -58,15 +59,18 @@ def build_user_prompt(
     context: str,
     purpose: str,
     fields: Sequence[tuple[DecoderField, Any]],
+    json_keys: Sequence[str] | None = None,
 ) -> str:
     field_blocks: list[str] = []
-    for field, source_slice in fields:
+    for index, (field, source_slice) in enumerate(fields):
+        json_key = json_keys[index] if json_keys is not None else field.field_name
         hint = field.transform_hint or "(none)"
         transform_help = TRANSFORM_FRAGMENTS.get(field.transform, field.transform)
         field_blocks.append(
             "\n".join(
                 [
-                    f"field_name: {field.field_name}",
+                    f"field_name: {json_key}",
+                    f"original_field_name: {field.field_name}",
                     f"field_type: {field.field_type}",
                     f"transform: {field.transform}",
                     f"transform_hint: {hint}",

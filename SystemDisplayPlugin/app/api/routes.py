@@ -8,12 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.core.auth import AuthContext, verify_api_key
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.schemas import HealthResponse, ReshapeRequest, ReshapeResponse, ViewDecoder
+from app.models.schemas import HealthResponse, ReshapeRequest, ReshapeResponse, ViewDecoder, ViewResult
 from app.services.decoder_service import DecoderService
-from app.services.mapping_service import AllRequiredFieldsFailed, reshape
+from app.services.mapping_service import AllViewsFailed, reshape_many
 
 logger = logging.getLogger(__name__)
 
@@ -23,28 +22,40 @@ router = APIRouter(prefix="/api/v1", tags=["systemdisplayplugin"])
 @router.post("/reshape", response_model=ReshapeResponse)
 async def reshape_view(
     body: ReshapeRequest,
-    _: AuthContext = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ) -> ReshapeResponse:
-    # Assumption: if both view_decoder and view_id are sent, the inline decoder wins.
-    decoder = body.view_decoder
-    if decoder is None:
-        decoder = DecoderService(db).get(body.view_id)
+    service = DecoderService(db)
+    decoders = list(body.collected_inline_views())
+    unresolved: list[ViewResult] = []
+    for view_id in body.collected_view_ids():
+        decoder = service.get_optional(view_id)
+        if decoder is None:
+            unresolved.append(
+                ViewResult(
+                    view_id=view_id,
+                    data={},
+                    warnings=[f"View decoder '{view_id}' not found"],
+                )
+            )
+        else:
+            decoders.append(decoder)
+
     try:
-        result = reshape(
+        result = reshape_many(
             body.stage1_output,
-            decoder,
+            decoders,
             context=body.context,
             purpose=body.purpose,
+            unresolved=unresolved,
         )
-    except AllRequiredFieldsFailed as exc:
+    except AllViewsFailed as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"view_id": exc.view_id, "warnings": exc.warnings},
+            detail={"results": [item.model_dump() for item in exc.results]},
         ) from exc
     logger.info(
         "Reshape request completed",
-        extra={"view_id": result.view_id, "event_type": "reshape"},
+        extra={"view_count": len(result.results), "event_type": "reshape"},
     )
     return result
 
@@ -52,7 +63,6 @@ async def reshape_view(
 @router.post("/decoders", response_model=ViewDecoder, status_code=status.HTTP_201_CREATED)
 async def register_decoder(
     body: ViewDecoder,
-    _: AuthContext = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ) -> ViewDecoder:
     decoder = DecoderService(db).upsert(body)
@@ -66,7 +76,6 @@ async def register_decoder(
 @router.get("/decoders/{view_id}", response_model=ViewDecoder)
 async def get_decoder(
     view_id: str,
-    _: AuthContext = Depends(verify_api_key),
     db: Session = Depends(get_db),
 ) -> ViewDecoder:
     return DecoderService(db).get(view_id)

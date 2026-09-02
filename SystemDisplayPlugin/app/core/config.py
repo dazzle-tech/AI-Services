@@ -1,5 +1,6 @@
 """Configuration management for SystemDisplayPlugin."""
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +11,8 @@ class Settings(BaseSettings):
         env_file=".env",
         case_sensitive=False,
         env_file_encoding="utf-8",
+        extra="ignore",
+        populate_by_name=True,
     )
 
     # API Configuration
@@ -28,7 +31,11 @@ class Settings(BaseSettings):
     # OpenAI Configuration
     openai_api_key: str = ""
     openai_base_url: str | None = None
-    mapping_model: str = "gpt-4o"
+    # OPENAI_MODEL is the env name used by sibling services; accept it as an alias.
+    mapping_model: str = Field(
+        default="gpt-4o",
+        validation_alias=AliasChoices("MAPPING_MODEL", "OPENAI_MODEL", "mapping_model", "openai_model"),
+    )
     openai_temperature: float = 0.2
     openai_max_tokens: int = 2048
     openai_timeout: int = 120

@@ -44,7 +44,7 @@ Type=simple
 User=root
 WorkingDirectory=$APP_DIR
 Environment="PATH=$APP_DIR/venv/bin"
-ExecStart=$APP_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8005
+ExecStart=$APP_DIR/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8014
 Restart=always
 RestartSec=10
 
@@ -60,7 +60,7 @@ echo -e "${YELLOW}Configuring firewall...${NC}"
 ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
-ufw allow 8005/tcp
+ufw allow 8014/tcp
 ufw --force enable
 
 echo -e "${GREEN}Deployment complete!${NC}"

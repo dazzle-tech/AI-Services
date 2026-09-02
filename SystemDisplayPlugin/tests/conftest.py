@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.core.config import reload_settings
 from app.db.models import Base
 from app.db.session import get_db, reset_engine
+from app.fixtures.decoders import seed_default_decoders
 from main import app
 
 
@@ -33,16 +34,12 @@ def db_session():
     Base.metadata.create_all(bind=engine)
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
+    seed_default_decoders(session)
     try:
         yield session
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def auth_headers():
-    return {"X-API-Key": "test-api-key"}
 
 
 @pytest.fixture

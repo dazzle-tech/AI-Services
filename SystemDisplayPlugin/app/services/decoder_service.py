@@ -30,10 +30,16 @@ class DecoderService:
         return ViewDecoder.model_validate(record.payload)
 
     def get(self, view_id: str) -> ViewDecoder:
-        record = self.db.get(ViewDecoderRecord, view_id)
-        if record is None:
+        decoder = self.get_optional(view_id)
+        if decoder is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"View decoder '{view_id}' not found",
             )
+        return decoder
+
+    def get_optional(self, view_id: str) -> ViewDecoder | None:
+        record = self.db.get(ViewDecoderRecord, view_id)
+        if record is None:
+            return None
         return ViewDecoder.model_validate(record.payload)

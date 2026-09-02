@@ -41,7 +41,7 @@ class Settings:
 
         return cls(
             host=_env("HOST", "0.0.0.0"),
-            port=int(_env("PORT", "8013")),
+            port=int(_env("PORT", "8027")),
             whisper_model=_env("WHISPER_MODEL", "medium"),
             whisper_device=_env("WHISPER_DEVICE", "auto").lower(),
             whisper_compute_type=_env("WHISPER_COMPUTE_TYPE"),

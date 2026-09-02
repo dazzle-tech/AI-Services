@@ -1,10 +1,7 @@
-"""API authentication.
+"""API authentication (disabled).
 
-Assumption: ORScribe requires X-API-Key + X-Staff-Id (case ownership);
-ConvoScribe requires X-API-Key + X-Clinician-Id (session ownership).
-View decoders here are shared configuration, not staff-owned cases, so
-endpoints only require X-API-Key. Do not add X-Staff-Id unless product
-wants per-staff decoder isolation.
+X-API-Key checks are off until re-enabled. Keep this module so staff/clinician
+headers can be restored without rewriting routes.
 """
 
 from dataclasses import dataclass

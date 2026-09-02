@@ -12,7 +12,7 @@ The public contract is intentionally simple and stateless. Internal orchestratio
 ### Health Check
 
 ```bash
-curl http://localhost:8005/api/v1/health
+curl http://localhost:8014/api/v1/health
 ```
 
 Example response:
@@ -32,7 +32,7 @@ Example response:
 ### Generate Alerts
 
 ```bash
-curl -X POST http://localhost:8005/api/v1/generate-alerts \
+curl -X POST http://localhost:8014/api/v1/generate-alerts \
   -H "Content-Type: application/json" \
   -d @request.json
 ```
@@ -147,7 +147,7 @@ cp .env.example .env
 python main.py
 ```
 
-The service runs on `http://localhost:8005` by default. Interactive docs are available at `http://localhost:8005/docs`.
+The service runs on `http://localhost:8014` by default. Interactive docs are available at `http://localhost:8014/docs`.
 
 ## Running With Docker
 
@@ -163,7 +163,7 @@ Environment variables follow the same pattern used by `SummarizationService`.
 | --- | --- | --- |
 | `OPENAI_API_KEY` | OpenAI API key | required |
 | `OPENAI_MODEL` | OpenAI model name | `qwen3:1.7b` |
-| `API_PORT` | REST API port | `8005` |
+| `API_PORT` | REST API port | `8014` |
 | `LOG_LEVEL` | Application log level | `INFO` |
 | `OPENAI_TEMPERATURE` | Model temperature | `0.1` |
 | `OPENAI_MAX_TOKENS` | Max completion tokens | `1400` |
@@ -198,7 +198,7 @@ The collection name is `SpecialistAlertService` and it includes:
 
 Collection variable:
 
-- `baseUrl = http://localhost:8005`
+- `baseUrl = http://localhost:8014`
 
 ## Safety Notes
 

@@ -1,0 +1,335 @@
+{
+  "info": {
+    "name": "NurseHandOver",
+    "description": "Postman collection for NurseHandOver — stateless SBAR generation.\n\nAuth is disabled. Set baseUrl (default http://localhost:8028).\n\n**Setup**\n1. Import this collection.\n2. Start the service: `python main.py` in NurseHandOver (port 8028).\n3. Run **Generate SBAR — full shift (3 patients)** for a complete request body.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8028"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Has status ok', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('ok');",
+              "    pm.expect(json).to.have.property('model');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Liveness probe. Returns service name, version, model, and UTC timestamp. No API key."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"status\": \"ok\",\n  \"service\": \"NurseHandOver\",\n  \"version\": \"1.0.0\",\n  \"timestamp\": \"2026-09-02T08:00:00+00:00\",\n  \"model\": \"gpt-4o\"\n}"
+        }
+      ]
+    },
+    {
+      "name": "Generate SBAR — full shift (3 patients)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('One result per patient', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('draft');",
+              "    pm.expect(json.results).to.have.lengthOf(3);",
+              "    var ids = json.results.map(function (r) { return r.patient_id; });",
+              "    pm.expect(ids).to.include.members(['pt_001', 'pt_002', 'pt_003']);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shift_id\": \"shift-1005-day\",\n  \"nurse_id\": \"nurse_sarah_mitchell\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_001\",\n      \"name\": \"Margaret O'Brien\",\n      \"age\": 72,\n      \"bed\": \"4A\",\n      \"diagnosis\": \"Community-acquired pneumonia\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 108,\n        \"bp\": \"94/61\",\n        \"temp\": 38.6,\n        \"rr\": 22,\n        \"spo2\": 91,\n        \"last_updated\": \"14:45\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amoxicillin-Clavulanate 1.2g IV\",\n          \"route\": \"IV\",\n          \"due\": \"15:00\",\n          \"status\": \"pending\"\n        },\n        {\n          \"name\": \"Paracetamol 1g\",\n          \"route\": \"Oral\",\n          \"due\": \"12:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Repeat chest X-ray ordered — awaiting porter\",\n        \"Blood cultures x2 — not yet collected\"\n      ],\n      \"alerts\": [\n        \"SpO2 dropped to 91% at 14:30 — supplemental O2 applied\"\n      ],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:15\",\n          \"text\": \"Patient alert and orientated. Persistent productive cough.\"\n        },\n        {\n          \"time\": \"14:30\",\n          \"text\": \"SpO2 fell to 91%. Applied 4L O2. Dr. Patel informed. IV antibiotics delayed, cannula re-sited at 14:50.\"\n        }\n      ]\n    },\n    {\n      \"patient_id\": \"pt_002\",\n      \"name\": \"James Thornton\",\n      \"age\": 58,\n      \"bed\": \"4B\",\n      \"diagnosis\": \"Post-operative day 2 — laparoscopic appendectomy\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 98,\n        \"bp\": \"118/74\",\n        \"temp\": 37.8,\n        \"rr\": 18,\n        \"spo2\": 96,\n        \"last_updated\": \"14:00\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Oxycodone 5mg\",\n          \"route\": \"Oral\",\n          \"due\": \"14:00\",\n          \"status\": \"given\"\n        },\n        {\n          \"name\": \"Metoclopramide 10mg\",\n          \"route\": \"IV\",\n          \"due\": \"18:00\",\n          \"status\": \"pending\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Wound check and dressing change due at 18:00\"\n      ],\n      \"alerts\": [],\n      \"nurse_notes\": [\n        {\n          \"time\": \"13:30\",\n          \"text\": \"Patient reported nausea — not vomiting. Ondansetron PRN administered. Pain 4/10.\"\n        }\n      ]\n    },\n    {\n      \"patient_id\": \"pt_003\",\n      \"name\": \"Dorothy Chen\",\n      \"age\": 45,\n      \"bed\": \"4C\",\n      \"diagnosis\": \"Hypertensive urgency — BP now controlled\",\n      \"admission_date\": \"2025-03-10\",\n      \"vitals\": {\n        \"hr\": 72,\n        \"bp\": \"138/86\",\n        \"temp\": 36.8,\n        \"rr\": 16,\n        \"spo2\": 98,\n        \"last_updated\": \"13:30\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amlodipine 10mg\",\n          \"route\": \"Oral\",\n          \"due\": \"08:00\",\n          \"status\": \"given\"\n        },\n        {\n          \"name\": \"Ramipril 5mg\",\n          \"route\": \"Oral\",\n          \"due\": \"08:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Discharge planning — social work referral in progress\"\n      ],\n      \"alerts\": [],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:30\",\n          \"text\": \"All morning medications administered. BP improving.\"\n        }\n      ]\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/summary/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "summary",
+            "generate"
+          ]
+        },
+        "description": "Full POST /summary/generate body: one shift, three patients covering critical / watch / stable chart shapes (vitals, medications, pending_orders, alerts, nurse_notes).\n\nRequires OPENAI_API_KEY on the server. Response status is always draft."
+      },
+      "response": [
+        {
+          "name": "200 OK — three SBAR drafts",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/summary/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "summary",
+                "generate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_id\": \"shift-1005-day\",\n  \"nurse_id\": \"nurse_sarah_mitchell\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_001\",\n      \"name\": \"Margaret O'Brien\",\n      \"age\": 72,\n      \"bed\": \"4A\",\n      \"diagnosis\": \"Community-acquired pneumonia\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 108,\n        \"bp\": \"94/61\",\n        \"temp\": 38.6,\n        \"rr\": 22,\n        \"spo2\": 91,\n        \"last_updated\": \"14:45\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amoxicillin-Clavulanate 1.2g IV\",\n          \"route\": \"IV\",\n          \"due\": \"15:00\",\n          \"status\": \"pending\"\n        },\n        {\n          \"name\": \"Paracetamol 1g\",\n          \"route\": \"Oral\",\n          \"due\": \"12:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Repeat chest X-ray ordered — awaiting porter\",\n        \"Blood cultures x2 — not yet collected\"\n      ],\n      \"alerts\": [\n        \"SpO2 dropped to 91% at 14:30 — supplemental O2 applied\"\n      ],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:15\",\n          \"text\": \"Patient alert and orientated. Persistent productive cough.\"\n        },\n        {\n          \"time\": \"14:30\",\n          \"text\": \"SpO2 fell to 91%. Applied 4L O2. Dr. Patel informed. IV antibiotics delayed, cannula re-sited at 14:50.\"\n        }\n      ]\n    },\n    {\n      \"patient_id\": \"pt_002\",\n      \"name\": \"James Thornton\",\n      \"age\": 58,\n      \"bed\": \"4B\",\n      \"diagnosis\": \"Post-operative day 2 — laparoscopic appendectomy\",\n      \"admission_date\": \"2025-03-09\",\n      \"vitals\": {\n        \"hr\": 98,\n        \"bp\": \"118/74\",\n        \"temp\": 37.8,\n        \"rr\": 18,\n        \"spo2\": 96,\n        \"last_updated\": \"14:00\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Oxycodone 5mg\",\n          \"route\": \"Oral\",\n          \"due\": \"14:00\",\n          \"status\": \"given\"\n        },\n        {\n          \"name\": \"Metoclopramide 10mg\",\n          \"route\": \"IV\",\n          \"due\": \"18:00\",\n          \"status\": \"pending\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Wound check and dressing change due at 18:00\"\n      ],\n      \"alerts\": [],\n      \"nurse_notes\": [\n        {\n          \"time\": \"13:30\",\n          \"text\": \"Patient reported nausea — not vomiting. Ondansetron PRN administered. Pain 4/10.\"\n        }\n      ]\n    },\n    {\n      \"patient_id\": \"pt_003\",\n      \"name\": \"Dorothy Chen\",\n      \"age\": 45,\n      \"bed\": \"4C\",\n      \"diagnosis\": \"Hypertensive urgency — BP now controlled\",\n      \"admission_date\": \"2025-03-10\",\n      \"vitals\": {\n        \"hr\": 72,\n        \"bp\": \"138/86\",\n        \"temp\": 36.8,\n        \"rr\": 16,\n        \"spo2\": 98,\n        \"last_updated\": \"13:30\"\n      },\n      \"medications\": [\n        {\n          \"name\": \"Amlodipine 10mg\",\n          \"route\": \"Oral\",\n          \"due\": \"08:00\",\n          \"status\": \"given\"\n        },\n        {\n          \"name\": \"Ramipril 5mg\",\n          \"route\": \"Oral\",\n          \"due\": \"08:00\",\n          \"status\": \"given\"\n        }\n      ],\n      \"pending_orders\": [\n        \"Discharge planning — social work referral in progress\"\n      ],\n      \"alerts\": [],\n      \"nurse_notes\": [\n        {\n          \"time\": \"08:30\",\n          \"text\": \"All morning medications administered. BP improving.\"\n        }\n      ]\n    }\n  ]\n}"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"shift_id\": \"shift-1005-day\",\n  \"status\": \"draft\",\n  \"generated_at\": \"2026-09-02T08:00:00+00:00\",\n  \"results\": [\n    {\n      \"patient_id\": \"pt_001\",\n      \"success\": true,\n      \"summary\": {\n        \"patient_id\": \"pt_001\",\n        \"priority\": \"critical\",\n        \"situation\": \"Margaret O'Brien, 72F, Bed 4A, admitted with community-acquired pneumonia. Currently on 4L supplemental O2 following SpO2 drop to 91% at 14:30. IV antibiotics delayed due to cannula issue; cannula re-sited at 14:50 and dose now pending.\",\n        \"background\": \"Admitted 09/03 with confirmed CAP. Paracetamol 1g given at 12:00. Chest X-ray repeat ordered but not yet performed. Blood cultures ordered but not yet collected.\",\n        \"assessment\": \"Patient clinically unstable. HR 108 bpm, SpO2 91% on supplemental O2, Temp 38.6 C, RR 22/min. Delayed antibiotic administration adds urgency.\",\n        \"recommendation\": \"1. Administer Amoxicillin-Clavulanate 1.2g IV immediately.\\n2. Chase chest X-ray porter.\\n3. Collect blood cultures x2 before next antibiotic dose.\\n4. Monitor SpO2 continuously.\",\n        \"flags\": [\n          \"SpO2 91% — supplemental O2 in use\",\n          \"IV antibiotic dose pending (delayed)\",\n          \"Chest X-ray not yet completed\",\n          \"Blood cultures not yet collected\"\n        ],\n        \"generated_at\": \"2026-09-02T08:00:00+00:00\"\n      },\n      \"error\": null\n    },\n    {\n      \"patient_id\": \"pt_002\",\n      \"success\": true,\n      \"summary\": {\n        \"patient_id\": \"pt_002\",\n        \"priority\": \"watch\",\n        \"situation\": \"James Thornton, 58M, Bed 4B, post-operative day 2 after laparoscopic appendectomy. Nausea this afternoon; pain 4/10.\",\n        \"background\": \"Admitted 09/03. Oxycodone given at 14:00. Metoclopramide due 18:00. Wound check due 18:00.\",\n        \"assessment\": \"Vitals acceptable (HR 98, SpO2 96%, temp 37.8). Watch for worsening nausea or wound issues.\",\n        \"recommendation\": \"1. Give Metoclopramide 10mg IV at 18:00.\\n2. Complete wound check and dressing change at 18:00.\\n3. Reassess pain and nausea at start of incoming shift.\",\n        \"flags\": [\n          \"Wound check due 18:00\",\n          \"Antiemetic pending 18:00\"\n        ],\n        \"generated_at\": \"2026-09-02T08:00:00+00:00\"\n      },\n      \"error\": null\n    },\n    {\n      \"patient_id\": \"pt_003\",\n      \"success\": true,\n      \"summary\": {\n        \"patient_id\": \"pt_003\",\n        \"priority\": \"stable\",\n        \"situation\": \"Dorothy Chen, 45F, Bed 4C, admitted with hypertensive urgency. BP now controlled at 138/86.\",\n        \"background\": \"Admitted 10/03. Morning antihypertensives given. Social work referral for discharge planning in progress.\",\n        \"assessment\": \"Clinically stable. Vitals within acceptable range. No unresolved alerts.\",\n        \"recommendation\": \"1. Confirm social work review before discharge.\\n2. No urgent clinical actions this handoff.\",\n        \"flags\": [\n          \"Discharge pending social work review\"\n        ],\n        \"generated_at\": \"2026-09-02T08:00:00+00:00\"\n      },\n      \"error\": null\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "Generate SBAR — minimal patient",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Has results', function () {",
+              "    var json = pm.response.json();",
+              "    pm.expect(json.results).to.be.an('array');",
+              "    pm.expect(json.results[0].patient_id).to.eql('pt_min');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shift_id\": \"shift-minimal\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_min\",\n      \"name\": \"Alex Rivera\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/summary/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "summary",
+            "generate"
+          ]
+        },
+        "description": "Smallest valid request: shift_id, nurse_id, and one patient with only patient_id and name. Other chart fields default to empty."
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/summary/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "summary",
+                "generate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_id\": \"shift-minimal\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": [\n    {\n      \"patient_id\": \"pt_min\",\n      \"name\": \"Alex Rivera\"\n    }\n  ]\n}"
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"shift_id\": \"shift-minimal\",\n  \"status\": \"draft\",\n  \"generated_at\": \"2026-09-02T08:00:00+00:00\",\n  \"results\": [\n    {\n      \"patient_id\": \"pt_min\",\n      \"success\": true,\n      \"summary\": {\n        \"patient_id\": \"pt_min\",\n        \"priority\": \"stable\",\n        \"situation\": \"Alex Rivera. Limited chart data supplied for this handoff.\",\n        \"background\": \"No diagnosis, vitals, medications, or notes were provided.\",\n        \"assessment\": \"Unable to assess acuity from the chart; treat as data-incomplete.\",\n        \"recommendation\": \"1. Confirm identity and bed with the outgoing nurse.\\n2. Obtain latest vitals and active orders before acting.\",\n        \"flags\": [\n          \"Chart incomplete — vitals not recorded\"\n        ],\n        \"generated_at\": \"2026-09-02T08:00:00+00:00\"\n      },\n      \"error\": null\n    }\n  ]\n}"
+        }
+      ]
+    },
+    {
+      "name": "Generate SBAR — invalid (empty patients)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 422', function () { pm.response.to.have.status(422); });"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"shift_id\": \"shift-invalid\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": []\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/summary/generate",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "summary",
+            "generate"
+          ]
+        },
+        "description": "patients must contain at least one Patient. Empty list returns FastAPI 422."
+      },
+      "response": [
+        {
+          "name": "422 Unprocessable Entity",
+          "originalRequest": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/summary/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "summary",
+                "generate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_id\": \"shift-invalid\",\n  \"nurse_id\": \"nurse_001\",\n  \"patients\": []\n}"
+            }
+          },
+          "status": "Unprocessable Entity",
+          "code": 422,
+          "_postman_previewlanguage": "json",
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n  \"detail\": [\n    {\n      \"type\": \"too_short\",\n      \"loc\": [\n        \"body\",\n        \"patients\"\n      ],\n      \"msg\": \"List should have at least 1 item after validation, not 0\",\n      \"input\": []\n    }\n  ]\n}"
+        }
+      ]
+    }
+  ]
+}

@@ -54,12 +54,12 @@ cp .env.example .env
 python main.py
 
 # 6. Test the API (in a new terminal)
-curl http://localhost:8000/sample-patients
+curl http://localhost:8008/sample-patients
 ```
 
-Server will be available at: **http://localhost:8000**
+Server will be available at: **http://localhost:8008**
 
-API Documentation: **http://localhost:8000/docs**
+API Documentation: **http://localhost:8008/docs**
 
 ## 📦 Installation
 
@@ -134,7 +134,7 @@ All configuration is in `config.py` and `.env` file.
 | `OPENAI_MODEL` | Model to use | `qwen3:1.7b` |
 | `OPENAI_TEMPERATURE` | Temperature (0.0-1.0) | `0.1` |
 | `API_HOST` | Server host | `0.0.0.0` |
-| `API_PORT` | Server port | `8000` |
+| `API_PORT` | Server port | `8008` |
 | `API_RELOAD` | Auto-reload on code changes | `False` |
 
 ### Adding Clinical Guidelines
@@ -167,12 +167,12 @@ Expected output:
 🏥 MEDICAL GUIDELINE VALIDATION API - STARTING
 ================================================================================
 🤖 AI Model: qwen3:1.7b
-📍 Server: http://0.0.0.0:8000
-📚 API Docs: http://localhost:8000/docs
+📍 Server: http://0.0.0.0:8008
+📚 API Docs: http://localhost:8008/docs
 ================================================================================
 
 ✅ All services initialized and ready!
-INFO:     Uvicorn running on http://0.0.0.0:8000
+INFO:     Uvicorn running on http://0.0.0.0:8008
 INFO:     Application startup complete.
 ```
 
@@ -180,10 +180,10 @@ INFO:     Application startup complete.
 
 ```bash
 # Get list of sample patients
-curl http://localhost:8000/sample-patients
+curl http://localhost:8008/sample-patients
 
 # Validate Patient P003 (Septic Shock - has critical issues)
-curl -X POST "http://localhost:8000/validate/quick-check" \
+curl -X POST "http://localhost:8008/validate/quick-check" \
   -H "Content-Type: application/json" \
   -d '{"patient_id": "P003"}'
 ```
@@ -191,7 +191,7 @@ curl -X POST "http://localhost:8000/validate/quick-check" \
 ### Custom Validation Request
 
 ```bash
-curl -X POST "http://localhost:8000/validate/guideline-check" \
+curl -X POST "http://localhost:8008/validate/guideline-check" \
   -H "Content-Type: application/json" \
   -d '{
     "patient_id": "12345",
@@ -302,7 +302,7 @@ Get full details for a sample patient.
 
 ### Interactive API Docs
 
-Visit **http://localhost:8000/docs** for interactive Swagger UI documentation.
+Visit **http://localhost:8008/docs** for interactive Swagger UI documentation.
 
 ## 🧪 Sample Data
 
@@ -369,13 +369,13 @@ python -m test.test_guidelines_validator
 
 ```bash
 # Test 1: Health check
-curl http://localhost:8000/health
+curl http://localhost:8008/health
 
 # Test 2: Get sample patients
-curl http://localhost:8000/sample-patients
+curl http://localhost:8008/sample-patients
 
 # Test 3: Quick check Patient P003
-curl -X POST http://localhost:8000/validate/quick-check \
+curl -X POST http://localhost:8008/validate/quick-check \
   -H "Content-Type: application/json" \
   -d '{"patient_id": "P003"}'
 ```
@@ -403,14 +403,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8000
+EXPOSE 8008
 
 CMD ["python", "main.py"]
 ```
 
 ```bash
 docker build -t medical-guideline-api .
-docker run -p 8000:8000 --env-file .env medical-guideline-api
+docker run -p 8008:8008 --env-file .env medical-guideline-api
 ```
 
 ### Cloud Deployment Options
@@ -426,7 +426,7 @@ docker run -p 8000:8000 --env-file .env medical-guideline-api
 ```env
 OPENAI_API_KEY=sk-prod-key-here
 API_HOST=0.0.0.0
-API_PORT=8000
+API_PORT=8008
 API_RELOAD=False
 ```
 

@@ -38,8 +38,8 @@ try:
 except ImportError:
     sf = None
 
-DEFAULT_BASE = "http://localhost:8013"
-DEFAULT_WS = "ws://localhost:8013/api/v1/ws/transcribe"
+DEFAULT_BASE = "http://localhost:8027"
+DEFAULT_WS = "ws://localhost:8027/api/v1/ws/transcribe"
 SR = 16000
 
 

@@ -24,6 +24,16 @@ async def lifespan(app: FastAPI):
     configure_logging()
     try:
         init_db()
+        from app.db.session import SessionLocal
+        from app.fixtures.decoders import seed_default_decoders
+
+        if SessionLocal is not None:
+            db = SessionLocal()
+            try:
+                seed_default_decoders(db)
+                logger.info("Seeded default view decoders")
+            finally:
+                db.close()
         logger.info("Database initialized")
     except Exception as exc:
         logger.warning(

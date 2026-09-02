@@ -61,7 +61,7 @@ PACS_ENABLED = os.getenv("PACS_ENABLED", "false").lower() == "true"
 # override via env to point at the compose service containers.
 _QC = os.getenv("QC_SERVICE_URL", "http://127.0.0.1:8016")
 _INTERP = os.getenv("INTERP_SERVICE_URL", "http://127.0.0.1:8015")
-_REPORT = os.getenv("REPORT_SERVICE_URL", "http://127.0.0.1:8000")
+_REPORT = os.getenv("REPORT_SERVICE_URL", "http://127.0.0.1:8024")
 _AUTOFILL = os.getenv("AUTOFILL_SERVICE_URL", "http://127.0.0.1:8022")
 
 
@@ -2402,4 +2402,9 @@ async def api_save_draft(payload: dict[str, Any]) -> JSONResponse:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8090, log_level="info")
+    uvicorn.run(
+        app,
+        host=os.getenv("API_HOST", "127.0.0.1"),
+        port=int(os.getenv("API_PORT", "8090")),
+        log_level="info",
+    )

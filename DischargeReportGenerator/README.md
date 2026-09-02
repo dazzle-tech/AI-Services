@@ -51,10 +51,10 @@ cp .env.example .env
 python main.py
 
 # 6. Test API
-curl http://localhost:8000/health
+curl http://localhost:8005/health
 ```
 
-**API Documentation:** http://localhost:8000/docs
+**API Documentation:** http://localhost:8005/docs
 
 ## 📦 Installation
 
@@ -129,8 +129,8 @@ Expected output:
 📝 DISCHARGE REPORT GENERATION API - STARTING
 ================================================================================
 🤖 AI Model: qwen3:1.7b
-📍 Server: http://0.0.0.0:8000
-📚 API Docs: http://localhost:8000/docs
+📍 Server: http://0.0.0.0:8005
+📚 API Docs: http://localhost:8005/docs
 ✅ Discharge Report Generator ready!
 ```
 
@@ -138,7 +138,7 @@ Expected output:
 
 **Using cURL:**
 ```bash
-curl -X POST "http://localhost:8000/discharge/quick-generate?patient_id=DISCH001"
+curl -X POST "http://localhost:8005/discharge/quick-generate?patient_id=DISCH001"
 ```
 
 **Using Python:**
@@ -146,7 +146,7 @@ curl -X POST "http://localhost:8000/discharge/quick-generate?patient_id=DISCH001
 import requests
 
 response = requests.post(
-    "http://localhost:8000/discharge/quick-generate",
+    "http://localhost:8005/discharge/quick-generate",
     params={"patient_id": "DISCH001", "template_name": "standard"}
 )
 
@@ -229,7 +229,7 @@ List available report templates.
 #### `GET /discharge/sample-patients`
 List available sample patients for testing.
 
-**Interactive API Docs:** Visit http://localhost:8000/docs
+**Interactive API Docs:** Visit http://localhost:8005/docs
 
 ## 📋 Templates
 
@@ -291,7 +291,7 @@ See [POSTMAN_TESTING_GUIDE.md](POSTMAN_TESTING_GUIDE.md) for complete guide.
 
 **Quick Postman Test:**
 ```
-POST http://localhost:8000/discharge/quick-generate?patient_id=DISCH001
+POST http://localhost:8005/discharge/quick-generate?patient_id=DISCH001
 ```
 
 ### Sample Patient
@@ -366,7 +366,7 @@ data = {
 }
 
 response = requests.post(
-    "http://localhost:8000/discharge/generate-report",
+    "http://localhost:8005/discharge/generate-report",
     json=data
 )
 
@@ -385,14 +385,14 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-EXPOSE 8000
+EXPOSE 8005
 
 CMD ["python", "main.py"]
 ```
 
 ```bash
 docker build -t discharge-report-api .
-docker run -p 8000:8000 --env-file .env discharge-report-api
+docker run -p 8005:8005 --env-file .env discharge-report-api
 ```
 
 ### Cloud Deployment
@@ -408,7 +408,7 @@ docker run -p 8000:8000 --env-file .env discharge-report-api
 ```env
 OPENAI_API_KEY=sk-prod-key
 API_HOST=0.0.0.0
-API_PORT=8000
+API_PORT=8005
 API_RELOAD=False
 ```
 
