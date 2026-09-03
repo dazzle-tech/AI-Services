@@ -18,15 +18,75 @@ from models.schemas import (
 from config import settings, Status, Severity
 
 logger = logging.getLogger(__name__)
-_THINK_BLOCK_RE = re.compile(r"^\s*<think>.*?</think>\s*", re.IGNORECASE | re.DOTALL)
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
+_OPEN_THINK_RE = re.compile(r"<think>", re.IGNORECASE)
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
 
 
 def _strip_model_wrappers(raw_text: str) -> str:
-    clean = _THINK_BLOCK_RE.sub("", raw_text.strip(), count=1)
+    clean = _THINK_BLOCK_RE.sub("", (raw_text or "").strip())
+    if _OPEN_THINK_RE.search(clean):
+        brace = clean.find("{")
+        clean = clean[brace:] if brace != -1 else _OPEN_THINK_RE.sub("", clean)
+    fence = _JSON_FENCE_RE.search(clean)
+    if fence:
+        return fence.group(1).strip()
     if clean.startswith("```"):
         clean = clean.split("\n", 1)[-1]
         clean = clean.rsplit("```", 1)[0]
     return clean.strip()
+
+
+def _extract_first_json_object(raw_text: str) -> str | None:
+    start = -1
+    depth = 0
+    in_string = False
+    escape = False
+
+    for index, char in enumerate(raw_text):
+        if start < 0:
+            if char == "{":
+                start = index
+                depth = 1
+            continue
+
+        if in_string:
+            if escape:
+                escape = False
+            elif char == "\\":
+                escape = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return raw_text[start : index + 1]
+    return None
+
+
+def _parse_json_object(raw_text: str) -> Dict[str, Any]:
+    cleaned = _strip_model_wrappers(raw_text)
+    try:
+        parsed = json.loads(cleaned)
+    except json.JSONDecodeError:
+        candidate = _extract_first_json_object(cleaned)
+        if not candidate:
+            raise
+        parsed = json.loads(candidate)
+
+    if not isinstance(parsed, dict):
+        raise json.JSONDecodeError(
+            "Model response was JSON but not an object",
+            cleaned,
+            0,
+        )
+    return parsed
 
 
 class BaseValidationService:
@@ -53,7 +113,30 @@ class BaseValidationService:
         self.temperature = settings.OPENAI_TEMPERATURE
         self.max_tokens = settings.OPENAI_MAX_TOKENS
         self.timeout = settings.OPENAI_TIMEOUT
-    
+
+    def _uses_qwen_model(self) -> bool:
+        return "qwen" in (self.model or "").lower()
+
+    def _should_disable_thinking(self) -> bool:
+        return self._uses_qwen_model() or "11434" in (self.base_url or "")
+
+    async def _create_completion(self, create_kwargs: Dict[str, Any]):
+        try:
+            return await self.client.chat.completions.create(**create_kwargs)
+        except Exception as first_error:
+            retry_kwargs = dict(create_kwargs)
+            dropped = False
+            if retry_kwargs.pop("extra_body", None) is not None:
+                dropped = True
+            error_text = str(first_error).lower()
+            if "response_format" in error_text or "json_object" in error_text:
+                retry_kwargs.pop("response_format", None)
+                dropped = True
+            if not dropped:
+                raise
+            logger.warning("Retrying model call without unsupported JSON/thinking options: %s", first_error)
+            return await self.client.chat.completions.create(**retry_kwargs)
+
     async def call_openai(self, system_prompt: str, user_message: str) -> Dict[str, Any]:
         """
         Call OpenAI API with retry logic
@@ -65,10 +148,20 @@ class BaseValidationService:
         Returns:
             Parsed JSON response from the model
         """
+        json_only_system = (
+            system_prompt
+            + "\n\nReply with a single JSON object only. "
+            "Do not use markdown fences or <think> tags."
+        )
+        json_only_user = user_message
+        if self._uses_qwen_model():
+            json_only_user = f"{user_message.rstrip()}\n\n/no_think"
+
         for attempt in range(settings.MAX_RETRY_ATTEMPTS):
+            content = ""
             try:
                 logger.info(f"Calling OpenAI API (attempt {attempt + 1})")
-                prompt_length = len(system_prompt) + len(user_message)
+                prompt_length = len(json_only_system) + len(json_only_user)
                 logger.info(
                     "Calling medication/test validation using model %s base_url=%s timeout=%ss prompt_length=%s",
                     self.model,
@@ -76,35 +169,62 @@ class BaseValidationService:
                     self.timeout,
                     prompt_length,
                 )
-                
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_message}
+
+                create_kwargs = {
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": json_only_system},
+                        {"role": "user", "content": json_only_user},
                     ],
-                    temperature=self.temperature,
-                    max_tokens=self.max_tokens,
-                    response_format={"type": "json_object"},
-                    timeout=self.timeout,
-                )
-                
-                content = response.choices[0].message.content or ""
-                result = json.loads(_strip_model_wrappers(content))
-                
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens,
+                    "response_format": {"type": "json_object"},
+                    "timeout": self.timeout,
+                }
+                if self._should_disable_thinking():
+                    create_kwargs["extra_body"] = {
+                        "chat_template_kwargs": {"enable_thinking": False},
+                    }
+
+                response = await self._create_completion(create_kwargs)
+
+                choice = response.choices[0]
+                content = choice.message.content or ""
+                finish_reason = getattr(choice, "finish_reason", None)
+                if finish_reason == "length":
+                    logger.warning(
+                        "Model response truncated by max_tokens=%s; thinking may have consumed the budget",
+                        self.max_tokens,
+                    )
+                if not content.strip():
+                    reasoning = getattr(choice.message, "reasoning_content", None) or getattr(
+                        choice.message, "reasoning", None
+                    )
+                    if reasoning:
+                        logger.warning(
+                            "Model returned only reasoning content (%s chars) and no JSON payload",
+                            len(reasoning),
+                        )
+                    raise json.JSONDecodeError("Empty model response", content, 0)
+
+                result = _parse_json_object(content)
                 logger.info("OpenAI API call successful")
                 return result
-                
+
             except json.JSONDecodeError as e:
-                logger.error(f"JSON decode error: {str(e)}")
+                logger.error(
+                    "JSON decode error: %s; preview=%r",
+                    str(e),
+                    (content if "content" in locals() else "")[:500],
+                )
                 if attempt == settings.MAX_RETRY_ATTEMPTS - 1:
                     raise Exception("Failed to parse OpenAI response as JSON")
-                    
+
             except Exception as e:
                 logger.error(f"OpenAI API error: {str(e)}")
                 if attempt == settings.MAX_RETRY_ATTEMPTS - 1:
                     raise Exception(f"OpenAI API call failed: {str(e)}")
-        
+
         raise Exception("Max retry attempts reached")
     
     def parse_validation_response(self, api_response: Dict[str, Any]) -> ValidationResponse:
@@ -118,10 +238,11 @@ class BaseValidationService:
             Validated ValidationResponse object
         """
         try:
-            # Parse quick summary
+            summary = api_response.get("quick_summary") or {}
+            overall_status = str(summary.get("overall_status", "")).strip().upper()
             quick_summary = QuickSummary(
-                overall_status=api_response["quick_summary"]["overall_status"],
-                top_priority=api_response["quick_summary"]["top_priority"]
+                overall_status=overall_status,
+                top_priority=summary.get("top_priority") or "No issues found",
             )
             
             # Parse detailed validations
