@@ -120,7 +120,17 @@ async def _extract(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Field extraction failed: {response.status_code} {response.text}",
         )
-    return response.json()
+    return _unwrap_display_payload(response.json(), window_id=window_id)
+
+
+def _unwrap_display_payload(payload: dict[str, Any], *, window_id: str) -> dict[str, Any]:
+    """Return EMR JSON — unwrap legacy WindowExtractResponse when DisplayPlugin still wraps."""
+    if window_id == "nursing_verification_of_marking_site":
+        return payload
+    fields = payload.get("fields")
+    if isinstance(fields, dict) and "window_id" in payload and "raw_text" in payload:
+        return fields
+    return payload
 
 
 async def ping_downstream() -> dict[str, str]:

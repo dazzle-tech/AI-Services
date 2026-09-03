@@ -14,13 +14,6 @@ from app.models.schemas import (
     AgentWindowJsonRequest,
     DownstreamHealth,
     HealthResponse,
-    InductionIntraoperativeResponse,
-    IntraoperativeResponse,
-    ObservationDrugsResponse,
-    OperativeNoteResponse,
-    PreEvaluationPlanResponse,
-    SignOutResponse,
-    TimeOutResponse,
     WindowExtractResponse,
 )
 from app.services.agent_service import fill_window, ping_downstream, spec_for
@@ -103,49 +96,49 @@ async def fill_nursing_verification_of_marking_site(
     return await _handle_window_voice(request, spec_for("nursing_verification_of_marking_site"))
 
 
-@router.post("/windows/nursing/time-out", response_model=TimeOutResponse)
+@router.post("/windows/nursing/time-out")
 async def fill_nursing_time_out(
     request: Request,
 ) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("nursing_time_out"))
 
 
-@router.post("/windows/nursing/intraoperative", response_model=IntraoperativeResponse)
+@router.post("/windows/nursing/intraoperative")
 async def fill_nursing_intraoperative(
     request: Request,
 ) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("nursing_intraoperative"))
 
 
-@router.post("/windows/nursing/sign-out", response_model=SignOutResponse)
+@router.post("/windows/nursing/sign-out")
 async def fill_nursing_sign_out(
     request: Request,
 ) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("nursing_sign_out"))
 
 
-@router.post("/windows/anesthesia/pre-evaluation-plan", response_model=PreEvaluationPlanResponse)
+@router.post("/windows/anesthesia/pre-evaluation-plan")
 async def fill_anesthesia_pre_evaluation_plan(
     request: Request,
 ) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("anesthesia_pre_evaluation_plan"))
 
 
-@router.post("/windows/anesthesia/induction-intraoperative", response_model=InductionIntraoperativeResponse)
+@router.post("/windows/anesthesia/induction-intraoperative")
 async def fill_anesthesia_induction_intraoperative(
     request: Request,
 ) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("anesthesia_induction_intraoperative"))
 
 
-@router.post("/windows/anesthesia/observation-drugs", response_model=ObservationDrugsResponse)
+@router.post("/windows/anesthesia/observation-drugs")
 async def fill_anesthesia_observation_drugs(
     request: Request,
 ) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("anesthesia_observation_drugs"))
 
 
-@router.post("/windows/operative-note", response_model=OperativeNoteResponse)
+@router.post("/windows/operative-note")
 async def fill_operative_note(
     request: Request,
 ) -> dict[str, Any]:
