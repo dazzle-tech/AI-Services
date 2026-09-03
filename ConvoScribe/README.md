@@ -121,14 +121,17 @@ Collection variables (edit before running):
 
 **Suggested flow (one-shot):** Health Check → **Analyze Audio** (attach `samples/visit_sample.wav`) — returns transcript, roles, and SOAP in a single response.
 
+For a JSON body instead of a file upload, use **Analyze Audio (Raw JSON) — 3 minute visit**. That request already contains `audio_base64` for `samples/visit_3min_sample.wav`. Re-import the collection after regenerating the sample (`py scripts/generate_sample_audio.py`, which also runs `py scripts/embed_3min_base64_postman.py`). The collection file is large because it embeds the full visit.
+
 ### Sample audio
 
-Two ready-made visit recordings:
+Ready-made visit recordings:
 
 | File | What it contains |
 |------|------------------|
 | [`samples/visit_sample.wav`](samples/visit_sample.wav) | Sequential two-speaker visit (doctor, patient) |
 | [`samples/visit_overlap_sample.wav`](samples/visit_overlap_sample.wav) | Three-speaker chest-pain visit with overlapping talk (doctor, patient, family) |
+| [`samples/visit_3min_sample.wav`](samples/visit_3min_sample.wav) | Sequential GP visit of at least 3 minutes (chest pressure, diabetes, plan). Script: [`samples/visit_3min_sample.txt`](samples/visit_3min_sample.txt) |
 
 Regenerate both anytime:
 

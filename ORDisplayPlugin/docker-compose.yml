@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ordisplay-postgres
+    environment:
+      POSTGRES_USER: ordisplay
+      POSTGRES_PASSWORD: ordisplay
+      POSTGRES_DB: ordisplay
+    ports:
+      - "5436:5432"
+    volumes:
+      - ordisplay_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ordisplay"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - ordisplay-network
+
+  api:
+    build: .
+    container_name: ordisplay-api
+    ports:
+      - "8032:8032"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://ordisplay:ordisplay@postgres:5432/ordisplay
+      USE_LLM_STUB: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ordisplay-network
+
+volumes:
+  ordisplay_pg_data:
+
+networks:
+  ordisplay-network:
+    driver: bridge

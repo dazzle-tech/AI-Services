@@ -1,0 +1,74 @@
+{
+  "info": {
+    "name": "ORDisplayPlugin",
+    "description": "Postman collection for ORDisplayPlugin — stage-2 mapper that reshapes ORScribe analyze/case JSON onto OR views (timeline, meds, counts, WHO checklist, roles).\n\nNo request headers required.\n\n**Setup**\n1. Import this collection.\n2. Set baseUrl (default http://localhost:8032).\n3. Run **Reshape — ORScribe analyze (all views)**.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8032"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Reshape — ORScribe analyze (all views)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"context\": \"operating_room\",\n  \"purpose\": \"timeline\",\n  \"view_ids\": [\"or_timeline\", \"or_medications\", \"or_counts\", \"or_checklist\", \"or_roles\"],\n  \"stage1_output\": {\n    \"needs_review\": false,\n    \"role_map\": {\n      \"SPEAKER_00\": {\"role\": \"surgeon\", \"confidence\": \"high\", \"needs_review\": false},\n      \"SPEAKER_01\": {\"role\": \"anesthetist\", \"confidence\": \"high\", \"needs_review\": false}\n    },\n    \"role_reasoning\": \"Speaker 0 makes incision; speaker 1 reports drugs.\",\n    \"timeline\": {\n      \"events\": [\n        {\"timestamp\": \"00:00:22\", \"type\": \"incision\", \"speaker_role\": \"surgeon\", \"description\": \"Incision made\"},\n        {\"timestamp\": \"00:01:10\", \"type\": \"medication\", \"speaker_role\": \"anesthetist\", \"description\": \"Propofol given\"}\n      ],\n      \"medications_administered\": [\n        {\"timestamp\": \"00:01:10\", \"drug\": \"propofol\", \"dose\": \"100 mg\", \"administered_by_role\": \"anesthetist\"}\n      ],\n      \"instrument_counts\": [\n        {\"timestamp\": \"00:14:02\", \"type\": \"sponge_count\", \"result\": \"correct\", \"reported_by_role\": \"nurse\"}\n      ]\n    },\n    \"checklist\": {\n      \"sign_in\": {\"completed\": true, \"items_confirmed\": [\"identity\", \"site marked\"], \"items_missing\": []},\n      \"time_out\": {\"completed\": true, \"items_confirmed\": [\"team introductions\"], \"items_missing\": []},\n      \"sign_out\": {\"completed\": true, \"items_confirmed\": [\"procedure recorded\"], \"items_missing\": []}\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reshape",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reshape"]
+        },
+        "description": "Paste ORScribe POST /api/v1/analyze JSON into stage1_output. Seeded views map timeline, meds, counts, checklist, and roles."
+      },
+      "response": []
+    },
+    {
+      "name": "Reshape — ORScribe case record",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"view_ids\": [\"or_medications\", \"or_checklist\", \"or_roles\"],\n  \"stage1_output\": {\n    \"procedure_type\": \"laparoscopic cholecystectomy\",\n    \"needs_review\": false,\n    \"role_map\": {\n      \"SPEAKER_00\": {\"role\": \"surgeon\", \"confidence\": \"high\", \"needs_review\": false}\n    },\n    \"role_reasoning\": \"Surgeon leads the case.\",\n    \"timeline\": {\n      \"events\": [\n        {\"timestamp\": \"00:00:22\", \"type\": \"incision\", \"speaker_role\": \"surgeon\", \"description\": \"Incision made\"}\n      ]\n    },\n    \"medications\": [\n      {\"timestamp\": \"00:01:10\", \"drug\": \"propofol\", \"dose\": \"100 mg\", \"administered_by_role\": \"anesthetist\"}\n    ],\n    \"instrument_counts\": [\n      {\"timestamp\": \"00:14:02\", \"type\": \"sponge_count\", \"result\": \"correct\", \"reported_by_role\": \"nurse\"}\n    ],\n    \"checklist_result\": {\n      \"sign_in\": {\"completed\": true, \"items_confirmed\": [\"identity\"], \"items_missing\": []},\n      \"time_out\": {\"completed\": true, \"items_confirmed\": [\"team introductions\"], \"items_missing\": []},\n      \"sign_out\": {\"completed\": true, \"items_confirmed\": [\"procedure recorded\"], \"items_missing\": []}\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/reshape",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "reshape"]
+        },
+        "description": "GET /api/v1/cases/{id} shape: medications, instrument_counts, checklist_result."
+      },
+      "response": []
+    }
+  ]
+}

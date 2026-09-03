@@ -56,7 +56,9 @@ def _analyze_bytes(
             detail=str(exc),
         ) from exc
     logger.info(
-        "Audio analyzed synchronously context=%s purpose=%s segments=%s needs_review=%s",
+        "Audio analyzed synchronously backend=%s duration=%.1fs context=%s purpose=%s segments=%s needs_review=%s",
+        settings.transcription_backend,
+        duration,
         prompt_options.context_type,
         prompt_options.purpose,
         len(result.raw_transcript.segments),
