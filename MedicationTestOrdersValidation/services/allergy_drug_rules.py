@@ -1,6 +1,10 @@
+import re
+
 from config import Status
 from models.drug_utils import normalize_drug_name
-from models.schemas import AllergyDrugValidationRequest, DetailedValidation, ValidationResponse
+from models.schemas import AllergyDrugValidationRequest, DetailedValidation, RecommendedAlternative, ValidationResponse
+
+_ITEM_SPLIT_RE = re.compile(r"\s*(?:,| and | with | \+ )\s*", re.IGNORECASE)
 
 _DRUG_CLASSES: dict[str, frozenset[str]] = {
     "macrolide": frozenset(
@@ -116,10 +120,70 @@ def run_deterministic_checks(request: AllergyDrugValidationRequest) -> list[Deta
     return findings
 
 
+def substance_names_from_request(request: AllergyDrugValidationRequest) -> set[str]:
+    names = {normalize_drug_name(drug.drug_name) for drug in request.drugs}
+    names.update(normalize_drug_name(allergy.allergy_description) for allergy in request.allergies)
+    names.discard("")
+    return names
+
+
+def _tokens_from_label(label: str) -> list[str]:
+    return [part.strip() for part in _ITEM_SPLIT_RE.split(label or "") if part.strip()]
+
+
+def finding_uses_only_allowed_substances(
+    finding: DetailedValidation,
+    allowed: set[str],
+) -> bool:
+    if not allowed:
+        return True
+    tokens = _tokens_from_label(finding.item)
+    if not tokens:
+        return False
+    return all(normalize_drug_name(token) in allowed for token in tokens)
+
+
+def alternative_uses_only_allowed_substances(
+    alternative: RecommendedAlternative,
+    allowed: set[str],
+) -> bool:
+    if not allowed:
+        return True
+    tokens = _tokens_from_label(alternative.original_item)
+    if not tokens:
+        return False
+    return all(normalize_drug_name(token) in allowed for token in tokens)
+
+
+def filter_llm_findings_to_request(
+    response: ValidationResponse,
+    request: AllergyDrugValidationRequest,
+) -> ValidationResponse:
+    allowed = substance_names_from_request(request)
+    filtered_findings = [
+        finding
+        for finding in response.detailed_validations
+        if finding_uses_only_allowed_substances(finding, allowed)
+    ]
+    filtered_alternatives = [
+        alternative
+        for alternative in response.recommended_alternatives
+        if alternative_uses_only_allowed_substances(alternative, allowed)
+    ]
+    return response.model_copy(
+        update={
+            "detailed_validations": filtered_findings,
+            "recommended_alternatives": filtered_alternatives,
+        }
+    )
+
+
 def merge_validation_response(
     response: ValidationResponse,
     deterministic_findings: list[DetailedValidation],
+    request: AllergyDrugValidationRequest,
 ) -> ValidationResponse:
+    response = filter_llm_findings_to_request(response, request)
     merged_findings = _merge_findings(deterministic_findings, response.detailed_validations)
     merged_findings = _drop_contradictory_info_findings(merged_findings)
     overall_status = _overall_status_from_findings(merged_findings)

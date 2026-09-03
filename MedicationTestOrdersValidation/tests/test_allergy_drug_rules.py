@@ -1,7 +1,7 @@
 import pytest
 
 from models.schemas import AllergyDrugValidationRequest
-from services.allergy_drug_rules import merge_validation_response, run_deterministic_checks
+from services.allergy_drug_rules import filter_llm_findings_to_request, merge_validation_response, run_deterministic_checks
 from models.schemas import DetailedValidation, QuickSummary, ValidationResponse
 
 
@@ -65,7 +65,11 @@ def test_merge_upgrades_safe_llm_response_when_llm_lists_critical_finding():
         recommended_alternatives=[],
         confidence_score=0.95,
     )
-    merged = merge_validation_response(response, [])
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Clarithromycin"}, {"drug_name": "Simvastatin"}, {"drug_name": "Rosuvastatin"}],
+    )
+    merged = merge_validation_response(response, [], request)
     assert merged.quick_summary.overall_status == "CONTRAINDICATED"
     assert merged.detailed_validations[0].severity == "critical"
     assert not any(finding.severity == "info" for finding in merged.detailed_validations)
@@ -89,12 +93,53 @@ def test_merge_upgrades_safe_llm_response():
         recommended_alternatives=[],
         confidence_score=0.95,
     )
-    deterministic = run_deterministic_checks(
-        AllergyDrugValidationRequest(
-            allergies=[{"allergy_description": "Clarithromycin"}],
-            drugs=[{"drug_name": "Simvastatin", "drug_name1": "Rosuvastatin"}],
-        )
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin"}],
+        drugs=[{"drug_name": "Simvastatin", "drug_name1": "Rosuvastatin"}],
     )
-    merged = merge_validation_response(response, deterministic)
+    deterministic = run_deterministic_checks(request)
+    merged = merge_validation_response(response, deterministic, request)
     assert merged.quick_summary.overall_status == "CAUTION"
     assert any("Duplicate statin therapy" in finding.issue for finding in merged.detailed_validations)
+
+
+def test_hallucinated_drug_findings_are_removed():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Clarithromycin"}, {"drug_name": "Simvastatin"}, {"drug_name": "Rosuvastatin"}],
+    )
+    response = ValidationResponse(
+        quick_summary=QuickSummary(
+            overall_status="CAUTION",
+            top_priority="Multiple issues found",
+        ),
+        detailed_validations=[
+            DetailedValidation(
+                item="Clarithromycin",
+                severity="critical",
+                issue="Patient has a documented allergy to clarithromycin.",
+                recommendation="Avoid prescribing clarithromycin.",
+                evidence="Direct allergy match with documented patient allergy.",
+            ),
+            DetailedValidation(
+                item="Colchicine and Simvastatin",
+                severity="moderate",
+                issue="Potential for increased risk of myopathy when colchicine is used with simvastatin.",
+                recommendation="Monitor for muscle pain.",
+                evidence="Colchicine was not in the request.",
+            ),
+            DetailedValidation(
+                item="Colchicine",
+                severity="info",
+                issue="No direct allergy or drug interaction conflicts found.",
+                recommendation="Proceed with prescribing if clinically indicated.",
+                evidence="No known cross-reactivity with clarithromycin allergy.",
+            ),
+        ],
+        recommended_alternatives=[],
+        confidence_score=0.95,
+    )
+    filtered = filter_llm_findings_to_request(response, request)
+    items = [finding.item for finding in filtered.detailed_validations]
+    assert items == ["Clarithromycin"]
+    assert all("Colchicine" not in finding.item for finding in filtered.detailed_validations)

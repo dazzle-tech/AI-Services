@@ -97,6 +97,7 @@ Analyze for:
 7. SAFE if no allergy conflict or clinically significant interaction is identified
 8. Use optional patient details (age from DOB, diagnosis, chief complaint) only when present
 9. Do not invent allergies, drugs, or diagnoses that are not in the input
+10. Every detailed_validations.item must name only drugs from the input drug list (or a combination of those exact drugs)
 
 Provide structured JSON output with:
 - Overall safety status (SAFE/CAUTION/CONTRAINDICATED)

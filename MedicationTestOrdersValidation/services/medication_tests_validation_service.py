@@ -497,7 +497,7 @@ class AllergyDrugValidationService(BaseValidationService):
         )
         result = self.parse_validation_response(api_response)
         deterministic_findings = run_deterministic_checks(request)
-        result = merge_validation_response(result, deterministic_findings)
+        result = merge_validation_response(result, deterministic_findings, request)
         logger.info("Allergy-drug validation completed: %s", result.quick_summary.overall_status)
         return result
 
@@ -514,7 +514,7 @@ PATIENT INFORMATION (optional; omit from reasoning if not provided):
 DOCUMENTED ALLERGIES:
 {allergies_block}
 
-DRUGS TO VALIDATE:
+DRUGS TO VALIDATE (analyze ONLY these drugs; do not add or assume any other medications):
 {drugs_block}
 
 Please analyze for:
@@ -524,6 +524,7 @@ Please analyze for:
 4. Duplicate therapy or overlapping agents in the drug list
 5. Whether missing patient details change the conclusion (they should not invent data)
 6. Safer alternatives when a conflict is found
+7. Return findings ONLY for drugs listed above — never invent additional medications such as colchicine if it was not provided
 
 Respond with a JSON object containing:
 {{
