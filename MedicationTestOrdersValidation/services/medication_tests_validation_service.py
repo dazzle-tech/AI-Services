@@ -16,6 +16,7 @@ from models.schemas import (
     RecommendedAlternative
 )
 from config import settings, Status, Severity
+from services.allergy_drug_rules import merge_validation_response, run_deterministic_checks
 
 logger = logging.getLogger(__name__)
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.IGNORECASE | re.DOTALL)
@@ -495,6 +496,8 @@ class AllergyDrugValidationService(BaseValidationService):
             user_message=user_message,
         )
         result = self.parse_validation_response(api_response)
+        deterministic_findings = run_deterministic_checks(request)
+        result = merge_validation_response(result, deterministic_findings)
         logger.info("Allergy-drug validation completed: %s", result.quick_summary.overall_status)
         return result
 

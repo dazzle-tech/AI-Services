@@ -109,13 +109,30 @@ class AllergyDrugValidationRequest(BaseModel):
     def coerce_drugs(cls, value):
         if not isinstance(value, list):
             return value
+        from models.drug_utils import expand_drug_dict_items
+
+        expanded = expand_drug_dict_items(value)
         coerced = []
-        for item in value:
+        for item in expanded:
             if isinstance(item, str):
                 coerced.append({"drug_name": item})
             else:
                 coerced.append(item)
         return coerced
+
+    @validator("drugs")
+    def dedupe_drugs(cls, value):
+        from models.drug_utils import normalize_drug_name
+
+        seen: set[str] = set()
+        unique = []
+        for drug in value:
+            key = normalize_drug_name(drug.drug_name)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(drug)
+        return unique
 
     class Config:
         extra = "ignore"
@@ -247,6 +264,10 @@ class DetailedValidation(BaseModel):
     issue: str = Field(..., description="Description of the issue")
     recommendation: str = Field(..., description="Recommended action")
     evidence: Optional[str] = Field(None, description="Clinical evidence or reasoning")
+
+    @validator("severity", pre=True)
+    def normalize_severity(cls, value: str) -> str:
+        return (value or "info").strip().lower()
 
 
 class RecommendedAlternative(BaseModel):
