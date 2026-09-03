@@ -88,3 +88,36 @@ class HealthResponse(BaseModel):
     status: str
     database: str
     details: Dict[str, Any] = Field(default_factory=dict)
+
+
+WindowRole = Literal["nurse", "anesthetist", "surgeon"]
+ConfidenceLevel = Literal["high", "medium", "low"]
+
+
+class WindowExtractRequest(BaseModel):
+    case_id: str = "unspecified"
+    role: WindowRole = "nurse"
+    staff_id: Optional[str] = None
+    text: str
+    existing_fields: Optional[Dict[str, Any]] = None
+
+
+class WindowDispatchRequest(BaseModel):
+    """Text + human window/tab labels. ORDisplayPlugin picks one of the 8 window fillers."""
+
+    text: str
+    window_name: str
+    role: str
+    case_id: str = "unspecified"
+    staff_id: Optional[str] = None
+    existing_fields: Optional[Dict[str, Any]] = None
+
+
+class WindowExtractResponse(BaseModel):
+    case_id: str
+    window_id: str
+    fields: Dict[str, Any]
+    confidence: ConfidenceLevel
+    needs_review: bool
+    missing_fields: List[str] = Field(default_factory=list)
+    raw_text: str

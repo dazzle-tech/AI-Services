@@ -3,6 +3,7 @@
 import base64
 import json
 import logging
+from datetime import datetime, timezone
 from io import BytesIO
 from typing import Any, Dict
 from uuid import UUID
@@ -30,10 +31,14 @@ from app.models.schemas import (
     RoleUpdateRequest,
     TranscriptResponse,
     TranscriptionRequestOptions,
+    WindowId,
+    WindowRole,
+    WindowTranscribeResponse,
     options_from_form,
 )
 from app.services.case_service import CaseService
 from app.services.pipeline_service import process_audio
+from app.services.window_transcribe_service import transcribe_window_audio
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +129,73 @@ def _analyze_bytes(
     )
 
 
+@router.post("/windows/transcribe", response_model=WindowTranscribeResponse)
+async def transcribe_window(
+    audio: UploadFile = File(...),
+    case_id: str = Form("unspecified"),
+    window_id: WindowId = Form(...),
+    role: WindowRole = Form(...),
+    staff: AuthContext = Depends(get_staff_context),
+) -> WindowTranscribeResponse:
+    """Stateless single-speaker STT for one UI window. Does not write to the database."""
+    resolved_staff_id = ""
+    extension = CaseService._validate_upload(audio)
+    data = await audio.read()
+    duration = CaseService._get_duration_seconds(data, extension)
+
+    if duration > settings.max_audio_duration_seconds:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Audio duration {duration:.1f}s exceeds maximum {settings.max_audio_duration_seconds}s",
+        )
+
+    try:
+        text = transcribe_window_audio(data, audio.filename or f"audio.{extension}", window_id=window_id)
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="OpenAI rejected the API key. Check OPENAI_API_KEY in .env (not a placeholder like sk-...).",
+        ) from exc
+    except APIError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"OpenAI API error: {exc}",
+        ) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception(
+            "Window transcription failed",
+            extra={"case_id": case_id, "window_id": window_id, "event_type": "window_transcribe"},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Transcription failed: {exc}",
+        ) from exc
+
+    transcribed_at = datetime.now(timezone.utc)
+    logger.info(
+        "Window audio transcribed",
+        extra={
+            "case_id": case_id,
+            "window_id": window_id,
+            "event_type": "window_transcribe",
+            "role": role,
+            "duration_seconds": round(duration, 2),
+        },
+    )
+    return WindowTranscribeResponse(
+        case_id=case_id,
+        window_id=window_id,
+        role=role,
+        staff_id=resolved_staff_id,
+        text=text,
+        duration_seconds=duration,
+        language="en",
+        transcribed_at=transcribed_at,
+    )
+
+
 @router.post("/analyze", response_model=AnalyzeAudioResponse)
 async def analyze_audio(request: Request) -> AnalyzeAudioResponse:
     content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
@@ -191,7 +263,7 @@ async def create_case(
     service = CaseService(db)
     case = service.create_case(
         procedure_type=procedure_type,
-        staff_id=staff.staff_id,
+        staff_id=staff.staff_id or "unspecified",
         scheduled_team=team,
         ingest_mode=ingest_mode,
         audio=audio,
@@ -221,7 +293,7 @@ async def upload_audio_chunk(
         audio=audio,
         chunk_index=chunk_index,
         is_final=is_final,
-        staff_id=staff.staff_id,
+        staff_id=staff.staff_id or "unspecified",
     )
     return AudioChunkResponse(chunk_index=chunk.chunk_index, status=chunk.status.value)
 
@@ -262,7 +334,7 @@ async def update_roles(
     service = CaseService(db)
     case = service.get_case(case_id)
     assert_case_access(case, staff.staff_id)
-    case = service.update_roles(case, body.role_map, staff.staff_id)
+    case = service.update_roles(case, body.role_map, staff.staff_id or "unspecified")
     return service.to_response(case)
 
 
@@ -291,9 +363,7 @@ async def approve_case(
     service = CaseService(db)
     case = service.get_case(case_id)
     assert_case_access(case, staff.staff_id)
-    if body.user_id != staff.staff_id:
-        raise HTTPException(status_code=403, detail="User ID mismatch")
-    case = service.approve_case(case, staff.staff_id)
+    case = service.approve_case(case, staff.staff_id or body.user_id)
     return service.to_response(case)
 
 

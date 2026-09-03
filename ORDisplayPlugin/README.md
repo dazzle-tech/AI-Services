@@ -4,6 +4,8 @@ Stage-2 field mapper for **ORScribe** JSON. Reshapes existing structured output 
 
 This is the OR counterpart of SystemDisplayPlugin (which maps ConvoScribe SOAP / clinic charts). Paste the body of ORScribe `POST /api/v1/analyze` or `GET /api/v1/cases/{id}` as `stage1_output`.
 
+It also fills **per-window EMR fields** from a short dictation. `POST /api/v1/windows/extract` takes **text, window_name, and role** and chooses among the eight window schemas. The eight specific paths remain available. Audio stays in ORScribe / ORVoiceAgent.
+
 API: http://localhost:8032  
 Docs: http://localhost:8032/docs  
 Health: http://localhost:8032/api/v1/health
@@ -31,11 +33,35 @@ python main.py
 
 All requests are unauthenticated (no API key headers).
 
+## EMR tabs
+
+### Nursing (main tab)
+
+Tab name: **Nursing**. Use `role`: `Nursing` or `nurse`.
+
+| Sub-tab | Path |
+|---------|------|
+| Verification of Marking Site | `POST /api/v1/windows/nursing/verification-of-marking-site` |
+| Time Out | `POST /api/v1/windows/nursing/time-out` |
+| Intraoperative | `POST /api/v1/windows/nursing/intraoperative` |
+| Sign Out | `POST /api/v1/windows/nursing/sign-out` |
+
+For `POST /api/v1/windows/extract`, send `role: "Nursing"` and `window_name` as the sub-tab (e.g. `"Time Out"`). You can also send `window_name: "Nursing / Time Out"`.
+
 ## API endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/v1/reshape` | Map ORScribe `stage1_output` onto one or more views |
+| POST | `/api/v1/windows/extract` | Dictation text + `window_name` + `role` → one of the eight windows |
+| POST | `/api/v1/windows/nursing/verification-of-marking-site` | Nursing — Verification of Marking Site |
+| POST | `/api/v1/windows/nursing/time-out` | Nursing — Time Out (`checklist` + `staff` only; no wrapper) |
+| POST | `/api/v1/windows/nursing/intraoperative` | Nursing — Intraoperative (nested EMR sections only; no wrapper) |
+| POST | `/api/v1/windows/nursing/sign-out` | Nursing — Sign Out (`checklist` only; no wrapper) |
+| POST | `/api/v1/windows/anesthesia/pre-evaluation-plan` | Anesthesia Record — Pre-Anesthesia Evaluation Record & Anesthesia Plan |
+| POST | `/api/v1/windows/anesthesia/induction-intraoperative` | Anesthesia Record — Induction Assessment and Intraoperative Anesthesia |
+| POST | `/api/v1/windows/anesthesia/observation-drugs` | Anesthesia Record — Patient Observation and Drugs |
+| POST | `/api/v1/windows/operative-note` | Operative Note (operativeDetails + operationStaff + narrative; no wrapper) |
 | POST | `/api/v1/decoders` | Register / upsert a `ViewDecoder` |
 | GET | `/api/v1/decoders/{view_id}` | Retrieve a stored decoder |
 | GET | `/api/v1/health` | Service health |

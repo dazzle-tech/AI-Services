@@ -37,19 +37,13 @@ celery -A app.jobs.celery_app.celery_app worker --loglevel=info
 
 ## Run a sample case
 
-All requests require headers:
-- `X-API-Key`: your API key (see `.env`)
-- `X-Staff-Id`: staff member ID (e.g. `nurse-1`)
+No request headers are required.
 
 ```bash
 curl -X POST http://localhost:8030/api/v1/analyze \
-  -H "X-API-Key: change-me-to-a-secure-random-key" \
-  -H "X-Staff-Id: nurse-1" \
   -F "audio=@samples/or_case_sample.wav"
 
 curl -X POST http://localhost:8030/api/v1/cases \
-  -H "X-API-Key: change-me-to-a-secure-random-key" \
-  -H "X-Staff-Id: nurse-1" \
   -F "procedure_type=laparoscopic cholecystectomy" \
   -F "ingest_mode=post_hoc" \
   -F "audio=@sample.wav"
@@ -57,11 +51,25 @@ curl -X POST http://localhost:8030/api/v1/cases \
 
 Poll `GET /api/v1/cases/{id}` until `status` is `completed`.
 
+Per-window transcription (used by ORVoiceAgent; does not run role/timeline/checklist):
+
+```bash
+curl -X POST http://localhost:8030/api/v1/windows/transcribe \
+  -F "audio=@samples/or_case_sample.wav" \
+  -F "case_id=case-123" \
+  -F "window_id=nursing_time_out" \
+  -F "role=nurse"
+```
+
+Valid `window_id` values: `nursing_verification_of_marking_site`, `nursing_time_out`, `nursing_intraoperative`, `nursing_sign_out`, `anesthesia_pre_evaluation_plan`, `anesthesia_induction_intraoperative`, `anesthesia_observation_drugs`, `operative_note`.
+Valid `role` values: `nurse`, `anesthetist`, `surgeon`.
+
 ## API endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/v1/analyze` | One-shot — upload audio, get transcript + roles + timeline + checklist |
+| POST | `/api/v1/windows/transcribe` | Per-window STT — audio in, single text block out (no roles/timeline) |
 | POST | `/api/v1/cases` | Start a case (metadata + optional audio) |
 | POST | `/api/v1/cases/{id}/audio-chunk` | Push audio chunk for streaming cases |
 | GET | `/api/v1/cases/{id}` | Full case record |
@@ -76,7 +84,6 @@ Poll `GET /api/v1/cases/{id}` until `status` is `completed`.
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `API_PORT` | `8030` | Server port |
-| `API_KEY` | — | Request authentication |
 | `OPENAI_API_KEY` | — | OpenAI API key |
 | `ROLE_ID_MODEL` | `gpt-4o` | Role identification model |
 | `RECORD_MODEL` | `gpt-4o` | Timeline + checklist model |
@@ -116,7 +123,7 @@ ORScribe/
 │   ├── db/              # SQLAlchemy models
 │   ├── jobs/            # Celery tasks
 │   ├── models/          # Pydantic schemas
-│   ├── services/        # Business logic
+│   ├── services/        # Business logic (including window_transcribe_service)
 │   ├── storage/         # S3 object storage
 │   └── transcription/   # Pluggable transcription backends
 └── tests/

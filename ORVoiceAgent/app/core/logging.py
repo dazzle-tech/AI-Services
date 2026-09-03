@@ -7,10 +7,7 @@ from app.core.config import settings
 
 PHI_PATTERNS = (
     re.compile(r'"text"\s*:\s*"[^"]*"', re.IGNORECASE),
-    re.compile(r'"description"\s*:\s*"[^"]*"', re.IGNORECASE),
-    re.compile(r'"reasoning"\s*:\s*"[^"]*"', re.IGNORECASE),
-    re.compile(r'"drug"\s*:\s*"[^"]*"', re.IGNORECASE),
-    re.compile(r'"dose"\s*:\s*"[^"]*"', re.IGNORECASE),
+    re.compile(r'"transcribed_text"\s*:\s*"[^"]*"', re.IGNORECASE),
 )
 
 
@@ -33,8 +30,6 @@ class PHIFilter(logging.Filter):
 
 
 class ContextFilter(logging.Filter):
-    """Ensure format placeholders exist without blocking logging `extra` fields."""
-
     def filter(self, record: logging.LogRecord) -> bool:
         record.__dict__.setdefault("case_id", "-")
         record.__dict__.setdefault("window_id", "-")
@@ -45,7 +40,7 @@ class ContextFilter(logging.Filter):
 def configure_logging() -> None:
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
-        format="%(asctime)s %(levelname)s %(name)s case=%(case_id)s event=%(event_type)s — %(message)s",
+        format="%(asctime)s %(levelname)s %(name)s case=%(case_id)s window=%(window_id)s event=%(event_type)s — %(message)s",
         force=True,
     )
     root = logging.getLogger()
@@ -55,5 +50,4 @@ def configure_logging() -> None:
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Return a standard logger; pass case_id/event_type via extra=."""
     return logging.getLogger(name)

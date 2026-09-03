@@ -4,15 +4,34 @@ import logging
 from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from openai import APIError, AuthenticationError
+from pydantic import ValidationError
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.window_registry import resolve_window_id, role_for_window_id
 from app.db.session import get_db
-from app.models.schemas import HealthResponse, ReshapeRequest, ReshapeResponse, ViewDecoder, ViewResult
+from app.models.schemas import (
+    HealthResponse,
+    ReshapeRequest,
+    ReshapeResponse,
+    ViewDecoder,
+    ViewResult,
+    WindowDispatchRequest,
+    WindowExtractRequest,
+    WindowExtractResponse,
+)
 from app.services.decoder_service import DecoderService
 from app.services.mapping_service import AllViewsFailed, reshape_many
 from app.services.orscribe_adapter import normalize_orscribe_output
+from app.services.window_extraction_service import extract_window_fields
+from app.models.window_schemas import (
+    NursingIntraoperativeFields,
+    NursingSignOutFields,
+    NursingTimeOutFields,
+    OperativeNoteFields,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +98,93 @@ async def get_decoder(
     db: Session = Depends(get_db),
 ) -> ViewDecoder:
     return DecoderService(db).get(view_id)
+
+
+def _fill_window(window_id: str, body: WindowExtractRequest) -> WindowExtractResponse:
+    try:
+        return extract_window_fields(
+            window_id,
+            body.text,
+            body.existing_fields,
+            case_id=body.case_id,
+            role=body.role,
+        )
+    except AuthenticationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="OpenAI rejected the API key. Check OPENAI_API_KEY in ORDisplayPlugin .env "
+            "(do not prefix the value with OPENAI_API_KEY=).",
+        ) from exc
+    except APIError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"OpenAI API error: {exc}",
+        ) from exc
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=exc.errors(),
+        ) from exc
+
+
+@router.post("/windows/extract", response_model=WindowExtractResponse)
+async def extract_by_window_name(body: WindowDispatchRequest) -> WindowExtractResponse:
+    """Route by window_name + role onto one of the eight window schemas."""
+    window_id = resolve_window_id(body.role, body.window_name)
+    return _fill_window(
+        window_id,
+        WindowExtractRequest(
+            text=body.text,
+            role=role_for_window_id(window_id, body.role),  # type: ignore[arg-type]
+            case_id=body.case_id,
+            staff_id=body.staff_id,
+            existing_fields=body.existing_fields,
+        ),
+    )
+
+
+@router.post("/windows/nursing/verification-of-marking-site", response_model=WindowExtractResponse)
+async def fill_nursing_verification_of_marking_site(body: WindowExtractRequest) -> WindowExtractResponse:
+    return _fill_window("nursing_verification_of_marking_site", body)
+
+
+@router.post("/windows/nursing/time-out", response_model=NursingTimeOutFields)
+async def fill_nursing_time_out(body: WindowExtractRequest) -> NursingTimeOutFields:
+    result = _fill_window("nursing_time_out", body)
+    return NursingTimeOutFields.model_validate(result.fields)
+
+
+@router.post("/windows/nursing/intraoperative", response_model=NursingIntraoperativeFields)
+async def fill_nursing_intraoperative(body: WindowExtractRequest) -> NursingIntraoperativeFields:
+    result = _fill_window("nursing_intraoperative", body)
+    return NursingIntraoperativeFields.model_validate(result.fields)
+
+
+@router.post("/windows/nursing/sign-out", response_model=NursingSignOutFields)
+async def fill_nursing_sign_out(body: WindowExtractRequest) -> NursingSignOutFields:
+    result = _fill_window("nursing_sign_out", body)
+    return NursingSignOutFields.model_validate(result.fields)
+
+
+@router.post("/windows/anesthesia/pre-evaluation-plan", response_model=WindowExtractResponse)
+async def fill_anesthesia_pre_evaluation_plan(body: WindowExtractRequest) -> WindowExtractResponse:
+    return _fill_window("anesthesia_pre_evaluation_plan", body)
+
+
+@router.post("/windows/anesthesia/induction-intraoperative", response_model=WindowExtractResponse)
+async def fill_anesthesia_induction_intraoperative(body: WindowExtractRequest) -> WindowExtractResponse:
+    return _fill_window("anesthesia_induction_intraoperative", body)
+
+
+@router.post("/windows/anesthesia/observation-drugs", response_model=WindowExtractResponse)
+async def fill_anesthesia_observation_drugs(body: WindowExtractRequest) -> WindowExtractResponse:
+    return _fill_window("anesthesia_observation_drugs", body)
+
+
+@router.post("/windows/operative-note", response_model=OperativeNoteFields)
+async def fill_operative_note(body: WindowExtractRequest) -> OperativeNoteFields:
+    result = _fill_window("operative_note", body)
+    return OperativeNoteFields.model_validate(result.fields)
 
 
 @router.get("/health", response_model=HealthResponse)

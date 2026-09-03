@@ -1,17 +1,13 @@
 {
   "info": {
     "name": "ORScribe",
-    "description": "Postman collection for ORScribe — Operating Room conversation intelligence REST API.\n\nIngests OR audio, identifies surgical team roles, extracts an intraoperative timeline, and verifies WHO Surgical Safety Checklist completion.\n\nCollection variables:\n- `baseUrl` — default http://localhost:8030\n- `apiKey` — X-API-Key header value\n- `staffId` — X-Staff-Id header value\n- `caseId` — auto-set after creating a case\n\nWorkflow:\n1. Health Check\n2. Analyze Audio (one-shot, no polling)\n3. Create Case (post-hoc with audio, or streaming without audio)\n4. Upload Audio Chunk (streaming cases)\n5. Poll Get Case until status is `completed`\n6. Get Transcript / Get Checklist\n7. Update Roles (if needs_review)\n8. Approve Case",
+    "description": "Postman collection for ORScribe — Operating Room conversation intelligence REST API.\n\nIngests OR audio, identifies surgical team roles, extracts an intraoperative timeline, and verifies WHO Surgical Safety Checklist completion.\n\nNo auth headers. Collection variables: `baseUrl` (http://localhost:8030), `staffId` (optional body field), `caseId` (auto-set after creating a case).\n\nWorkflow:\n1. Health Check\n2. Analyze Audio (one-shot, no polling)\n3. Create Case (post-hoc with audio, or streaming without audio)\n4. Upload Audio Chunk (streaming cases)\n5. Poll Get Case until status is `completed`\n6. Get Transcript / Get Checklist\n7. Update Roles (if needs_review)\n8. Approve Case",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:8030"
-    },
-    {
-      "key": "apiKey",
-      "value": "change-me-to-a-secure-random-key"
     },
     {
       "key": "staffId",
@@ -51,8 +47,14 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/health",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "health"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
         },
         "description": "Check service health (database, OpenAI configuration). No auth required."
       },
@@ -64,14 +66,25 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
             }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"status\": \"ok\",\n  \"database\": \"ok\",\n  \"redis\": \"ok\",\n  \"details\": {\n    \"service\": \"ORScribe\",\n    \"version\": \"1.0.0\",\n    \"openai_configured\": true,\n    \"role_id_model\": \"gpt-4o\",\n    \"record_model\": \"gpt-4o\"\n  }\n}"
         }
@@ -104,10 +117,7 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"}
-        ],
+        "header": [],
         "body": {
           "mode": "formdata",
           "formdata": [
@@ -126,8 +136,14 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/analyze",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "analyze"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "analyze"
+          ]
         },
         "description": "Upload audio and receive the full pipeline result in one response: diarized transcript, speaker roles, intraoperative timeline, and WHO checklist. No case ID, polling, or auth headers required. Accepts multipart `audio` or JSON `audio_base64`. If role confidence is low, `needs_review` is true and timeline/checklist may be null."
       },
@@ -149,12 +165,95 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/analyze",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "analyze"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "analyze"
+          ]
         },
         "description": "Same endpoint as Analyze Audio, but Body is raw JSON with base64-encoded audio (no file upload, no auth headers).\n\nReplace `audio_base64` with your own file encoded as base64. Data URLs are also accepted: `data:audio/wav;base64,...`"
       },
       "response": []
+    },
+    {
+      "name": "Window Transcription",
+      "item": [
+        {
+          "name": "Transcribe Window Audio",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code equals 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has transcribed text', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('text');",
+                  "    pm.expect(json).to.have.property('window_id');",
+                  "    pm.expect(json).to.have.property('case_id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": "C:/Users/User/Desktop/AI-Services/ORScribe/samples/or_case_sample.wav",
+                  "description": "Required. Short single-speaker clip for this window."
+                },
+                {
+                  "key": "case_id",
+                  "value": "case-123",
+                  "type": "text"
+                },
+                {
+                  "key": "window_id",
+                  "value": "nursing_time_out",
+                  "type": "text",
+                  "description": "One of: nursing_verification_of_marking_site, nursing_time_out, nursing_intraoperative, nursing_sign_out, anesthesia_pre_evaluation_plan, anesthesia_induction_intraoperative, anesthesia_observation_drugs, operative_note"
+                },
+                {
+                  "key": "role",
+                  "value": "nurse",
+                  "type": "text"
+                },
+                {
+                  "key": "staff_id",
+                  "value": "{{staffId}}",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/windows/transcribe",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "windows",
+                "transcribe"
+              ]
+            },
+            "description": "Stateless per-window STT. Returns a single text block (no diarized roles, timeline, or checklist). Used by ORVoiceAgent."
+          },
+          "response": []
+        }
+      ]
     },
     {
       "name": "Create Case (Post-hoc with Audio)",
@@ -178,15 +277,20 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"}
-        ],
+        "header": [],
         "body": {
           "mode": "formdata",
           "formdata": [
-            {"key": "procedure_type", "value": "laparoscopic cholecystectomy", "type": "text"},
-            {"key": "ingest_mode", "value": "post_hoc", "type": "text"},
+            {
+              "key": "procedure_type",
+              "value": "laparoscopic cholecystectomy",
+              "type": "text"
+            },
+            {
+              "key": "ingest_mode",
+              "value": "post_hoc",
+              "type": "text"
+            },
             {
               "key": "scheduled_team",
               "value": "{\"surgeon\": \"Dr. Smith\", \"anesthetist\": \"Dr. Jones\"}",
@@ -203,8 +307,14 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases"
+          ]
         },
         "description": "Start a post-hoc case with a single audio file. Returns 202 Accepted with case_id. Poll Get Case until status is completed."
       },
@@ -213,35 +323,55 @@
           "name": "202 Accepted",
           "originalRequest": {
             "method": "POST",
-            "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"}
-            ],
+            "header": [],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {"key": "procedure_type", "value": "laparoscopic cholecystectomy", "type": "text"},
-                {"key": "ingest_mode", "value": "post_hoc", "type": "text"},
-                {"key": "audio", "type": "file", "src": []}
+                {
+                  "key": "procedure_type",
+                  "value": "laparoscopic cholecystectomy",
+                  "type": "text"
+                },
+                {
+                  "key": "ingest_mode",
+                  "value": "post_hoc",
+                  "type": "text"
+                },
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": []
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases"
+              ]
             }
           },
           "status": "Accepted",
           "code": 202,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"case_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"ingesting\"\n}"
         }
       ]
     },
     {
-      "name": "Create Case (Streaming — no audio)",
+      "name": "Create Case (Streaming \u2014 no audio)",
       "event": [
         {
           "listen": "test",
@@ -262,21 +392,32 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"}
-        ],
+        "header": [],
         "body": {
           "mode": "formdata",
           "formdata": [
-            {"key": "procedure_type", "value": "appendectomy", "type": "text"},
-            {"key": "ingest_mode", "value": "streaming", "type": "text"}
+            {
+              "key": "procedure_type",
+              "value": "appendectomy",
+              "type": "text"
+            },
+            {
+              "key": "ingest_mode",
+              "value": "streaming",
+              "type": "text"
+            }
           ]
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases"
+          ]
         },
         "description": "Start a live/streaming case without initial audio. Follow with Upload Audio Chunk requests."
       },
@@ -285,27 +426,43 @@
           "name": "202 Accepted",
           "originalRequest": {
             "method": "POST",
-            "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"}
-            ],
+            "header": [],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {"key": "procedure_type", "value": "appendectomy", "type": "text"},
-                {"key": "ingest_mode", "value": "streaming", "type": "text"}
+                {
+                  "key": "procedure_type",
+                  "value": "appendectomy",
+                  "type": "text"
+                },
+                {
+                  "key": "ingest_mode",
+                  "value": "streaming",
+                  "type": "text"
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases"
+              ]
             }
           },
           "status": "Accepted",
           "code": 202,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"case_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"ingesting\"\n}"
         }
@@ -332,22 +489,41 @@
       ],
       "request": {
         "method": "POST",
-        "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"}
-        ],
+        "header": [],
         "body": {
           "mode": "formdata",
           "formdata": [
-            {"key": "chunk_index", "value": "0", "type": "text"},
-            {"key": "is_final", "value": "true", "type": "text", "description": "Set true on the last chunk"},
-            {"key": "audio", "type": "file", "src": [], "description": "5–10 minute audio chunk"}
+            {
+              "key": "chunk_index",
+              "value": "0",
+              "type": "text"
+            },
+            {
+              "key": "is_final",
+              "value": "true",
+              "type": "text",
+              "description": "Set true on the last chunk"
+            },
+            {
+              "key": "audio",
+              "type": "file",
+              "src": [],
+              "description": "5\u201310 minute audio chunk"
+            }
           ]
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/audio-chunk",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases", "{{caseId}}", "audio-chunk"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases",
+            "{{caseId}}",
+            "audio-chunk"
+          ]
         },
         "description": "Push an audio chunk for a streaming case. Set is_final=true on the last chunk to trigger downstream analysis."
       },
@@ -356,28 +532,50 @@
           "name": "202 Accepted",
           "originalRequest": {
             "method": "POST",
-            "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"}
-            ],
+            "header": [],
             "body": {
               "mode": "formdata",
               "formdata": [
-                {"key": "chunk_index", "value": "0", "type": "text"},
-                {"key": "is_final", "value": "true", "type": "text"},
-                {"key": "audio", "type": "file", "src": []}
+                {
+                  "key": "chunk_index",
+                  "value": "0",
+                  "type": "text"
+                },
+                {
+                  "key": "is_final",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "audio",
+                  "type": "file",
+                  "src": []
+                }
               ]
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/audio-chunk",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases", "{{caseId}}", "audio-chunk"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases",
+                "{{caseId}}",
+                "audio-chunk"
+              ]
             }
           },
           "status": "Accepted",
           "code": 202,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"chunk_index\": 0,\n  \"status\": \"pending\"\n}"
         }
@@ -404,14 +602,18 @@
       ],
       "request": {
         "method": "GET",
-        "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"}
-        ],
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases", "{{caseId}}"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases",
+            "{{caseId}}"
+          ]
         },
         "description": "Get full case record: status, role map, timeline, checklist result, medications, instrument counts."
       },
@@ -420,20 +622,29 @@
           "name": "Completed Case",
           "originalRequest": {
             "method": "GET",
-            "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"}
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases", "{{caseId}}"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases",
+                "{{caseId}}"
+              ]
             }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"completed\",\n  \"procedure_type\": \"laparoscopic cholecystectomy\",\n  \"created_by\": \"nurse-1\",\n  \"ingest_mode\": \"post_hoc\",\n  \"ingest_complete\": true,\n  \"needs_review\": false,\n  \"role_map\": {\n    \"SPEAKER_00\": {\"role\": \"surgeon\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_01\": {\"role\": \"anesthetist\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_02\": {\"role\": \"nurse\", \"confidence\": \"high\", \"needs_review\": false}\n  },\n  \"timeline\": {\"events\": []},\n  \"medications\": [],\n  \"instrument_counts\": [],\n  \"checklist_result\": {\n    \"sign_in\": {\"completed\": true, \"items_confirmed\": [], \"items_missing\": []},\n    \"time_out\": {\"completed\": true, \"items_confirmed\": [], \"items_missing\": []},\n    \"sign_out\": {\"completed\": true, \"items_confirmed\": [], \"items_missing\": []}\n  },\n  \"approved_by\": null,\n  \"approved_at\": null\n}"
         }
@@ -460,14 +671,19 @@
       ],
       "request": {
         "method": "GET",
-        "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"}
-        ],
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/transcript",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases", "{{caseId}}", "transcript"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases",
+            "{{caseId}}",
+            "transcript"
+          ]
         },
         "description": "Get the raw diarized transcript with speaker labels and timestamps."
       },
@@ -476,20 +692,30 @@
           "name": "Transcript",
           "originalRequest": {
             "method": "GET",
-            "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"}
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/transcript",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases", "{{caseId}}", "transcript"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases",
+                "{{caseId}}",
+                "transcript"
+              ]
             }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"case_id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"raw_transcript\": {\n    \"segments\": [\n      {\n        \"speaker_label\": \"SPEAKER_00\",\n        \"start_time\": 0.0,\n        \"end_time\": 8.0,\n        \"text\": \"Sign in complete. Patient identity confirmed, site marked.\"\n      },\n      {\n        \"speaker_label\": \"SPEAKER_01\",\n        \"start_time\": 8.5,\n        \"end_time\": 15.0,\n        \"text\": \"Anesthesia plan reviewed. Allergies noted. Consent verified.\"\n      }\n    ]\n  }\n}"
         }
@@ -516,14 +742,19 @@
       ],
       "request": {
         "method": "GET",
-        "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"}
-        ],
+        "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/checklist",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases", "{{caseId}}", "checklist"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases",
+            "{{caseId}}",
+            "checklist"
+          ]
         },
         "description": "Get WHO Surgical Safety Checklist verification result (sign-in, time-out, sign-out phases)."
       },
@@ -532,20 +763,30 @@
           "name": "Checklist Result",
           "originalRequest": {
             "method": "GET",
-            "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"}
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/checklist",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases", "{{caseId}}", "checklist"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases",
+                "{{caseId}}",
+                "checklist"
+              ]
             }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"sign_in\": {\n    \"completed\": true,\n    \"items_confirmed\": [\"patient identity confirmed\", \"site marked\"],\n    \"items_missing\": []\n  },\n  \"time_out\": {\n    \"completed\": true,\n    \"items_confirmed\": [\"team introductions\"],\n    \"items_missing\": []\n  },\n  \"sign_out\": {\n    \"completed\": true,\n    \"items_confirmed\": [\"procedure recorded\", \"specimen labeled\"],\n    \"items_missing\": []\n  }\n}"
         }
@@ -573,9 +814,10 @@
       "request": {
         "method": "PATCH",
         "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"},
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -583,8 +825,16 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/roles",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases", "{{caseId}}", "roles"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases",
+            "{{caseId}}",
+            "roles"
+          ]
         },
         "description": "Human correction of role assignments. Re-triggers timeline extraction and checklist verification."
       },
@@ -594,9 +844,10 @@
           "originalRequest": {
             "method": "PATCH",
             "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -604,14 +855,27 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/roles",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases", "{{caseId}}", "roles"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases",
+                "{{caseId}}",
+                "roles"
+              ]
             }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"completed\",\n  \"needs_review\": false,\n  \"role_map\": {\n    \"SPEAKER_00\": {\"role\": \"surgeon\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_01\": {\"role\": \"anesthetist\", \"confidence\": \"high\", \"needs_review\": false},\n    \"SPEAKER_02\": {\"role\": \"nurse\", \"confidence\": \"high\", \"needs_review\": false}\n  }\n}"
         }
@@ -639,9 +903,10 @@
       "request": {
         "method": "POST",
         "header": [
-          {"key": "X-API-Key", "value": "{{apiKey}}"},
-          {"key": "X-Staff-Id", "value": "{{staffId}}"},
-          {"key": "Content-Type", "value": "application/json"}
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
         ],
         "body": {
           "mode": "raw",
@@ -649,10 +914,18 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/approve",
-          "host": ["{{baseUrl}}"],
-          "path": ["api", "v1", "cases", "{{caseId}}", "approve"]
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "cases",
+            "{{caseId}}",
+            "approve"
+          ]
         },
-        "description": "Clinical staff sign-off. Case must be in completed status. user_id must match X-Staff-Id header."
+        "description": "Clinical staff sign-off. Case must be in completed status. user_id is the approver id in the JSON body.",
       },
       "response": [
         {
@@ -660,9 +933,10 @@
           "originalRequest": {
             "method": "POST",
             "header": [
-              {"key": "X-API-Key", "value": "{{apiKey}}"},
-              {"key": "X-Staff-Id", "value": "{{staffId}}"},
-              {"key": "Content-Type", "value": "application/json"}
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
@@ -670,14 +944,27 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/cases/{{caseId}}/approve",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "cases", "{{caseId}}", "approve"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cases",
+                "{{caseId}}",
+                "approve"
+              ]
             }
           },
           "status": "OK",
           "code": 200,
           "_postman_previewlanguage": "json",
-          "header": [{"key": "Content-Type", "value": "application/json"}],
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
           "cookie": [],
           "body": "{\n  \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"status\": \"completed\",\n  \"approved_by\": \"nurse-1\",\n  \"approved_at\": \"2026-08-27T08:00:00Z\"\n}"
         }

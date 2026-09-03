@@ -1,6 +1,6 @@
 """Configuration management for ORDisplayPlugin."""
 
-from pydantic import AliasChoices, Field
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -42,6 +42,14 @@ class Settings(BaseSettings):
     openai_retry_delay: float = 1.0
     enable_usage_tracking: bool = True
     use_llm_stub: bool = False
+
+    @field_validator("openai_api_key", mode="before")
+    @classmethod
+    def _clean_openai_api_key(cls, value: object) -> str:
+        text = "" if value is None else str(value).strip().strip('"').strip("'")
+        while text.upper().startswith("OPENAI_API_KEY="):
+            text = text.split("=", 1)[1].strip().strip('"').strip("'")
+        return text
 
     # Database (5436 = docker-compose host port)
     database_url: str = (

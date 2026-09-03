@@ -69,6 +69,160 @@
         "description": "GET /api/v1/cases/{id} shape: medications, instrument_counts, checklist_result."
       },
       "response": []
+    },
+    {
+      "name": "Window — Extract by name (dispatcher)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Time out. Correct patient confirmed by wristband. Correct procedure right total knee replacement. Correct site and side. Correct patient position supine. Verification of site markings. Availability of correct implants, size 4 tray open. Surgeon Dr. Omar Haddad staff id stf_2041. Nurse Lina Odeh staff id stf_5590.\",\n  \"window_name\": \"Time Out\",\n  \"role\": \"Nursing\",\n  \"case_id\": \"case-123\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/extract",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "extract"]
+        },
+        "description": "ORVoiceAgent sends transcribed text plus the UI window name and role. This route picks one of the eight window fillers."
+      }
+    },
+    {
+      "name": "Window — Nursing Time Out",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"case_id\": \"case-123\",\n  \"role\": \"nurse\",\n  \"text\": \"Time out. Correct patient confirmed by wristband. Correct procedure right total knee replacement. Correct site and side. Correct patient position supine. Verification of site markings. Availability of correct implants, size 4 tray open. Surgeon Dr. Omar Haddad staff id stf_2041. Nurse Lina Odeh staff id stf_5590.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/nursing/time-out",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "nursing", "time-out"]
+        }
+      }
+    },
+    {
+      "name": "Window — Nursing Verification of Marking Site",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": \"nurse\",\n  \"text\": \"Site side and level documented. Pre-procedural check list completed. The procedure surgical consent completed, signed by patient. Site marked on the left knee, lateral aspect.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/nursing/verification-of-marking-site",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "nursing", "verification-of-marking-site"]
+        }
+      }
+    },
+    {
+      "name": "Window — Nursing Intraoperative",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": \"nurse\",\n  \"text\": \"Operation date 2026-09-03. Time in to operation room 08:15. Time out from operation room 10:40. Room ROOM1. Scrub nurse 1 Lina Odeh. Surgeon Dr. Omar Haddad. Anesthesia type general. Position supine. Skin prepared with povidone iodine. Foley catheter size 16. Tourniquet start 08:30 end 09:45 pressure 300. Laser not applicable. Hemovac drain 2 at suprapatellar pouch.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/nursing/intraoperative",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "nursing", "intraoperative"]
+        }
+      }
+    },
+    {
+      "name": "Window — Nursing Sign Out",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": \"nurse\",\n  \"text\": \"Sign out. Procedure recorded as laparoscopic cholecystectomy. Counts correct. Specimen labeled.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/nursing/sign-out",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "nursing", "sign-out"]
+        }
+      }
+    },
+    {
+      "name": "Window — Anesthesia Pre-Evaluation Plan",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": \"anesthetist\",\n  \"text\": \"ASA II. Airway assessment Mallampati 2. NPO since midnight. Planned anesthesia general. Consent for anesthesia obtained.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/anesthesia/pre-evaluation-plan",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "anesthesia", "pre-evaluation-plan"]
+        }
+      }
+    },
+    {
+      "name": "Window — Anesthesia Induction Intraoperative",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": \"anesthetist\",\n  \"text\": \"Induction time 08:22. Giving propofol 150 mg. Airway technique used ETT. Intubation attempts 1.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/anesthesia/induction-intraoperative",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "anesthesia", "induction-intraoperative"]
+        }
+      }
+    },
+    {
+      "name": "Window — Anesthesia Observation and Drugs",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": \"anesthetist\",\n  \"text\": \"Heart rate 72. Blood pressure 120/80. SpO2 99%. Giving fentanyl 50 mcg route IV. Estimated blood loss 50 ml.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/anesthesia/observation-drugs",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "anesthesia", "observation-drugs"]
+        }
+      }
+    },
+    {
+      "name": "Window — Operative Note",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"role\": \"surgeon\",\n  \"text\": \"Pre-op diagnosis symptomatic cholelithiasis. Procedure performed laparoscopic cholecystectomy. Surgeon Dr Smith. Findings inflamed gallbladder.\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/windows/operative-note",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "windows", "operative-note"]
+        }
+      }
     }
   ]
 }

@@ -22,8 +22,6 @@ One-shot (no polling):
 
 ```bash
 curl -X POST http://localhost:8030/api/v1/analyze \
-  -H "X-API-Key: change-me-to-a-secure-random-key" \
-  -H "X-Staff-Id: nurse-1" \
   -F "audio=@samples/or_case_sample.wav"
 ```
 
@@ -31,8 +29,6 @@ Async case:
 
 ```bash
 curl -X POST http://localhost:8030/api/v1/cases \
-  -H "X-API-Key: change-me-to-a-secure-random-key" \
-  -H "X-Staff-Id: nurse-1" \
   -F "procedure_type=laparoscopic cholecystectomy" \
   -F "ingest_mode=post_hoc" \
   -F "audio=@samples/or_case_sample.wav"

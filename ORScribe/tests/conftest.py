@@ -39,8 +39,3 @@ def db_session():
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def auth_headers():
-    return {"X-API-Key": "test-api-key", "X-Staff-Id": "nurse-1"}

@@ -16,6 +16,27 @@ from app.ai.unified_prompts import (
 
 
 ConfidenceLevel = Literal["high", "medium", "low"]
+WindowRole = Literal["nurse", "anesthetist", "surgeon"]
+WindowId = Literal[
+    "nursing_verification_of_marking_site",
+    "nursing_time_out",
+    "nursing_intraoperative",
+    "nursing_sign_out",
+    "anesthesia_pre_evaluation_plan",
+    "anesthesia_induction_intraoperative",
+    "anesthesia_observation_drugs",
+    "operative_note",
+]
+WINDOW_IDS: tuple[str, ...] = (
+    "nursing_verification_of_marking_site",
+    "nursing_time_out",
+    "nursing_intraoperative",
+    "nursing_sign_out",
+    "anesthesia_pre_evaluation_plan",
+    "anesthesia_induction_intraoperative",
+    "anesthesia_observation_drugs",
+    "operative_note",
+)
 EventType = Literal[
     "incision",
     "medication",
@@ -185,6 +206,17 @@ class HealthResponse(BaseModel):
     status: str
     database: str
     details: Dict[str, Any] = Field(default_factory=dict)
+
+
+class WindowTranscribeResponse(BaseModel):
+    case_id: str
+    window_id: WindowId
+    role: WindowRole
+    staff_id: str
+    text: str
+    duration_seconds: float
+    language: str = "en"
+    transcribed_at: datetime
 
 
 def options_from_form(

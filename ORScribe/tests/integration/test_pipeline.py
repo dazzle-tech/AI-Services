@@ -73,16 +73,16 @@ def client(monkeypatch):
         yield TestClient(app)
 
 
-def test_full_pipeline_end_to_end(client, auth_headers):
+def test_full_pipeline_end_to_end(client):
     audio_bytes = _make_silent_wav()
     files = {"audio": ("case.wav", audio_bytes, "audio/wav")}
     data = {"procedure_type": "laparoscopic cholecystectomy", "ingest_mode": "post_hoc"}
 
-    create_response = client.post("/api/v1/cases", files=files, data=data, headers=auth_headers)
+    create_response = client.post("/api/v1/cases", files=files, data=data)
     assert create_response.status_code == 202
     case_id = create_response.json()["case_id"]
 
-    detail = client.get(f"/api/v1/cases/{case_id}", headers=auth_headers)
+    detail = client.get(f"/api/v1/cases/{case_id}")
     assert detail.status_code == 200
     body = detail.json()
     assert body["status"] == CaseStatus.COMPLETED.value
@@ -90,24 +90,23 @@ def test_full_pipeline_end_to_end(client, auth_headers):
     assert body["timeline"] is not None
     assert body["checklist_result"] is not None
 
-    transcript = client.get(f"/api/v1/cases/{case_id}/transcript", headers=auth_headers)
+    transcript = client.get(f"/api/v1/cases/{case_id}/transcript")
     assert transcript.status_code == 200
     assert len(transcript.json()["raw_transcript"]["segments"]) > 0
 
-    checklist = client.get(f"/api/v1/cases/{case_id}/checklist", headers=auth_headers)
+    checklist = client.get(f"/api/v1/cases/{case_id}/checklist")
     assert checklist.status_code == 200
     assert "sign_in" in checklist.json()
 
     approve = client.post(
         f"/api/v1/cases/{case_id}/approve",
         json={"user_id": "nurse-1"},
-        headers=auth_headers,
     )
     assert approve.status_code == 200
     assert approve.json()["approved_by"] == "nurse-1"
 
 
-def test_low_confidence_role_correction(client, auth_headers, monkeypatch):
+def test_low_confidence_role_correction(client, monkeypatch):
     from app.models.schemas import RoleIdentificationResult, SpeakerRoleAssignment
 
     def _force_review(segments, scheduled_team=None, client=None, prompt_options=None):
@@ -125,23 +124,22 @@ def test_low_confidence_role_correction(client, auth_headers, monkeypatch):
     files = {"audio": ("case.wav", audio_bytes, "audio/wav")}
     data = {"procedure_type": "appendectomy"}
 
-    create_response = client.post("/api/v1/cases", files=files, data=data, headers=auth_headers)
+    create_response = client.post("/api/v1/cases", files=files, data=data)
     case_id = create_response.json()["case_id"]
 
-    detail = client.get(f"/api/v1/cases/{case_id}", headers=auth_headers)
+    detail = client.get(f"/api/v1/cases/{case_id}")
     assert detail.json()["needs_review"] is True
 
     patch_response = client.patch(
         f"/api/v1/cases/{case_id}/roles",
         json={"role_map": {"SPEAKER_00": "surgeon", "SPEAKER_01": "anesthetist"}},
-        headers=auth_headers,
     )
     assert patch_response.status_code == 200
     assert patch_response.json()["needs_review"] is False
     assert patch_response.json()["timeline"] is not None
 
 
-def test_analyze_audio_sync(client, auth_headers):
+def test_analyze_audio_sync(client):
     audio_bytes = _make_silent_wav()
     files = {"audio": ("case.wav", audio_bytes, "audio/wav")}
 
