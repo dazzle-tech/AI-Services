@@ -36,19 +36,28 @@ WINDOW_STUB_TRANSCRIPTS = {
         "Equipment problems no."
     ),
     "anesthesia_pre_evaluation_plan": (
-        "ASA II. Airway assessment Mallampati 2. Allergies NKDA. Medications lisinopril. "
-        "Comorbidities hypertension. NPO since midnight. Planned anesthesia general. "
-        "Planned airway ETT. Risk notes standard. Consent for anesthesia obtained."
+        "Allergies penicillin. Non smoker. Non alcoholic. Substance use none. "
+        "Last meal light breakfast. Food date 2026-09-02. Last fluid water. Fluid date 2026-09-03. "
+        "Previous anesthesia yes. Previous surgery yes. Difficult intubation no. Complication no. "
+        "Comments appendectomy in 2018 under general anesthesia, uneventful. "
+        "Musculoskeletal chronic right knee pain. Endocrine type 2 diabetes, controlled. "
+        "Weight 82 kg. Blood pressure 128 over 82. Pulse 76. Temperature 36.8 C. SpO2 98. "
+        "Cardiovascular exam normal S1 S2, no murmurs. Respiratory clear air entry bilaterally. "
+        "Skin intact, no lesions. Neck mobility full range. Chest x-ray unremarkable. ECG normal sinus rhythm. "
+        "ASA class II, not emergency. Pre-anesthesia orders NPO after midnight, continue home antihypertensives. "
+        "Pre-medication midazolam 2 mg IV. Prophylactic antibiotic yes, cefazolin 1 g IV on call to OR."
     ),
     "anesthesia_induction_intraoperative": (
-        "Induction time 08:22. Giving propofol 150 mg. Airway technique used ETT. "
-        "Intubation attempts 1. Ventilation mode volume control. Lines placed 18 gauge IV. "
-        "Positioning supine. Intraoperative events uneventful."
+        "Pre-induction assessment date 2026-09-12. Blood pressure 120 over 80. Heart rate 78. "
+        "Respiratory rate 16. O2 sat 98. NPO yes. NPO date 2026-09-12. "
+        "Pre-medication yes, midazolam 2 mg IV given. Induction method IV induction. "
+        "Intubation endotracheal tube. Airway cuffed ETT size 7.5. Position supine. "
+        "Anesthesiologist resident Dr. Yara Sabbagh. Anesthesia technician Khaled Nimr."
     ),
     "anesthesia_observation_drugs": (
-        "Heart rate 72. Blood pressure 120/80. SpO2 99%. Temperature 36.5 C. "
-        "Giving fentanyl 50 mcg route IV. Crystalloid 500 ml. "
-        "Estimated blood loss 50 ml. Urine output 100 ml."
+        "Blood pressure 120 over 80. Heart rate 78. Oxygen supply 2. EtCO2 35. SpO2 98. "
+        "Temperature 36.8 C. Tidal volume 450. Respiratory rate 16. FiO2 40. O2 air 2. "
+        "Blood loss 20 ml."
     ),
     "operative_note": (
         "Operative note time 08:15. Type of anesthesia general. Main surgeon Dr. Omar Haddad. "

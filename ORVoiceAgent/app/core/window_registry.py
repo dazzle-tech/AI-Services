@@ -21,6 +21,16 @@ NURSING_SUB_TABS = (
     ("Sign Out", "/windows/nursing/sign-out"),
 )
 
+ANESTHESIA_SUB_TABS = (
+    ("Pre-Anesthesia Evaluation Record & Anesthesia Plan", "/windows/anesthesia/pre-evaluation-plan"),
+    ("Induction Assessment and Intraoperative Anesthesia", "/windows/anesthesia/induction-intraoperative"),
+    ("Patient observation and Drugs", "/windows/anesthesia/observation-drugs"),
+)
+
+OPERATIVE_NOTE_SUB_TABS = (
+    ("Operative Note", "/windows/operative-note"),
+)
+
 WINDOWS: tuple[WindowSpec, ...] = (
     WindowSpec(
         "nursing_verification_of_marking_site",

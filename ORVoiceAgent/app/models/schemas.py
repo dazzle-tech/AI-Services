@@ -150,6 +150,158 @@ class IntraoperativeResponse(BaseModel):
     specimens: IntraoperativeSpecimens
 
 
+class PreEvaluationSocialHistory(BaseModel):
+    allergies: Optional[str] = None
+    smoker: Optional[str] = None
+    alcoholic: Optional[str] = None
+    substanceUse: Optional[str] = None
+
+
+class PreEvaluationLastMeal(BaseModel):
+    food: Optional[str] = None
+    foodDate: Optional[str] = None
+    fluid: Optional[str] = None
+    fluidDate: Optional[str] = None
+
+
+class PreEvaluationPreviousAnesthesia(BaseModel):
+    previousAnesthesia: Optional[str] = None
+    previousSurgery: Optional[str] = None
+    difficultIntubation: Optional[str] = None
+    complication: Optional[str] = None
+    comments: Optional[str] = None
+
+
+class PreEvaluationPastMedicalHistory(BaseModel):
+    cardiovascular: str = ""
+    respiratory: str = ""
+    neurological: str = ""
+    urological: str = ""
+    musculoskeletal: str = ""
+    psychiatric: str = ""
+    pregnancies: str = ""
+    renalDisease: str = ""
+    endocrine: str = ""
+    hepatic: str = ""
+    gastrointestinal: str = ""
+    bloodVessel: str = ""
+    otherDiseases: str = ""
+
+
+class PreEvaluationVitalSigns(BaseModel):
+    weightKg: Optional[float] = None
+    bpSystolic: Optional[int] = None
+    bpDiastolic: Optional[int] = None
+    pulseRate: Optional[int] = None
+    tempC: Optional[float] = None
+    spo2: Optional[int] = None
+
+
+class PreEvaluationClinicalExamination(BaseModel):
+    cardiovascular: str = ""
+    respiratory: str = ""
+    skin: str = ""
+    sensors: str = ""
+    neuromuscular: str = ""
+    gcs: Optional[int] = None
+    others: str = ""
+
+
+class PreEvaluationAirwayAssessment(BaseModel):
+    openMouth: str = ""
+    thyromentalDistance: str = ""
+    neckMobility: str = ""
+    others: str = ""
+
+
+class PreEvaluationClinicalData(BaseModel):
+    chestXray: str = ""
+    ecg: str = ""
+    others: str = ""
+
+
+class PreEvaluationAsa(BaseModel):
+    asaClass: Optional[str] = None
+    emergency: Optional[bool] = None
+
+
+class PreEvaluationOrders(BaseModel):
+    orders: Optional[str] = None
+
+
+class PreEvaluationPreMedication(BaseModel):
+    preMedication: Optional[str] = None
+    prophylacticAntibiotic: Optional[str] = None
+    prophylacticAntibioticNote: Optional[str] = None
+
+
+class PreEvaluationPlanResponse(BaseModel):
+    socialHistory: PreEvaluationSocialHistory
+    lastMeal: PreEvaluationLastMeal
+    previousAnesthesiaAndSurgery: PreEvaluationPreviousAnesthesia
+    pastMedicalHistory: PreEvaluationPastMedicalHistory
+    vitalSigns: PreEvaluationVitalSigns
+    clinicalExamination: PreEvaluationClinicalExamination
+    airwayAssessment: PreEvaluationAirwayAssessment
+    clinicalData: PreEvaluationClinicalData
+    asa: PreEvaluationAsa
+    preAnesthesiaOrders: PreEvaluationOrders
+    preMedication: PreEvaluationPreMedication
+
+
+class InductionPreAssessment(BaseModel):
+    bpSystolic: Optional[int] = None
+    bpDiastolic: Optional[int] = None
+    hr: Optional[int] = None
+    rr: Optional[int] = None
+    o2Sat: Optional[int] = None
+    npo: Optional[str] = None
+    npoDate: Optional[str] = None
+    preMedication: Optional[str] = None
+    preMedicationNote: Optional[str] = None
+    date: Optional[str] = None
+
+
+class InductionIntraoperativeAnesthesia(BaseModel):
+    induction: Optional[str] = None
+    intubation: Optional[str] = None
+    airway: Optional[str] = None
+    position: Optional[str] = None
+    anesthesiologistResident: Optional[str] = None
+    anesthesiaTechnician: Optional[str] = None
+
+
+class InductionIntraoperativeResponse(BaseModel):
+    preInductionAssessment: InductionPreAssessment
+    intraoperativeAnesthesia: InductionIntraoperativeAnesthesia
+
+
+class ObservationVitalSign(BaseModel):
+    bpSystolic: Optional[int] = None
+    bpDiastolic: Optional[int] = None
+    hr: Optional[int] = None
+    oxygenSupply: str = ""
+    etco2: Optional[int] = None
+    spo2: Optional[int] = None
+    tempC: str = ""
+    tidalVolume: str = ""
+    rr: str = ""
+    act: str = ""
+    fio2: str = ""
+    rbs: str = ""
+    o2Air: str = ""
+
+
+class ObservationBloodLoss(BaseModel):
+    bloodQuantity: str = ""
+    bloodLoss: Optional[int] = None
+
+
+class ObservationDrugsResponse(BaseModel):
+    vitalSign: ObservationVitalSign
+    bloodLoss: ObservationBloodLoss
+
+
 class OperativeNoteDetails(BaseModel):
     time: Optional[str] = None
     typeOfAnesthesia: Optional[str] = None

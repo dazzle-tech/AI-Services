@@ -188,6 +188,131 @@ def _operative_note_fields():
     }
 
 
+def _pre_eval_fields():
+    return {
+        "socialHistory": {
+            "allergies": "Penicillin",
+            "smoker": "No",
+            "alcoholic": "No",
+            "substanceUse": "None",
+        },
+        "lastMeal": {
+            "food": "Light breakfast",
+            "foodDate": "2026-09-02",
+            "fluid": "Water",
+            "fluidDate": "2026-09-03",
+        },
+        "previousAnesthesiaAndSurgery": {
+            "previousAnesthesia": "Yes",
+            "previousSurgery": "Yes",
+            "difficultIntubation": "No",
+            "complication": "No",
+            "comments": "Appendectomy in 2018 under general anesthesia, uneventful",
+        },
+        "pastMedicalHistory": {
+            "cardiovascular": "",
+            "respiratory": "",
+            "neurological": "",
+            "urological": "",
+            "musculoskeletal": "Chronic right knee pain",
+            "psychiatric": "",
+            "pregnancies": "",
+            "renalDisease": "",
+            "endocrine": "Type 2 diabetes, controlled",
+            "hepatic": "",
+            "gastrointestinal": "",
+            "bloodVessel": "",
+            "otherDiseases": "",
+        },
+        "vitalSigns": {
+            "weightKg": 82,
+            "bpSystolic": 128,
+            "bpDiastolic": 82,
+            "pulseRate": 76,
+            "tempC": 36.8,
+            "spo2": 98,
+        },
+        "clinicalExamination": {
+            "cardiovascular": "Normal S1 S2, no murmurs",
+            "respiratory": "Clear air entry bilaterally",
+            "skin": "Intact, no lesions",
+            "sensors": "",
+            "neuromuscular": "",
+            "gcs": None,
+            "others": "",
+        },
+        "airwayAssessment": {
+            "openMouth": "",
+            "thyromentalDistance": "",
+            "neckMobility": "Full range",
+            "others": "",
+        },
+        "clinicalData": {
+            "chestXray": "Unremarkable",
+            "ecg": "Normal sinus rhythm",
+            "others": "",
+        },
+        "asa": {"asaClass": "ASA II", "emergency": False},
+        "preAnesthesiaOrders": {
+            "orders": "NPO after midnight, continue home antihypertensives",
+        },
+        "preMedication": {
+            "preMedication": "Midazolam 2mg IV",
+            "prophylacticAntibiotic": "YES",
+            "prophylacticAntibioticNote": "Cefazolin 1g IV on call to OR",
+        },
+    }
+
+
+def _induction_fields():
+    return {
+        "preInductionAssessment": {
+            "bpSystolic": 120,
+            "bpDiastolic": 80,
+            "hr": 78,
+            "rr": 16,
+            "o2Sat": 98,
+            "npo": "YES",
+            "npoDate": "2026-09-12",
+            "preMedication": "YES",
+            "preMedicationNote": "Midazolam 2mg IV given",
+            "date": "2026-09-12",
+        },
+        "intraoperativeAnesthesia": {
+            "induction": "IV induction",
+            "intubation": "Endotracheal tube",
+            "airway": "Cuffed ETT size 7.5",
+            "position": "Supine",
+            "anesthesiologistResident": "Dr. Yara Sabbagh",
+            "anesthesiaTechnician": "Khaled Nimr",
+        },
+    }
+
+
+def _observation_fields():
+    return {
+        "vitalSign": {
+            "bpSystolic": 120,
+            "bpDiastolic": 80,
+            "hr": 78,
+            "oxygenSupply": "2",
+            "etco2": 35,
+            "spo2": 98,
+            "tempC": "36.8",
+            "tidalVolume": "450",
+            "rr": "16",
+            "act": "",
+            "fio2": "40",
+            "rbs": "",
+            "o2Air": "2",
+        },
+        "bloodLoss": {
+            "bloodQuantity": "",
+            "bloodLoss": 20,
+        },
+    }
+
+
 def _extract_json(window_id="nursing_time_out"):
     if window_id == "nursing_time_out":
         return _time_out_fields()
@@ -197,6 +322,12 @@ def _extract_json(window_id="nursing_time_out"):
         return _sign_out_fields()
     if window_id == "operative_note":
         return _operative_note_fields()
+    if window_id == "anesthesia_pre_evaluation_plan":
+        return _pre_eval_fields()
+    if window_id == "anesthesia_induction_intraoperative":
+        return _induction_fields()
+    if window_id == "anesthesia_observation_drugs":
+        return _observation_fields()
     return {
         "case_id": "case-1",
         "window_id": window_id,
@@ -330,6 +461,18 @@ def test_each_window_path_forwards_to_same_display_path(client, spec):
         assert "window_id" not in body
     elif spec.window_id == "operative_note":
         assert "operationNote" in body
+        assert "window_id" not in body
+    elif spec.window_id == "anesthesia_pre_evaluation_plan":
+        assert "asa" in body
+        assert "socialHistory" in body
+        assert "window_id" not in body
+    elif spec.window_id == "anesthesia_induction_intraoperative":
+        assert "preInductionAssessment" in body
+        assert "intraoperativeAnesthesia" in body
+        assert "window_id" not in body
+    elif spec.window_id == "anesthesia_observation_drugs":
+        assert "vitalSign" in body
+        assert "bloodLoss" in body
         assert "window_id" not in body
     else:
         assert body["window_id"] == spec.window_id

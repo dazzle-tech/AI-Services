@@ -55,6 +55,12 @@ def extract_window_fields(
     merged = _merge_fields(prior, raw_fields)
     if window_id == "nursing_intraoperative":
         merged = _normalize_intraoperative_fields(merged)
+    elif window_id == "anesthesia_pre_evaluation_plan":
+        merged = _normalize_pre_eval_fields(merged)
+    elif window_id == "anesthesia_induction_intraoperative":
+        merged = _normalize_induction_fields(merged)
+    elif window_id == "anesthesia_observation_drugs":
+        merged = _normalize_observation_fields(merged)
 
     dumped = schema.model_validate(merged).model_dump()
     if window_id == "nursing_verification_of_marking_site":
@@ -65,6 +71,12 @@ def extract_window_fields(
         dumped = _normalize_intraoperative_fields(dumped)
     elif window_id == "nursing_sign_out":
         dumped = _normalize_sign_out_fields(dumped)
+    elif window_id == "anesthesia_pre_evaluation_plan":
+        dumped = _normalize_pre_eval_fields(dumped)
+    elif window_id == "anesthesia_induction_intraoperative":
+        dumped = _normalize_induction_fields(dumped)
+    elif window_id == "anesthesia_observation_drugs":
+        dumped = _normalize_observation_fields(dumped)
     elif window_id == "operative_note":
         dumped = _normalize_operative_note_fields(dumped)
     missing_fields = _missing_field_names(window_id, dumped)
@@ -113,6 +125,24 @@ def _missing_field_names(window_id: str, dumped: Dict[str, Any]) -> List[str]:
         missing = []
         for name, value in dumped.items():
             if _intraoperative_section_empty(name, value):
+                missing.append(name)
+        return missing
+    if window_id == "anesthesia_pre_evaluation_plan":
+        missing = []
+        for name, value in dumped.items():
+            if _pre_eval_section_empty(name, value):
+                missing.append(name)
+        return missing
+    if window_id == "anesthesia_induction_intraoperative":
+        missing = []
+        for name, value in dumped.items():
+            if _induction_section_empty(name, value):
+                missing.append(name)
+        return missing
+    if window_id == "anesthesia_observation_drugs":
+        missing = []
+        for name, value in dumped.items():
+            if _observation_section_empty(name, value):
                 missing.append(name)
         return missing
     if window_id == "nursing_sign_out":
@@ -209,6 +239,248 @@ def _operative_note_empty() -> Dict[str, Any]:
 
 def _normalize_operative_note_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
     return _deep_merge(_operative_note_empty(), dumped or {})
+
+
+def _pre_eval_empty() -> Dict[str, Any]:
+    return {
+        "socialHistory": {
+            "allergies": None,
+            "smoker": None,
+            "alcoholic": None,
+            "substanceUse": None,
+        },
+        "lastMeal": {
+            "food": None,
+            "foodDate": None,
+            "fluid": None,
+            "fluidDate": None,
+        },
+        "previousAnesthesiaAndSurgery": {
+            "previousAnesthesia": None,
+            "previousSurgery": None,
+            "difficultIntubation": None,
+            "complication": None,
+            "comments": None,
+        },
+        "pastMedicalHistory": {
+            "cardiovascular": "",
+            "respiratory": "",
+            "neurological": "",
+            "urological": "",
+            "musculoskeletal": "",
+            "psychiatric": "",
+            "pregnancies": "",
+            "renalDisease": "",
+            "endocrine": "",
+            "hepatic": "",
+            "gastrointestinal": "",
+            "bloodVessel": "",
+            "otherDiseases": "",
+        },
+        "vitalSigns": {
+            "weightKg": None,
+            "bpSystolic": None,
+            "bpDiastolic": None,
+            "pulseRate": None,
+            "tempC": None,
+            "spo2": None,
+        },
+        "clinicalExamination": {
+            "cardiovascular": "",
+            "respiratory": "",
+            "skin": "",
+            "sensors": "",
+            "neuromuscular": "",
+            "gcs": None,
+            "others": "",
+        },
+        "airwayAssessment": {
+            "openMouth": "",
+            "thyromentalDistance": "",
+            "neckMobility": "",
+            "others": "",
+        },
+        "clinicalData": {
+            "chestXray": "",
+            "ecg": "",
+            "others": "",
+        },
+        "asa": {"asaClass": None, "emergency": None},
+        "preAnesthesiaOrders": {"orders": None},
+        "preMedication": {
+            "preMedication": None,
+            "prophylacticAntibiotic": None,
+            "prophylacticAntibioticNote": None,
+        },
+    }
+
+
+def _capitalize_first(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    text = value.strip()
+    if not text:
+        return text
+    if text.lower() in {"yes", "no", "none"}:
+        return text[0].upper() + text[1:].lower()
+    return text[0].upper() + text[1:]
+
+
+def _normalize_pre_eval_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
+    merged = _deep_merge(_pre_eval_empty(), dumped or {})
+    for block_name in ("pastMedicalHistory", "clinicalExamination", "airwayAssessment", "clinicalData"):
+        block = merged.get(block_name) or {}
+        for key, value in block.items():
+            if value is None and key != "gcs":
+                block[key] = ""
+            elif isinstance(value, str):
+                block[key] = _capitalize_first(value)
+        merged[block_name] = block
+
+    for block_name in ("socialHistory", "lastMeal"):
+        block = merged.get(block_name) or {}
+        for key, value in block.items():
+            if isinstance(value, str):
+                block[key] = _capitalize_first(value)
+        merged[block_name] = block
+
+    prev = merged.get("previousAnesthesiaAndSurgery") or {}
+    if isinstance(prev.get("comments"), str):
+        prev["comments"] = _capitalize_first(prev["comments"])
+    merged["previousAnesthesiaAndSurgery"] = prev
+
+    pre_med = merged.get("preMedication") or {}
+    for key in ("preMedication", "prophylacticAntibioticNote"):
+        if isinstance(pre_med.get(key), str):
+            pre_med[key] = _capitalize_first(pre_med[key])
+    merged["preMedication"] = pre_med
+
+    asa = merged.get("asa") or {}
+    asa_class = asa.get("asaClass")
+    if isinstance(asa_class, str):
+        asa_class = re.sub(r"^ASA\s*Class\s*", "ASA ", asa_class, flags=re.IGNORECASE).strip()
+        asa["asaClass"] = asa_class
+    merged["asa"] = asa
+    return merged
+
+
+def _pre_eval_section_empty(name: str, value: Any) -> bool:
+    if not isinstance(value, dict):
+        return _is_empty(value)
+    if name == "pastMedicalHistory":
+        return not any(not _is_empty(v) for v in value.values())
+    if name in ("clinicalExamination", "airwayAssessment", "clinicalData"):
+        return not any(not _is_empty(v) for k, v in value.items() if k != "gcs")
+    return all(_is_empty(v) for v in value.values())
+
+
+def _induction_empty() -> Dict[str, Any]:
+    return {
+        "preInductionAssessment": {
+            "bpSystolic": None,
+            "bpDiastolic": None,
+            "hr": None,
+            "rr": None,
+            "o2Sat": None,
+            "npo": None,
+            "npoDate": None,
+            "preMedication": None,
+            "preMedicationNote": None,
+            "date": None,
+        },
+        "intraoperativeAnesthesia": {
+            "induction": None,
+            "intubation": None,
+            "airway": None,
+            "position": None,
+            "anesthesiologistResident": None,
+            "anesthesiaTechnician": None,
+        },
+    }
+
+
+def _normalize_induction_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
+    merged = _deep_merge(_induction_empty(), dumped or {})
+    pre = merged.get("preInductionAssessment") or {}
+    if isinstance(pre.get("preMedicationNote"), str):
+        pre["preMedicationNote"] = _capitalize_first(pre["preMedicationNote"])
+    if isinstance(pre.get("npo"), str):
+        pre["npo"] = pre["npo"].upper()
+    if isinstance(pre.get("preMedication"), str) and pre["preMedication"].upper() in {"YES", "NO"}:
+        pre["preMedication"] = pre["preMedication"].upper()
+    merged["preInductionAssessment"] = pre
+
+    intra = merged.get("intraoperativeAnesthesia") or {}
+    for key in ("induction", "intubation", "airway", "position"):
+        if isinstance(intra.get(key), str):
+            intra[key] = _capitalize_first(intra[key])
+    for key in ("anesthesiologistResident", "anesthesiaTechnician"):
+        if isinstance(intra.get(key), str):
+            value = intra[key].strip()
+            if key == "anesthesiologistResident" and value and not re.match(r"^dr\.?\s", value, flags=re.IGNORECASE):
+                intra[key] = f"Dr. {value}"
+            elif key == "anesthesiaTechnician":
+                intra[key] = _capitalize_first(value)
+            else:
+                intra[key] = value
+    merged["intraoperativeAnesthesia"] = intra
+    return merged
+
+
+def _induction_section_empty(name: str, value: Any) -> bool:
+    if not isinstance(value, dict):
+        return _is_empty(value)
+    return all(_is_empty(v) for v in value.values())
+
+
+def _observation_empty() -> Dict[str, Any]:
+    return {
+        "vitalSign": {
+            "bpSystolic": None,
+            "bpDiastolic": None,
+            "hr": None,
+            "oxygenSupply": "",
+            "etco2": None,
+            "spo2": None,
+            "tempC": "",
+            "tidalVolume": "",
+            "rr": "",
+            "act": "",
+            "fio2": "",
+            "rbs": "",
+            "o2Air": "",
+        },
+        "bloodLoss": {
+            "bloodQuantity": "",
+            "bloodLoss": None,
+        },
+    }
+
+
+def _normalize_observation_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
+    merged = _deep_merge(_observation_empty(), dumped or {})
+    vital = merged.get("vitalSign") or {}
+    for key in ("oxygenSupply", "tempC", "tidalVolume", "rr", "act", "fio2", "rbs", "o2Air"):
+        if vital.get(key) is None:
+            vital[key] = ""
+        elif key == "tempC" and vital[key] != "":
+            vital[key] = str(vital[key]).replace(" C", "").replace("°C", "").strip()
+    merged["vitalSign"] = vital
+    blood = merged.get("bloodLoss") or {}
+    if blood.get("bloodQuantity") is None:
+        blood["bloodQuantity"] = ""
+    merged["bloodLoss"] = blood
+    return merged
+
+
+def _observation_section_empty(name: str, value: Any) -> bool:
+    if not isinstance(value, dict):
+        return _is_empty(value)
+    if name == "vitalSign":
+        return not any(not _is_empty(v) for v in value.values())
+    if name == "bloodLoss":
+        return _is_empty(value.get("bloodLoss")) and _is_empty(value.get("bloodQuantity"))
+    return all(_is_empty(v) for v in value.values())
 
 
 def _normalize_time_out_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
@@ -820,54 +1092,210 @@ def _extract_sign_out(text: str, lower: str) -> Dict[str, Any]:
 
 
 def _extract_pre_eval(text: str, lower: str) -> Dict[str, Any]:
+    del lower
+
+    def _yes_no(pattern: str) -> Optional[str]:
+        value = _after(text, pattern)
+        if not value:
+            return None
+        token = value.strip().split()[0].lower()
+        if token in {"yes", "y"}:
+            return "Yes"
+        if token in {"no", "n"}:
+            return "No"
+        return value.strip()
+
+    bp_match = re.search(r"(?:blood pressure|bp)\s+(\d+)\s*(?:/|over)\s*(\d+)", text, flags=re.IGNORECASE)
+    weight_match = re.search(r"weight\s+(\d+(?:\.\d+)?)\s*kg", text, flags=re.IGNORECASE)
+    pulse_match = re.search(r"(?:pulse(?: rate)?|hr)\s+(\d+)", text, flags=re.IGNORECASE)
+    temp_match = re.search(r"temp(?:erature)?\s+(\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+    spo2_match = re.search(r"(?:spo2|saturations?)\s+(\d+)", text, flags=re.IGNORECASE)
+    asa_match = re.search(r"(ASA\s*(?:class\s*)?[IVX1-6]+)", text, flags=re.IGNORECASE)
+    emergency = None
+    if re.search(r"\bnot emergency\b|\bnon[- ]emergency\b|\belective\b", text, flags=re.IGNORECASE):
+        emergency = False
+    elif re.search(r"\bemergency case\b|\bemergency\b", text, flags=re.IGNORECASE):
+        emergency = True
+
+    antibiotic_yes = None
+    antibiotic_note = None
+    if re.search(r"prophylactic antibiotic\s+yes", text, flags=re.IGNORECASE):
+        antibiotic_yes = "YES"
+        antibiotic_note = _after(text, r"prophylactic antibiotic yes,?\s*([^.]+)")
+    elif re.search(r"prophylactic antibiotic\s+no", text, flags=re.IGNORECASE):
+        antibiotic_yes = "NO"
+
+    smoker = _yes_no(r"smoker\s+([^.]+)")
+    if not smoker and re.search(r"non[- ]smoker", text, flags=re.IGNORECASE):
+        smoker = "No"
+    alcoholic = _yes_no(r"alcoholic\s+([^.]+)")
+    if not alcoholic and re.search(r"non[- ]alcoholic", text, flags=re.IGNORECASE):
+        alcoholic = "No"
+
+    asa_class = None
+    if asa_match:
+        asa_class = re.sub(r"\s+", " ", asa_match.group(1).upper().replace("CLASS", "Class"))
+        if not asa_class.startswith("ASA"):
+            asa_class = f"ASA {asa_class.replace('ASA', '').strip()}"
+
     return {
-        "asa_class": _after(text, r"(ASA\s*[IVX1-6]+)"),
-        "airway_assessment": _after(text, r"airway(?: assessment)?\s+([^.]+)"),
-        "known_allergies": _list_after(text, r"allergies?\s+([^.]+)"),
-        "current_medications": _list_after(text, r"medications?\s+([^.]+)"),
-        "comorbidities": _list_after(text, r"comorbidit(?:y|ies)\s+([^.]+)"),
-        "npo_status": _after(text, r"npo\s+([^.]+)"),
-        "planned_anesthesia_type": _after(text, r"planned anesthesia\s+([^.]+)"),
-        "planned_airway_technique": _after(text, r"planned airway\s+([^.]+)"),
-        "risk_notes": _after(text, r"risk notes?\s+([^.]+)"),
-        "consent_for_anesthesia": _flag(lower, "consent for anesthesia", "anesthesia consent"),
+        "socialHistory": {
+            "allergies": _after(text, r"allergies?\s+([^.]+)"),
+            "smoker": smoker,
+            "alcoholic": alcoholic,
+            "substanceUse": _after(text, r"substance use\s+([^.]+)"),
+        },
+        "lastMeal": {
+            "food": _after(text, r"last meal\s+([^.]+?)(?:\.\s|$)") or _after(text, r"food\s+([^.]+?)(?:\.\s|$)"),
+            "foodDate": _after(text, r"food date\s+(\d{4}-\d{2}-\d{2})"),
+            "fluid": _after(text, r"last fluid\s+([^.]+?)(?:\.\s|$)") or _after(text, r"fluid\s+([^.]+?)(?:\.\s|$)"),
+            "fluidDate": _after(text, r"fluid date\s+(\d{4}-\d{2}-\d{2})"),
+        },
+        "previousAnesthesiaAndSurgery": {
+            "previousAnesthesia": _yes_no(r"previous anesthesia\s+([^.]+)"),
+            "previousSurgery": _yes_no(r"previous surgery\s+([^.]+)"),
+            "difficultIntubation": _yes_no(r"difficult intubation\s+([^.]+)"),
+            "complication": _yes_no(r"complication\s+([^.]+)"),
+            "comments": _after(text, r"comments?\s+([^.]+)"),
+        },
+        "pastMedicalHistory": {
+            "musculoskeletal": _after(text, r"musculoskeletal\s+([^.]+)") or "",
+            "endocrine": _after(text, r"endocrine\s+([^.]+)") or "",
+        },
+        "vitalSigns": {
+            "weightKg": float(weight_match.group(1)) if weight_match else None,
+            "bpSystolic": int(bp_match.group(1)) if bp_match else None,
+            "bpDiastolic": int(bp_match.group(2)) if bp_match else None,
+            "pulseRate": int(pulse_match.group(1)) if pulse_match else None,
+            "tempC": float(temp_match.group(1)) if temp_match else None,
+            "spo2": int(spo2_match.group(1)) if spo2_match else None,
+        },
+        "clinicalExamination": {
+            "cardiovascular": _after(text, r"cardiovascular exam(?:ination)?\s+([^.]+)") or _after(text, r"cardiovascular\s+([^.]+)") or "",
+            "respiratory": _after(text, r"respiratory\s+([^.]+)") or "",
+            "skin": _after(text, r"skin\s+([^.]+)") or "",
+        },
+        "airwayAssessment": {
+            "neckMobility": _after(text, r"neck mobility\s+([^.]+)") or "",
+        },
+        "clinicalData": {
+            "chestXray": _after(text, r"chest x[- ]?ray\s+([^.]+)") or "",
+            "ecg": _after(text, r"ecg\s+([^.]+)") or "",
+        },
+        "asa": {
+            "asaClass": asa_class,
+            "emergency": emergency,
+        },
+        "preAnesthesiaOrders": {
+            "orders": _after(text, r"pre[- ]anesthesia orders?\s+([^.]+)") or _after(text, r"orders?\s+([^.]+)"),
+        },
+        "preMedication": {
+            "preMedication": _after(text, r"pre[- ]medication\s+([^.]+)"),
+            "prophylacticAntibiotic": antibiotic_yes,
+            "prophylacticAntibioticNote": antibiotic_note,
+        },
     }
 
 
 def _extract_induction(text: str, lower: str) -> Dict[str, Any]:
-    drug = _after(text, r"(?:giving|gave|induction with)\s+([a-zA-Z]+)")
-    dose = _after(text, r"(\d+\s*mg)")
-    attempt_match = re.search(r"intubation attempts?\s+(\d+)", lower)
+    del lower
+
+    bp_match = re.search(r"(?:blood pressure|bp)\s+(\d+)\s*(?:/|over)\s*(\d+)", text, flags=re.IGNORECASE)
+    hr_match = re.search(r"(?:heart rate|hr)\s+(\d+)", text, flags=re.IGNORECASE)
+    rr_match = re.search(r"(?:respiratory rate|rr)\s+(\d+)", text, flags=re.IGNORECASE)
+    o2_match = re.search(r"(?:o2 sat|spo2|oxygen saturation)\s+(\d+)", text, flags=re.IGNORECASE)
+
+    npo = None
+    npo_date = None
+    if re.search(r"\bnpo\s+yes\b", text, flags=re.IGNORECASE):
+        npo = "YES"
+        npo_date = _after(text, r"npo date\s+(\d{4}-\d{2}-\d{2})")
+    elif re.search(r"\bnpo\s+no\b", text, flags=re.IGNORECASE):
+        npo = "NO"
+
+    pre_med = None
+    pre_med_note = None
+    if re.search(r"pre[- ]medication\s+yes", text, flags=re.IGNORECASE):
+        pre_med = "YES"
+        pre_med_note = _after(text, r"pre[- ]medication yes,?\s*([^.]+)")
+    elif re.search(r"pre[- ]medication\s+no", text, flags=re.IGNORECASE):
+        pre_med = "NO"
+
+    resident_match = re.search(
+        r"anesthesiologist resident\s+(.+?)(?:\.\s+Anesthesia technician|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    technician_match = re.search(
+        r"anesthesia technician\s+(.+?)(?:\.\s|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    airway_match = re.search(
+        r"airway\s+(.+?)(?:\.\s+Position|\.\s+Anesthesiologist|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+
     return {
-        "induction_time": _after(text, r"induction(?: time)?\s+([0-9:]{4,5})"),
-        "induction_agents": [{"drug": drug, "dose": dose, "time": _after(text, r"induction(?: time)?\s+([0-9:]{4,5})")}] if drug or dose else None,
-        "airway_technique_used": _after(text, r"airway(?: technique)?(?: used)?\s+([^.]+)"),
-        "intubation_attempts": int(attempt_match.group(1)) if attempt_match else None,
-        "ventilation_mode": _after(text, r"ventilation(?: mode)?\s+([^.]+)"),
-        "lines_placed": _list_after(text, r"lines? placed\s+([^.]+)"),
-        "positioning": _after(text, r"position(?:ing)?\s+([^.]+)"),
-        "intraoperative_events": _after(text, r"intraoperative events?\s+([^.]+)"),
-        "notes": None,
+        "preInductionAssessment": {
+            "bpSystolic": int(bp_match.group(1)) if bp_match else None,
+            "bpDiastolic": int(bp_match.group(2)) if bp_match else None,
+            "hr": int(hr_match.group(1)) if hr_match else None,
+            "rr": int(rr_match.group(1)) if rr_match else None,
+            "o2Sat": int(o2_match.group(1)) if o2_match else None,
+            "npo": npo,
+            "npoDate": npo_date,
+            "preMedication": pre_med,
+            "preMedicationNote": pre_med_note,
+            "date": _after(text, r"(?:pre[- ]induction assessment )?date\s+(\d{4}-\d{2}-\d{2})"),
+        },
+        "intraoperativeAnesthesia": {
+            "induction": _after(text, r"induction method\s+([^.]+)") or _after(text, r"intraoperative induction\s+([^.]+)"),
+            "intubation": _after(text, r"intubation\s+([^.]+)"),
+            "airway": airway_match.group(1).strip(" .") if airway_match else None,
+            "position": _after(text, r"position\s+([^.]+)"),
+            "anesthesiologistResident": resident_match.group(1).strip(" .") if resident_match else None,
+            "anesthesiaTechnician": technician_match.group(1).strip(" .") if technician_match else None,
+        },
     }
 
 
 def _extract_observation(text: str, lower: str) -> Dict[str, Any]:
-    hr = _after(text, r"(?:heart rate|hr)\s+(\d+)")
-    bp = _after(text, r"(?:blood pressure|bp)\s+([\d/ ]+)")
-    spo2 = _after(text, r"(?:spo2|saturations?)\s+(\d+\s*%?)")
-    drug = _after(text, r"(?:giving|gave|administered)\s+([A-Za-z]+)")
-    dose = _after(text, r"(\d+\s*(?:mg|mcg|µg))")
-    fluids = None
-    if "crystalloid" in lower or "saline" in lower or "lactated" in lower:
-        fluids = [{"fluid": _after(text, r"(crystalloid|normal saline|lactated ringer'?s)") or "fluid", "volume_ml": _after(text, r"(\d+\s*ml)"), "time": None}]
+    del lower
+
+    bp_match = re.search(r"(?:blood pressure|bp)\s+(\d+)\s*(?:/|over)\s*(\d+)", text, flags=re.IGNORECASE)
+    hr_match = re.search(r"(?:heart rate|hr)\s+(\d+)", text, flags=re.IGNORECASE)
+    spo2_match = re.search(r"(?:spo2|saturations?)\s+(\d+)", text, flags=re.IGNORECASE)
+    etco2_match = re.search(r"(?:etco2|et co2|end tidal co2)\s+(\d+)", text, flags=re.IGNORECASE)
+    temp_match = re.search(r"temp(?:erature)?\s+(\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
+    rr_match = re.search(r"(?:respiratory rate|rr)\s+(\d+)", text, flags=re.IGNORECASE)
+    tidal_match = re.search(r"tidal volume\s+(\d+)", text, flags=re.IGNORECASE)
+    fio2_match = re.search(r"fio2\s+(\d+)", text, flags=re.IGNORECASE)
+    o2_air_match = re.search(r"o2 air\s+(\d+)", text, flags=re.IGNORECASE)
+    oxygen_supply_match = re.search(r"oxygen supply\s+(\d+)", text, flags=re.IGNORECASE)
+    blood_loss_match = re.search(r"(?:blood loss|estimated blood loss|ebl)\s+(\d+)", text, flags=re.IGNORECASE)
+
     return {
-        "vitals": [{"time": None, "hr": hr, "bp": bp, "spo2": spo2, "etco2": None, "temp": _after(text, r"temp(?:erature)?\s+([0-9.]+(?:\s*°?C)?)")}] if hr or bp or spo2 else None,
-        "drugs_administered": [{"drug": drug, "dose": dose, "route": _after(text, r"route\s+([a-zA-Z]+)"), "time": None}] if drug or dose else None,
-        "fluids_administered": fluids,
-        "blood_products_administered": None,
-        "estimated_blood_loss_ml": _after(text, r"(?:estimated blood loss|ebl)\s+([^.]+)"),
-        "urine_output_ml": _after(text, r"urine output\s+([^.]+)"),
-        "notes": None,
+        "vitalSign": {
+            "bpSystolic": int(bp_match.group(1)) if bp_match else None,
+            "bpDiastolic": int(bp_match.group(2)) if bp_match else None,
+            "hr": int(hr_match.group(1)) if hr_match else None,
+            "oxygenSupply": oxygen_supply_match.group(1) if oxygen_supply_match else "",
+            "etco2": int(etco2_match.group(1)) if etco2_match else None,
+            "spo2": int(spo2_match.group(1)) if spo2_match else None,
+            "tempC": temp_match.group(1) if temp_match else "",
+            "tidalVolume": tidal_match.group(1) if tidal_match else "",
+            "rr": rr_match.group(1) if rr_match else "",
+            "act": "",
+            "fio2": fio2_match.group(1) if fio2_match else "",
+            "rbs": "",
+            "o2Air": o2_air_match.group(1) if o2_air_match else "",
+        },
+        "bloodLoss": {
+            "bloodQuantity": _after(text, r"blood quantity\s+([^.]+)") or "",
+            "bloodLoss": int(blood_loss_match.group(1)) if blood_loss_match else None,
+        },
     }
 
 

@@ -14,8 +14,11 @@ from app.models.schemas import (
     AgentWindowJsonRequest,
     DownstreamHealth,
     HealthResponse,
+    InductionIntraoperativeResponse,
     IntraoperativeResponse,
+    ObservationDrugsResponse,
     OperativeNoteResponse,
+    PreEvaluationPlanResponse,
     SignOutResponse,
     TimeOutResponse,
     WindowExtractResponse,
@@ -121,24 +124,24 @@ async def fill_nursing_sign_out(
     return await _handle_window_voice(request, spec_for("nursing_sign_out"))
 
 
-@router.post("/windows/anesthesia/pre-evaluation-plan", response_model=WindowExtractResponse)
+@router.post("/windows/anesthesia/pre-evaluation-plan", response_model=PreEvaluationPlanResponse)
 async def fill_anesthesia_pre_evaluation_plan(
     request: Request,
-) -> WindowExtractResponse:
+) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("anesthesia_pre_evaluation_plan"))
 
 
-@router.post("/windows/anesthesia/induction-intraoperative", response_model=WindowExtractResponse)
+@router.post("/windows/anesthesia/induction-intraoperative", response_model=InductionIntraoperativeResponse)
 async def fill_anesthesia_induction_intraoperative(
     request: Request,
-) -> WindowExtractResponse:
+) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("anesthesia_induction_intraoperative"))
 
 
-@router.post("/windows/anesthesia/observation-drugs", response_model=WindowExtractResponse)
+@router.post("/windows/anesthesia/observation-drugs", response_model=ObservationDrugsResponse)
 async def fill_anesthesia_observation_drugs(
     request: Request,
-) -> WindowExtractResponse:
+) -> dict[str, Any]:
     return await _handle_window_voice(request, spec_for("anesthesia_observation_drugs"))
 
 

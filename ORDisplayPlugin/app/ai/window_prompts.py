@@ -121,19 +121,51 @@ Put extra spoken detail in note (empty string if none).
 """,
     "anesthesia_pre_evaluation_plan": """
 Window: Anesthesia Record — Pre-Anesthesia Evaluation Record & Anesthesia Plan
-Fields: asa_class, airway_assessment, known_allergies, current_medications, comorbidities,
-npo_status, planned_anesthesia_type, planned_airway_technique, risk_notes, consent_for_anesthesia
+
+Return exactly these top-level keys (camelCase). Use null when not spoken; use empty string for
+unmentioned free-text sub-fields inside pastMedicalHistory, clinicalExamination, airwayAssessment,
+and clinicalData.
+
+socialHistory: { allergies, smoker, alcoholic, substanceUse }
+lastMeal: { food, foodDate (YYYY-MM-DD), fluid, fluidDate (YYYY-MM-DD) }
+previousAnesthesiaAndSurgery: { previousAnesthesia, previousSurgery, difficultIntubation, complication, comments }
+pastMedicalHistory: { cardiovascular, respiratory, neurological, urological, musculoskeletal, psychiatric,
+  pregnancies, renalDisease, endocrine, hepatic, gastrointestinal, bloodVessel, otherDiseases }
+vitalSigns: { weightKg, bpSystolic, bpDiastolic, pulseRate, tempC, spo2 }
+clinicalExamination: { cardiovascular, respiratory, skin, sensors, neuromuscular, gcs, others }
+airwayAssessment: { openMouth, thyromentalDistance, neckMobility, others }
+clinicalData: { chestXray, ecg, others }
+asa: { asaClass (e.g. "ASA II"), emergency (boolean) }
+preAnesthesiaOrders: { orders }
+preMedication: { preMedication, prophylacticAntibiotic ("YES"/"NO"), prophylacticAntibioticNote }
 """,
     "anesthesia_induction_intraoperative": """
 Window: Anesthesia Record — Induction Assessment and Intraoperative Anesthesia
-Fields: induction_time, induction_agents ({drug, dose, time}), airway_technique_used,
-intubation_attempts, ventilation_mode, lines_placed, positioning, intraoperative_events, notes
+
+Return exactly these top-level keys (camelCase). Use null when not spoken.
+
+preInductionAssessment: {
+  bpSystolic, bpDiastolic, hr, rr, o2Sat,
+  npo ("YES"/"NO"), npoDate (YYYY-MM-DD),
+  preMedication ("YES"/"NO"), preMedicationNote,
+  date (YYYY-MM-DD)
+}
+intraoperativeAnesthesia: {
+  induction, intubation, airway, position,
+  anesthesiologistResident, anesthesiaTechnician
+}
 """,
     "anesthesia_observation_drugs": """
-Window: Anesthesia Record — Patient Observation and Drugs
-Fields: vitals ({time, hr, bp, spo2, etco2, temp}), drugs_administered ({drug, dose, route, time}),
-fluids_administered ({fluid, volume_ml, time}), blood_products_administered ({product, volume_ml, time}),
-estimated_blood_loss_ml, urine_output_ml, notes
+Window: Anesthesia Record — Patient observation and Drugs
+
+Return exactly these top-level keys (camelCase). Use null when not spoken; use empty string for
+unmentioned text sub-fields inside vitalSign and bloodLoss.
+
+vitalSign: {
+  bpSystolic, bpDiastolic, hr, oxygenSupply, etco2, spo2, tempC, tidalVolume, rr,
+  act, fio2, rbs, o2Air
+}
+bloodLoss: { bloodQuantity, bloodLoss (integer ml) }
 """,
     "operative_note": """
 Window: Operative Note

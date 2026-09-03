@@ -31,6 +31,18 @@ def test_fill_window_from_dictation(client, window_id):
     if window_id == "operative_note":
         assert body["operationNote"]
         return
+    if window_id == "anesthesia_pre_evaluation_plan":
+        assert body["asa"]["asaClass"]
+        assert body["socialHistory"]["allergies"]
+        return
+    if window_id == "anesthesia_induction_intraoperative":
+        assert body["intraoperativeAnesthesia"]["induction"]
+        assert body["preInductionAssessment"]["bpSystolic"]
+        return
+    if window_id == "anesthesia_observation_drugs":
+        assert body["vitalSign"]["bpSystolic"]
+        assert body["bloodLoss"]["bloodLoss"]
+        return
     assert body["window_id"] == window_id
     assert body["fields"][EXPECTED_NONEMPTY[window_id]] is not None
 
@@ -187,6 +199,103 @@ def test_intraoperative_shape(client):
     }
 
 
+def test_pre_evaluation_plan_shape(client):
+    response = client.post(
+        WINDOW_PATHS["anesthesia_pre_evaluation_plan"],
+        json={"role": "anesthetist", "text": SAMPLE_TEXTS["anesthesia_pre_evaluation_plan"]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "window_id" not in body
+    assert body["socialHistory"]["allergies"] == "Penicillin"
+    assert body["socialHistory"]["smoker"] == "No"
+    assert body["socialHistory"]["alcoholic"] == "No"
+    assert body["socialHistory"]["substanceUse"] == "None"
+    assert body["lastMeal"]["food"] == "Light breakfast"
+    assert body["lastMeal"]["foodDate"] == "2026-09-02"
+    assert body["lastMeal"]["fluid"] == "Water"
+    assert body["lastMeal"]["fluidDate"] == "2026-09-03"
+    assert body["previousAnesthesiaAndSurgery"]["previousAnesthesia"] == "Yes"
+    assert body["previousAnesthesiaAndSurgery"]["comments"] == (
+        "Appendectomy in 2018 under general anesthesia, uneventful"
+    )
+    assert body["pastMedicalHistory"]["musculoskeletal"] == "Chronic right knee pain"
+    assert body["pastMedicalHistory"]["endocrine"] == "Type 2 diabetes, controlled"
+    assert body["pastMedicalHistory"]["cardiovascular"] == ""
+    assert body["vitalSigns"]["weightKg"] == 82
+    assert body["vitalSigns"]["bpSystolic"] == 128
+    assert body["vitalSigns"]["bpDiastolic"] == 82
+    assert body["vitalSigns"]["pulseRate"] == 76
+    assert body["vitalSigns"]["tempC"] == 36.8
+    assert body["vitalSigns"]["spo2"] == 98
+    assert body["clinicalExamination"]["cardiovascular"] == "Normal S1 S2, no murmurs"
+    assert body["clinicalExamination"]["respiratory"] == "Clear air entry bilaterally"
+    assert body["clinicalExamination"]["skin"] == "Intact, no lesions"
+    assert body["airwayAssessment"]["neckMobility"] == "Full range"
+    assert body["clinicalData"]["chestXray"] == "Unremarkable"
+    assert body["clinicalData"]["ecg"] == "Normal sinus rhythm"
+    assert body["asa"]["asaClass"] == "ASA II"
+    assert body["asa"]["emergency"] is False
+    assert "NPO after midnight" in body["preAnesthesiaOrders"]["orders"]
+    assert body["preMedication"]["preMedication"].lower().startswith("midazolam 2")
+    assert body["preMedication"]["prophylacticAntibiotic"] == "YES"
+    assert body["preMedication"]["prophylacticAntibioticNote"].lower().startswith("cefazolin 1")
+
+
+def test_induction_intraoperative_shape(client):
+    response = client.post(
+        WINDOW_PATHS["anesthesia_induction_intraoperative"],
+        json={"role": "anesthetist", "text": SAMPLE_TEXTS["anesthesia_induction_intraoperative"]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "window_id" not in body
+    pre = body["preInductionAssessment"]
+    assert pre["bpSystolic"] == 120
+    assert pre["bpDiastolic"] == 80
+    assert pre["hr"] == 78
+    assert pre["rr"] == 16
+    assert pre["o2Sat"] == 98
+    assert pre["npo"] == "YES"
+    assert pre["npoDate"] == "2026-09-12"
+    assert pre["preMedication"] == "YES"
+    assert pre["preMedicationNote"].lower().startswith("midazolam 2")
+    assert pre["date"] == "2026-09-12"
+    intra = body["intraoperativeAnesthesia"]
+    assert intra["induction"] == "IV induction"
+    assert intra["intubation"] == "Endotracheal tube"
+    assert intra["airway"] == "Cuffed ETT size 7.5"
+    assert intra["position"] == "Supine"
+    assert intra["anesthesiologistResident"] == "Dr. Yara Sabbagh"
+    assert intra["anesthesiaTechnician"] == "Khaled Nimr"
+
+
+def test_observation_drugs_shape(client):
+    response = client.post(
+        WINDOW_PATHS["anesthesia_observation_drugs"],
+        json={"role": "anesthetist", "text": SAMPLE_TEXTS["anesthesia_observation_drugs"]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert "window_id" not in body
+    vital = body["vitalSign"]
+    assert vital["bpSystolic"] == 120
+    assert vital["bpDiastolic"] == 80
+    assert vital["hr"] == 78
+    assert vital["oxygenSupply"] == "2"
+    assert vital["etco2"] == 35
+    assert vital["spo2"] == 98
+    assert vital["tempC"] == "36.8"
+    assert vital["tidalVolume"] == "450"
+    assert vital["rr"] == "16"
+    assert vital["act"] == ""
+    assert vital["fio2"] == "40"
+    assert vital["rbs"] == ""
+    assert vital["o2Air"] == "2"
+    assert body["bloodLoss"]["bloodQuantity"] == ""
+    assert body["bloodLoss"]["bloodLoss"] == 20
+
+
 def test_operative_note_shape(client):
     response = client.post(
         WINDOW_PATHS["operative_note"],
@@ -249,6 +358,18 @@ def test_garbled_text_needs_review(client, window_id):
         return
     if window_id == "operative_note":
         assert "operationNote" in body
+        assert "needs_review" not in body
+        return
+    if window_id == "anesthesia_pre_evaluation_plan":
+        assert "asa" in body
+        assert "needs_review" not in body
+        return
+    if window_id == "anesthesia_induction_intraoperative":
+        assert "intraoperativeAnesthesia" in body
+        assert "needs_review" not in body
+        return
+    if window_id == "anesthesia_observation_drugs":
+        assert "vitalSign" in body
         assert "needs_review" not in body
         return
     assert body["needs_review"] is True

@@ -32,6 +32,24 @@ NURSING_TAB = {
     ),
 }
 
+# EMR UI: main tab "Anesthesia Record" with three sub-tabs (paths under /windows/anesthesia/…).
+ANESTHESIA_TAB = {
+    "tab_name": "Anesthesia Record",
+    "role": "anesthetist",
+    "sub_tabs": (
+        "Pre-Anesthesia Evaluation Record & Anesthesia Plan",
+        "Induction Assessment and Intraoperative Anesthesia",
+        "Patient observation and Drugs",
+    ),
+}
+
+# EMR UI: main tab "Operative Note" — single screen.
+OPERATIVE_NOTE_TAB = {
+    "tab_name": "Operative Note",
+    "role": "surgeon",
+    "sub_tabs": ("Operative Note",),
+}
+
 _ROLE_WINDOW: Dict[Tuple[str, str], str] = {
     ("nurse", "verification of marking site"): "nursing_verification_of_marking_site",
     ("nurse", "sign in"): "nursing_verification_of_marking_site",

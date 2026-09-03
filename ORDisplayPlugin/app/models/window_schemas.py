@@ -331,39 +331,221 @@ class NursingIntraoperativeFields(_WindowFields):
     specimens: Optional[SpecimensBlock] = None
 
 
+class SocialHistory(_WindowFields):
+    allergies: Optional[str] = None
+    smoker: Optional[str] = None
+    alcoholic: Optional[str] = None
+    substanceUse: Optional[str] = None
+
+
+class LastMeal(_WindowFields):
+    food: Optional[str] = None
+    foodDate: Optional[str] = None
+    fluid: Optional[str] = None
+    fluidDate: Optional[str] = None
+
+
+class PreviousAnesthesiaAndSurgery(_WindowFields):
+    previousAnesthesia: Optional[str] = None
+    previousSurgery: Optional[str] = None
+    difficultIntubation: Optional[str] = None
+    complication: Optional[str] = None
+    comments: Optional[str] = None
+
+
+class PastMedicalHistory(_WindowFields):
+    cardiovascular: str = ""
+    respiratory: str = ""
+    neurological: str = ""
+    urological: str = ""
+    musculoskeletal: str = ""
+    psychiatric: str = ""
+    pregnancies: str = ""
+    renalDisease: str = ""
+    endocrine: str = ""
+    hepatic: str = ""
+    gastrointestinal: str = ""
+    bloodVessel: str = ""
+    otherDiseases: str = ""
+
+    @field_validator(
+        "cardiovascular",
+        "respiratory",
+        "neurological",
+        "urological",
+        "musculoskeletal",
+        "psychiatric",
+        "pregnancies",
+        "renalDisease",
+        "endocrine",
+        "hepatic",
+        "gastrointestinal",
+        "bloodVessel",
+        "otherDiseases",
+        mode="before",
+    )
+    @classmethod
+    def _empty_string(cls, value: object) -> str:
+        return "" if value is None else str(value)
+
+
+class PreEvalVitalSigns(_WindowFields):
+    weightKg: Optional[float] = None
+    bpSystolic: Optional[int] = None
+    bpDiastolic: Optional[int] = None
+    pulseRate: Optional[int] = None
+    tempC: Optional[float] = None
+    spo2: Optional[int] = None
+
+
+class ClinicalExamination(_WindowFields):
+    cardiovascular: str = ""
+    respiratory: str = ""
+    skin: str = ""
+    sensors: str = ""
+    neuromuscular: str = ""
+    gcs: Optional[int] = None
+    others: str = ""
+
+    @field_validator(
+        "cardiovascular",
+        "respiratory",
+        "skin",
+        "sensors",
+        "neuromuscular",
+        "others",
+        mode="before",
+    )
+    @classmethod
+    def _empty_string(cls, value: object) -> str:
+        return "" if value is None else str(value)
+
+
+class AirwayAssessment(_WindowFields):
+    openMouth: str = ""
+    thyromentalDistance: str = ""
+    neckMobility: str = ""
+    others: str = ""
+
+    @field_validator("openMouth", "thyromentalDistance", "neckMobility", "others", mode="before")
+    @classmethod
+    def _empty_string(cls, value: object) -> str:
+        return "" if value is None else str(value)
+
+
+class ClinicalData(_WindowFields):
+    chestXray: str = ""
+    ecg: str = ""
+    others: str = ""
+
+    @field_validator("chestXray", "ecg", "others", mode="before")
+    @classmethod
+    def _empty_string(cls, value: object) -> str:
+        return "" if value is None else str(value)
+
+
+class AsaBlock(_WindowFields):
+    asaClass: Optional[str] = None
+    emergency: Optional[bool] = None
+
+
+class PreAnesthesiaOrders(_WindowFields):
+    orders: Optional[str] = None
+
+
+class PreMedication(_WindowFields):
+    preMedication: Optional[str] = None
+    prophylacticAntibiotic: Optional[str] = None
+    prophylacticAntibioticNote: Optional[str] = None
+
+
 class AnesthesiaPreEvaluationPlanFields(_WindowFields):
-    asa_class: Optional[str] = None
-    airway_assessment: Optional[str] = None
-    known_allergies: Optional[List[str]] = None
-    current_medications: Optional[List[str]] = None
-    comorbidities: Optional[List[str]] = None
-    npo_status: Optional[str] = None
-    planned_anesthesia_type: Optional[str] = None
-    planned_airway_technique: Optional[str] = None
-    risk_notes: Optional[str] = None
-    consent_for_anesthesia: Optional[bool] = None
+    socialHistory: Optional[SocialHistory] = None
+    lastMeal: Optional[LastMeal] = None
+    previousAnesthesiaAndSurgery: Optional[PreviousAnesthesiaAndSurgery] = None
+    pastMedicalHistory: Optional[PastMedicalHistory] = None
+    vitalSigns: Optional[PreEvalVitalSigns] = None
+    clinicalExamination: Optional[ClinicalExamination] = None
+    airwayAssessment: Optional[AirwayAssessment] = None
+    clinicalData: Optional[ClinicalData] = None
+    asa: Optional[AsaBlock] = None
+    preAnesthesiaOrders: Optional[PreAnesthesiaOrders] = None
+    preMedication: Optional[PreMedication] = None
+
+
+class PreInductionAssessment(_WindowFields):
+    bpSystolic: Optional[int] = None
+    bpDiastolic: Optional[int] = None
+    hr: Optional[int] = None
+    rr: Optional[int] = None
+    o2Sat: Optional[int] = None
+    npo: Optional[str] = None
+    npoDate: Optional[str] = None
+    preMedication: Optional[str] = None
+    preMedicationNote: Optional[str] = None
+    date: Optional[str] = None
+
+
+class IntraoperativeAnesthesia(_WindowFields):
+    induction: Optional[str] = None
+    intubation: Optional[str] = None
+    airway: Optional[str] = None
+    position: Optional[str] = None
+    anesthesiologistResident: Optional[str] = None
+    anesthesiaTechnician: Optional[str] = None
 
 
 class AnesthesiaInductionIntraoperativeFields(_WindowFields):
-    induction_time: Optional[str] = None
-    induction_agents: Optional[List[DrugDoseItem]] = None
-    airway_technique_used: Optional[str] = None
-    intubation_attempts: Optional[int] = None
-    ventilation_mode: Optional[str] = None
-    lines_placed: Optional[List[str]] = None
-    positioning: Optional[str] = None
-    intraoperative_events: Optional[str] = None
-    notes: Optional[str] = None
+    preInductionAssessment: Optional[PreInductionAssessment] = None
+    intraoperativeAnesthesia: Optional[IntraoperativeAnesthesia] = None
+
+
+class ObservationVitalSign(_WindowFields):
+    bpSystolic: Optional[int] = None
+    bpDiastolic: Optional[int] = None
+    hr: Optional[int] = None
+    oxygenSupply: str = ""
+    etco2: Optional[int] = None
+    spo2: Optional[int] = None
+    tempC: str = ""
+    tidalVolume: str = ""
+    rr: str = ""
+    act: str = ""
+    fio2: str = ""
+    rbs: str = ""
+    o2Air: str = ""
+
+    @field_validator(
+        "oxygenSupply",
+        "tempC",
+        "tidalVolume",
+        "rr",
+        "act",
+        "fio2",
+        "rbs",
+        "o2Air",
+        mode="before",
+    )
+    @classmethod
+    def _empty_string(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value)
+
+
+class ObservationBloodLoss(_WindowFields):
+    bloodQuantity: str = ""
+    bloodLoss: Optional[int] = None
+
+    @field_validator("bloodQuantity", mode="before")
+    @classmethod
+    def _empty_string(cls, value: object) -> str:
+        return "" if value is None else str(value)
 
 
 class AnesthesiaObservationDrugsFields(_WindowFields):
-    vitals: Optional[List[VitalItem]] = None
-    drugs_administered: Optional[List[DrugAdminItem]] = None
-    fluids_administered: Optional[List[FluidItem]] = None
-    blood_products_administered: Optional[List[BloodProductItem]] = None
-    estimated_blood_loss_ml: Optional[str] = None
-    urine_output_ml: Optional[str] = None
-    notes: Optional[str] = None
+    vitalSign: Optional[ObservationVitalSign] = None
+    bloodLoss: Optional[ObservationBloodLoss] = None
 
 
 class OperativeDetails(_WindowFields):

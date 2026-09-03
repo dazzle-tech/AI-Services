@@ -27,6 +27,9 @@ from app.services.mapping_service import AllViewsFailed, reshape_many
 from app.services.orscribe_adapter import normalize_orscribe_output
 from app.services.window_extraction_service import extract_window_fields
 from app.models.window_schemas import (
+    AnesthesiaInductionIntraoperativeFields,
+    AnesthesiaObservationDrugsFields,
+    AnesthesiaPreEvaluationPlanFields,
     NursingIntraoperativeFields,
     NursingSignOutFields,
     NursingTimeOutFields,
@@ -166,19 +169,22 @@ async def fill_nursing_sign_out(body: WindowExtractRequest) -> NursingSignOutFie
     return NursingSignOutFields.model_validate(result.fields)
 
 
-@router.post("/windows/anesthesia/pre-evaluation-plan", response_model=WindowExtractResponse)
-async def fill_anesthesia_pre_evaluation_plan(body: WindowExtractRequest) -> WindowExtractResponse:
-    return _fill_window("anesthesia_pre_evaluation_plan", body)
+@router.post("/windows/anesthesia/pre-evaluation-plan", response_model=AnesthesiaPreEvaluationPlanFields)
+async def fill_anesthesia_pre_evaluation_plan(body: WindowExtractRequest) -> AnesthesiaPreEvaluationPlanFields:
+    result = _fill_window("anesthesia_pre_evaluation_plan", body)
+    return AnesthesiaPreEvaluationPlanFields.model_validate(result.fields)
 
 
-@router.post("/windows/anesthesia/induction-intraoperative", response_model=WindowExtractResponse)
-async def fill_anesthesia_induction_intraoperative(body: WindowExtractRequest) -> WindowExtractResponse:
-    return _fill_window("anesthesia_induction_intraoperative", body)
+@router.post("/windows/anesthesia/induction-intraoperative", response_model=AnesthesiaInductionIntraoperativeFields)
+async def fill_anesthesia_induction_intraoperative(body: WindowExtractRequest) -> AnesthesiaInductionIntraoperativeFields:
+    result = _fill_window("anesthesia_induction_intraoperative", body)
+    return AnesthesiaInductionIntraoperativeFields.model_validate(result.fields)
 
 
-@router.post("/windows/anesthesia/observation-drugs", response_model=WindowExtractResponse)
-async def fill_anesthesia_observation_drugs(body: WindowExtractRequest) -> WindowExtractResponse:
-    return _fill_window("anesthesia_observation_drugs", body)
+@router.post("/windows/anesthesia/observation-drugs", response_model=AnesthesiaObservationDrugsFields)
+async def fill_anesthesia_observation_drugs(body: WindowExtractRequest) -> AnesthesiaObservationDrugsFields:
+    result = _fill_window("anesthesia_observation_drugs", body)
+    return AnesthesiaObservationDrugsFields.model_validate(result.fields)
 
 
 @router.post("/windows/operative-note", response_model=OperativeNoteFields)

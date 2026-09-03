@@ -913,11 +913,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Has fields and raw_text', function () {",
+                  "pm.test('Has EMR pre-evaluation sections', function () {",
                   "  const j = pm.response.json();",
-                  "  pm.expect(j).to.have.property('window_id');",
-                  "  pm.expect(j).to.have.property('fields');",
-                  "  pm.expect(j).to.have.property('raw_text');",
+                  "  pm.expect(j).to.have.property('asa');",
+                  "  pm.expect(j).to.have.property('socialHistory');",
+                  "  pm.expect(j).to.not.have.property('window_id');",
                   "});"
                 ]
               }
@@ -984,7 +984,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"case_id\": \"case-123\",\n  \"window_id\": \"anesthesia_pre_evaluation_plan\",\n  \"fields\": {\n    \"asa_class\": \"ASA II\",\n    \"airway_assessment\": \"Mallampati 2\",\n    \"known_allergies\": [\n      \"NKDA\"\n    ],\n    \"current_medications\": [\n      \"lisinopril\"\n    ],\n    \"comorbidities\": [\n      \"hypertension\"\n    ],\n    \"npo_status\": \"NPO since midnight\",\n    \"planned_anesthesia_type\": \"general\",\n    \"planned_airway_technique\": \"ETT\",\n    \"consent_for_anesthesia\": true\n  },\n  \"confidence\": \"high\",\n  \"needs_review\": false,\n  \"missing_fields\": [],\n  \"raw_text\": \"ASA II. Airway assessment Mallampati 2. Allergies NKDA. Medications lisinopril. Comorbidities hypertension. NPO since midnight. Planned anesthesia general. Planned airway ETT.\"\n}"
+              "body": "{\n  \"socialHistory\": {\n    \"allergies\": \"Penicillin\",\n    \"smoker\": \"No\",\n    \"alcoholic\": \"No\",\n    \"substanceUse\": \"None\"\n  },\n  \"lastMeal\": {\n    \"food\": \"Light breakfast\",\n    \"foodDate\": \"2026-09-02\",\n    \"fluid\": \"Water\",\n    \"fluidDate\": \"2026-09-03\"\n  },\n  \"previousAnesthesiaAndSurgery\": {\n    \"previousAnesthesia\": \"Yes\",\n    \"previousSurgery\": \"Yes\",\n    \"difficultIntubation\": \"No\",\n    \"complication\": \"No\",\n    \"comments\": \"Appendectomy in 2018 under general anesthesia, uneventful\"\n  },\n  \"pastMedicalHistory\": {\n    \"cardiovascular\": \"\",\n    \"respiratory\": \"\",\n    \"neurological\": \"\",\n    \"urological\": \"\",\n    \"musculoskeletal\": \"Chronic right knee pain\",\n    \"psychiatric\": \"\",\n    \"pregnancies\": \"\",\n    \"renalDisease\": \"\",\n    \"endocrine\": \"Type 2 diabetes, controlled\",\n    \"hepatic\": \"\",\n    \"gastrointestinal\": \"\",\n    \"bloodVessel\": \"\",\n    \"otherDiseases\": \"\"\n  },\n  \"vitalSigns\": {\n    \"weightKg\": 82,\n    \"bpSystolic\": 128,\n    \"bpDiastolic\": 82,\n    \"pulseRate\": 76,\n    \"tempC\": 36.8,\n    \"spo2\": 98\n  },\n  \"clinicalExamination\": {\n    \"cardiovascular\": \"Normal S1 S2, no murmurs\",\n    \"respiratory\": \"Clear air entry bilaterally\",\n    \"skin\": \"Intact, no lesions\",\n    \"sensors\": \"\",\n    \"neuromuscular\": \"\",\n    \"gcs\": null,\n    \"others\": \"\"\n  },\n  \"airwayAssessment\": {\n    \"openMouth\": \"\",\n    \"thyromentalDistance\": \"\",\n    \"neckMobility\": \"Full range\",\n    \"others\": \"\"\n  },\n  \"clinicalData\": {\n    \"chestXray\": \"Unremarkable\",\n    \"ecg\": \"Normal sinus rhythm\",\n    \"others\": \"\"\n  },\n  \"asa\": {\n    \"asaClass\": \"ASA II\",\n    \"emergency\": false\n  },\n  \"preAnesthesiaOrders\": {\n    \"orders\": \"NPO after midnight, continue home antihypertensives\"\n  },\n  \"preMedication\": {\n    \"preMedication\": \"Midazolam 2mg IV\",\n    \"prophylacticAntibiotic\": \"YES\",\n    \"prophylacticAntibioticNote\": \"Cefazolin 1g IV on call to OR\"\n  }\n}"
             }
           ]
         },
@@ -997,11 +997,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Has fields and raw_text', function () {",
+                  "pm.test('Has EMR pre-evaluation sections', function () {",
                   "  const j = pm.response.json();",
-                  "  pm.expect(j).to.have.property('window_id');",
-                  "  pm.expect(j).to.have.property('fields');",
-                  "  pm.expect(j).to.have.property('raw_text');",
+                  "  pm.expect(j).to.have.property('asa');",
+                  "  pm.expect(j).to.have.property('socialHistory');",
+                  "  pm.expect(j).to.not.have.property('window_id');",
                   "});"
                 ]
               }
@@ -1074,7 +1074,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"case_id\": \"case-123\",\n  \"window_id\": \"anesthesia_pre_evaluation_plan\",\n  \"fields\": {\n    \"asa_class\": \"ASA II\",\n    \"airway_assessment\": \"Mallampati 2\",\n    \"known_allergies\": [\n      \"NKDA\"\n    ],\n    \"current_medications\": [\n      \"lisinopril\"\n    ],\n    \"comorbidities\": [\n      \"hypertension\"\n    ],\n    \"npo_status\": \"NPO since midnight\",\n    \"planned_anesthesia_type\": \"general\",\n    \"planned_airway_technique\": \"ETT\",\n    \"consent_for_anesthesia\": true\n  },\n  \"confidence\": \"high\",\n  \"needs_review\": false,\n  \"missing_fields\": [],\n  \"raw_text\": \"ASA II. Airway assessment Mallampati 2. Allergies NKDA. Medications lisinopril. Comorbidities hypertension. NPO since midnight. Planned anesthesia general. Planned airway ETT.\"\n}"
+              "body": "{\n  \"socialHistory\": {\n    \"allergies\": \"Penicillin\",\n    \"smoker\": \"No\",\n    \"alcoholic\": \"No\",\n    \"substanceUse\": \"None\"\n  },\n  \"lastMeal\": {\n    \"food\": \"Light breakfast\",\n    \"foodDate\": \"2026-09-02\",\n    \"fluid\": \"Water\",\n    \"fluidDate\": \"2026-09-03\"\n  },\n  \"previousAnesthesiaAndSurgery\": {\n    \"previousAnesthesia\": \"Yes\",\n    \"previousSurgery\": \"Yes\",\n    \"difficultIntubation\": \"No\",\n    \"complication\": \"No\",\n    \"comments\": \"Appendectomy in 2018 under general anesthesia, uneventful\"\n  },\n  \"pastMedicalHistory\": {\n    \"cardiovascular\": \"\",\n    \"respiratory\": \"\",\n    \"neurological\": \"\",\n    \"urological\": \"\",\n    \"musculoskeletal\": \"Chronic right knee pain\",\n    \"psychiatric\": \"\",\n    \"pregnancies\": \"\",\n    \"renalDisease\": \"\",\n    \"endocrine\": \"Type 2 diabetes, controlled\",\n    \"hepatic\": \"\",\n    \"gastrointestinal\": \"\",\n    \"bloodVessel\": \"\",\n    \"otherDiseases\": \"\"\n  },\n  \"vitalSigns\": {\n    \"weightKg\": 82,\n    \"bpSystolic\": 128,\n    \"bpDiastolic\": 82,\n    \"pulseRate\": 76,\n    \"tempC\": 36.8,\n    \"spo2\": 98\n  },\n  \"clinicalExamination\": {\n    \"cardiovascular\": \"Normal S1 S2, no murmurs\",\n    \"respiratory\": \"Clear air entry bilaterally\",\n    \"skin\": \"Intact, no lesions\",\n    \"sensors\": \"\",\n    \"neuromuscular\": \"\",\n    \"gcs\": null,\n    \"others\": \"\"\n  },\n  \"airwayAssessment\": {\n    \"openMouth\": \"\",\n    \"thyromentalDistance\": \"\",\n    \"neckMobility\": \"Full range\",\n    \"others\": \"\"\n  },\n  \"clinicalData\": {\n    \"chestXray\": \"Unremarkable\",\n    \"ecg\": \"Normal sinus rhythm\",\n    \"others\": \"\"\n  },\n  \"asa\": {\n    \"asaClass\": \"ASA II\",\n    \"emergency\": false\n  },\n  \"preAnesthesiaOrders\": {\n    \"orders\": \"NPO after midnight, continue home antihypertensives\"\n  },\n  \"preMedication\": {\n    \"preMedication\": \"Midazolam 2mg IV\",\n    \"prophylacticAntibiotic\": \"YES\",\n    \"prophylacticAntibioticNote\": \"Cefazolin 1g IV on call to OR\"\n  }\n}"
             }
           ]
         },
@@ -1087,11 +1087,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Has fields and raw_text', function () {",
+                  "pm.test('Has induction EMR sections', function () {",
                   "  const j = pm.response.json();",
-                  "  pm.expect(j).to.have.property('window_id');",
-                  "  pm.expect(j).to.have.property('fields');",
-                  "  pm.expect(j).to.have.property('raw_text');",
+                  "  pm.expect(j).to.have.property('preInductionAssessment');",
+                  "  pm.expect(j).to.have.property('intraoperativeAnesthesia');",
+                  "  pm.expect(j).to.not.have.property('window_id');",
                   "});"
                 ]
               }
@@ -1158,7 +1158,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"case_id\": \"case-123\",\n  \"window_id\": \"anesthesia_induction_intraoperative\",\n  \"fields\": {\n    \"induction_time\": \"08:22\",\n    \"induction_agents\": [\n      {\n        \"drug\": \"propofol\",\n        \"dose\": \"150 mg\",\n        \"time\": null\n      }\n    ],\n    \"airway_technique_used\": \"ETT\",\n    \"intubation_attempts\": 1,\n    \"ventilation_mode\": \"volume control\",\n    \"positioning\": \"supine\"\n  },\n  \"confidence\": \"high\",\n  \"needs_review\": false,\n  \"missing_fields\": [],\n  \"raw_text\": \"Induction time 08:22. Giving propofol 150 mg. Airway technique used ETT. Intubation attempts 1. Ventilation mode volume control. Positioning supine.\"\n}"
+              "body": "{\n  \"preInductionAssessment\": {\n    \"bpSystolic\": 120,\n    \"bpDiastolic\": 80,\n    \"hr\": 78,\n    \"rr\": 16,\n    \"o2Sat\": 98,\n    \"npo\": \"YES\",\n    \"npoDate\": \"2026-09-12\",\n    \"preMedication\": \"YES\",\n    \"preMedicationNote\": \"Midazolam 2mg IV given\",\n    \"date\": \"2026-09-12\"\n  },\n  \"intraoperativeAnesthesia\": {\n    \"induction\": \"IV induction\",\n    \"intubation\": \"Endotracheal tube\",\n    \"airway\": \"Cuffed ETT size 7.5\",\n    \"position\": \"Supine\",\n    \"anesthesiologistResident\": \"Dr. Yara Sabbagh\",\n    \"anesthesiaTechnician\": \"Khaled Nimr\"\n  }\n}"
             }
           ]
         },
@@ -1171,11 +1171,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Has fields and raw_text', function () {",
+                  "pm.test('Has induction EMR sections', function () {",
                   "  const j = pm.response.json();",
-                  "  pm.expect(j).to.have.property('window_id');",
-                  "  pm.expect(j).to.have.property('fields');",
-                  "  pm.expect(j).to.have.property('raw_text');",
+                  "  pm.expect(j).to.have.property('preInductionAssessment');",
+                  "  pm.expect(j).to.have.property('intraoperativeAnesthesia');",
+                  "  pm.expect(j).to.not.have.property('window_id');",
                   "});"
                 ]
               }
@@ -1248,7 +1248,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"case_id\": \"case-123\",\n  \"window_id\": \"anesthesia_induction_intraoperative\",\n  \"fields\": {\n    \"induction_time\": \"08:22\",\n    \"induction_agents\": [\n      {\n        \"drug\": \"propofol\",\n        \"dose\": \"150 mg\",\n        \"time\": null\n      }\n    ],\n    \"airway_technique_used\": \"ETT\",\n    \"intubation_attempts\": 1,\n    \"ventilation_mode\": \"volume control\",\n    \"positioning\": \"supine\"\n  },\n  \"confidence\": \"high\",\n  \"needs_review\": false,\n  \"missing_fields\": [],\n  \"raw_text\": \"Induction time 08:22. Giving propofol 150 mg. Airway technique used ETT. Intubation attempts 1. Ventilation mode volume control. Positioning supine.\"\n}"
+              "body": "{\n  \"preInductionAssessment\": {\n    \"bpSystolic\": 120,\n    \"bpDiastolic\": 80,\n    \"hr\": 78,\n    \"rr\": 16,\n    \"o2Sat\": 98,\n    \"npo\": \"YES\",\n    \"npoDate\": \"2026-09-12\",\n    \"preMedication\": \"YES\",\n    \"preMedicationNote\": \"Midazolam 2mg IV given\",\n    \"date\": \"2026-09-12\"\n  },\n  \"intraoperativeAnesthesia\": {\n    \"induction\": \"IV induction\",\n    \"intubation\": \"Endotracheal tube\",\n    \"airway\": \"Cuffed ETT size 7.5\",\n    \"position\": \"Supine\",\n    \"anesthesiologistResident\": \"Dr. Yara Sabbagh\",\n    \"anesthesiaTechnician\": \"Khaled Nimr\"\n  }\n}"
             }
           ]
         },
@@ -1261,11 +1261,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Has fields and raw_text', function () {",
+                  "pm.test('Has observation EMR sections', function () {",
                   "  const j = pm.response.json();",
-                  "  pm.expect(j).to.have.property('window_id');",
-                  "  pm.expect(j).to.have.property('fields');",
-                  "  pm.expect(j).to.have.property('raw_text');",
+                  "  pm.expect(j).to.have.property('vitalSign');",
+                  "  pm.expect(j).to.have.property('bloodLoss');",
+                  "  pm.expect(j).to.not.have.property('window_id');",
                   "});"
                 ]
               }
@@ -1332,7 +1332,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"case_id\": \"case-123\",\n  \"window_id\": \"anesthesia_observation_drugs\",\n  \"fields\": {\n    \"estimated_blood_loss_ml\": \"50\",\n    \"urine_output_ml\": \"100\",\n    \"vitals\": [\n      {\n        \"hr\": \"72\",\n        \"bp\": \"120/80\",\n        \"spo2\": \"99%\",\n        \"temp\": \"36.5 C\"\n      }\n    ],\n    \"drugs\": [\n      {\n        \"drug\": \"fentanyl\",\n        \"dose\": \"50 mcg\",\n        \"route\": \"IV\"\n      }\n    ]\n  },\n  \"confidence\": \"high\",\n  \"needs_review\": false,\n  \"missing_fields\": [],\n  \"raw_text\": \"Heart rate 72. Blood pressure 120/80. SpO2 99%. Temperature 36.5 C. Giving fentanyl 50 mcg route IV. Estimated blood loss 50 ml. Urine output 100 ml.\"\n}"
+              "body": "{\n  \"vitalSign\": {\n    \"bpSystolic\": 120,\n    \"bpDiastolic\": 80,\n    \"hr\": 78,\n    \"oxygenSupply\": \"2\",\n    \"etco2\": 35,\n    \"spo2\": 98,\n    \"tempC\": \"36.8\",\n    \"tidalVolume\": \"450\",\n    \"rr\": \"16\",\n    \"act\": \"\",\n    \"fio2\": \"40\",\n    \"rbs\": \"\",\n    \"o2Air\": \"2\"\n  },\n  \"bloodLoss\": {\n    \"bloodQuantity\": \"\",\n    \"bloodLoss\": 20\n  }\n}"
             }
           ]
         },
@@ -1345,11 +1345,11 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "pm.test('Has fields and raw_text', function () {",
+                  "pm.test('Has observation EMR sections', function () {",
                   "  const j = pm.response.json();",
-                  "  pm.expect(j).to.have.property('window_id');",
-                  "  pm.expect(j).to.have.property('fields');",
-                  "  pm.expect(j).to.have.property('raw_text');",
+                  "  pm.expect(j).to.have.property('vitalSign');",
+                  "  pm.expect(j).to.have.property('bloodLoss');",
+                  "  pm.expect(j).to.not.have.property('window_id');",
                   "});"
                 ]
               }
@@ -1422,7 +1422,7 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"case_id\": \"case-123\",\n  \"window_id\": \"anesthesia_observation_drugs\",\n  \"fields\": {\n    \"estimated_blood_loss_ml\": \"50\",\n    \"urine_output_ml\": \"100\",\n    \"vitals\": [\n      {\n        \"hr\": \"72\",\n        \"bp\": \"120/80\",\n        \"spo2\": \"99%\",\n        \"temp\": \"36.5 C\"\n      }\n    ],\n    \"drugs\": [\n      {\n        \"drug\": \"fentanyl\",\n        \"dose\": \"50 mcg\",\n        \"route\": \"IV\"\n      }\n    ]\n  },\n  \"confidence\": \"high\",\n  \"needs_review\": false,\n  \"missing_fields\": [],\n  \"raw_text\": \"Heart rate 72. Blood pressure 120/80. SpO2 99%. Temperature 36.5 C. Giving fentanyl 50 mcg route IV. Estimated blood loss 50 ml. Urine output 100 ml.\"\n}"
+              "body": "{\n  \"vitalSign\": {\n    \"bpSystolic\": 120,\n    \"bpDiastolic\": 80,\n    \"hr\": 78,\n    \"oxygenSupply\": \"2\",\n    \"etco2\": 35,\n    \"spo2\": 98,\n    \"tempC\": \"36.8\",\n    \"tidalVolume\": \"450\",\n    \"rr\": \"16\",\n    \"act\": \"\",\n    \"fio2\": \"40\",\n    \"rbs\": \"\",\n    \"o2Air\": \"2\"\n  },\n  \"bloodLoss\": {\n    \"bloodQuantity\": \"\",\n    \"bloodLoss\": 20\n  }\n}"
             }
           ]
         }
