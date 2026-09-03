@@ -26,7 +26,6 @@ class AIClient:
                 max_retries=settings.openai_max_retries,
             )
         self._temperature = settings.openai_temperature
-        self._max_tokens = settings.openai_max_tokens
         self._max_retries = settings.openai_max_retries
         self._retry_delay = settings.openai_retry_delay
         self._timeout = settings.openai_timeout
@@ -53,7 +52,6 @@ class AIClient:
                     model=model,
                     messages=messages,
                     temperature=self._temperature,
-                    max_tokens=self._max_tokens,
                     timeout=self._timeout,
                     response_format={"type": "json_object"},
                 )

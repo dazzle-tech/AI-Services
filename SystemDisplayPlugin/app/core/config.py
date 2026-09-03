@@ -36,7 +36,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("MAPPING_MODEL", "OPENAI_MODEL", "mapping_model", "openai_model"),
     )
     openai_temperature: float = 0.2
-    openai_max_tokens: int = 2048
     openai_timeout: int = 120
     openai_max_retries: int = 1
     openai_retry_delay: float = 1.0

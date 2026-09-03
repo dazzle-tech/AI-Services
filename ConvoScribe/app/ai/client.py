@@ -12,6 +12,8 @@ from app.core import config
 
 logger = logging.getLogger(__name__)
 
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
+
 
 class AIClient:
     """Client for interacting with OpenAI API."""
@@ -26,8 +28,7 @@ class AIClient:
                 max_retries=config.settings.openai_max_retries,
             )
         self._temperature = config.settings.openai_temperature
-        self._max_tokens = config.settings.openai_max_tokens
-        self._max_retries = config.settings.openai_max_retries
+        self._max_retries = max(config.settings.openai_max_retries, 1)
         self._retry_delay = config.settings.openai_retry_delay
         self._timeout = config.settings.openai_timeout
 
@@ -53,21 +54,23 @@ class AIClient:
                     model=model,
                     messages=messages,
                     temperature=self._temperature,
-                    max_tokens=self._max_tokens,
                     timeout=self._timeout,
                     response_format={"type": "json_object"},
                 )
-                content = response.choices[0].message.content
+                choice = response.choices[0]
+                content = choice.message.content
+                finish_reason = getattr(choice, "finish_reason", None)
                 if not content:
                     raise ValueError(f"Empty response from model '{model}'")
 
                 if config.settings.enable_usage_tracking and response.usage:
                     logger.info(
-                        "OpenAI token usage model=%s prompt=%s completion=%s total=%s",
+                        "OpenAI token usage model=%s prompt=%s completion=%s total=%s finish=%s",
                         model,
                         response.usage.prompt_tokens,
                         response.usage.completion_tokens,
                         response.usage.total_tokens,
+                        finish_reason,
                     )
 
                 return _parse_json_response(content)
@@ -86,6 +89,10 @@ class AIClient:
             except APIError:
                 raise
             except json.JSONDecodeError as exc:
+                last_exception = exc
+                logger.warning("Invalid JSON from model (attempt %s): %s", attempt + 1, exc)
+                if attempt < self._max_retries - 1:
+                    continue
                 raise ValueError(f"Invalid JSON response from OpenAI model: {exc}") from exc
 
         raise RuntimeError(
@@ -94,8 +101,11 @@ class AIClient:
 
 
 def _parse_json_response(text: str) -> Dict[str, Any]:
-    cleaned = text.strip()
-    if cleaned.startswith("```"):
+    cleaned = (text or "").strip()
+    fence = _JSON_FENCE_RE.search(cleaned)
+    if fence:
+        cleaned = fence.group(1).strip()
+    elif cleaned.startswith("```"):
         cleaned = re.sub(r"^```(?:json)?\n?", "", cleaned)
         cleaned = re.sub(r"\n?```$", "", cleaned)
     return json.loads(cleaned)

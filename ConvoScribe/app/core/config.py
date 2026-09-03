@@ -13,6 +13,7 @@ class Settings(BaseSettings):
         env_file=".env",
         case_sensitive=False,
         env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # API Configuration
@@ -33,7 +34,6 @@ class Settings(BaseSettings):
     role_id_model: str = "gpt-4o"
     summary_model: str = "gpt-4o"
     openai_temperature: float = 0.2
-    openai_max_tokens: int = 2048
     openai_timeout: int = 120
     openai_max_retries: int = 1
     openai_retry_delay: float = 1.0

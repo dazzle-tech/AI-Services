@@ -43,7 +43,18 @@ def _analyze_bytes(
             detail=f"Audio duration {duration:.1f}s exceeds maximum {settings.max_audio_duration_seconds}s",
         )
 
-    result = process_audio(data, f"audio.{extension}", prompt_options=prompt_options)
+    try:
+        result = process_audio(data, f"audio.{extension}", prompt_options=prompt_options)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
     logger.info(
         "Audio analyzed synchronously context=%s purpose=%s segments=%s needs_review=%s",
         prompt_options.context_type,

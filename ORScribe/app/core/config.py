@@ -39,7 +39,6 @@ class Settings(BaseSettings):
     role_id_model: str = "gpt-4o"
     record_model: str = "gpt-4o"
     openai_temperature: float = 0.2
-    openai_max_tokens: int = 4096
     openai_timeout: int = 120
     openai_max_retries: int = 1
     openai_retry_delay: float = 1.0
