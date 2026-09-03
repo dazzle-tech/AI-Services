@@ -45,7 +45,11 @@ def _analyze_bytes(
 
     result = process_audio(data, f"audio.{extension}", prompt_options=prompt_options)
     logger.info(
-        "Audio analyzed synchronously",
+        "Audio analyzed synchronously context=%s purpose=%s segments=%s needs_review=%s",
+        prompt_options.context_type,
+        prompt_options.purpose,
+        len(result.raw_transcript.segments),
+        result.needs_review,
         extra={
             "clinician_id": clinician.clinician_id if clinician else None,
             "event_type": "analyze",

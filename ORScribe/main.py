@@ -28,11 +28,18 @@ async def lifespan(app: FastAPI):
     except Exception as exc:
         logger.warning(
             "Database unavailable at startup (%s). "
-            "Start infra with: docker compose up postgres redis minio -d",
+            "Start infra with: docker compose up postgres minio -d",
             exc,
         )
     logger.info("Starting %s v%s", settings.api_title, settings.api_version)
+    logger.info("Listening on http://%s:%s", settings.api_host, settings.api_port)
     logger.info("Role ID model: %s | Record model: %s", settings.role_id_model, settings.record_model)
+    if settings.use_llm_stub:
+        logger.warning("USE_LLM_STUB=true — role/timeline/checklist use offline stubs, not OpenAI")
+    elif settings.openai_api_key and len(settings.openai_api_key) > 20:
+        logger.info("OpenAI configured (base_url=%s)", settings.openai_base_url or "default")
+    else:
+        logger.warning("OPENAI_API_KEY missing or placeholder — LLM calls will fail with 401")
     yield
     logger.info("Shutting down %s", settings.api_title)
 

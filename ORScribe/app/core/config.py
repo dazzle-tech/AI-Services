@@ -1,18 +1,24 @@
 """Configuration management for ORScribe."""
 
+from pathlib import Path
 from typing import List
 
+from dotenv import load_dotenv
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(_ENV_FILE, override=True)
 
 
 class Settings(BaseSettings):
     """Application settings."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=False,
+        env_file=str(_ENV_FILE),
         env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
     )
 
     # API Configuration
@@ -44,8 +50,7 @@ class Settings(BaseSettings):
     # Database (5434 = docker-compose host port)
     database_url: str = "postgresql://orscribe:orscribe@localhost:5434/orscribe"
 
-    # Redis / Celery (6381 = docker-compose host port)
-    redis_url: str = "redis://localhost:6381/0"
+    # Celery (optional background workers; not required for POST /analyze)
     celery_broker_url: str = "redis://localhost:6381/0"
     celery_result_backend: str = "redis://localhost:6381/1"
 

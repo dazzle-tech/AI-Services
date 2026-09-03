@@ -153,6 +153,21 @@ class RoleUpdateRequest(BaseModel):
     role_map: Dict[str, str]
 
 
+class AnalyzeJsonRequest(BaseModel):
+    """Raw JSON body for POST /api/v1/analyze (Content-Type: application/json)."""
+
+    audio_base64: str = Field(..., description="Base64-encoded .wav, .mp3, or .m4a audio")
+    filename: str = "audio.wav"
+    procedure_type: str = ""
+    scheduled_team: Optional[Dict[str, str]] = None
+    context_type: ContextType = "operating_room"
+    attendees: List[AttendeeRole] = Field(
+        default_factory=lambda: ["surgeon", "anesthetist", "nurse", "scrub_tech", "resident"]
+    )
+    purpose: Purpose = "full_transcript_review"
+    detail_level: DetailLevel = "standard"
+
+
 class AnalyzeAudioResponse(BaseModel):
     raw_transcript: RawTranscript
     role_map: Dict[str, SpeakerRoleAssignment]
@@ -169,7 +184,6 @@ class ApproveRequest(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     database: str
-    redis: str
     details: Dict[str, Any] = Field(default_factory=dict)
 
 

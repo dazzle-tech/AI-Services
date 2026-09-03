@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 import uvicorn
 from typing import Dict, Any
@@ -35,6 +35,20 @@ app = FastAPI(
 medication_service = MedicationValidationService()
 test_service = TestValidationService()
 allergy_drug_service = AllergyDrugValidationService()
+logger.info(
+    "LLM configured model=%s base_url=%s",
+    settings.OPENAI_MODEL,
+    settings.OPENAI_BASE_URL,
+)
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    client = request.client.host if request.client else "unknown"
+    logger.info("Request %s %s from %s", request.method, request.url.path, client)
+    response = await call_next(request)
+    logger.info("Response %s %s -> %s", request.method, request.url.path, response.status_code)
+    return response
 
 
 @app.get("/")
@@ -44,6 +58,7 @@ async def root():
         "service": "Clinical Validation API",
         "version": "1.0.0",
         "status": "active",
+        "auth": "none — no request headers required",
         "endpoints": {
             "medication_validation": "/api/v1/validate/medication",
             "test_validation": "/api/v1/validate/tests",
@@ -201,6 +216,6 @@ if __name__ == "__main__":
         "main:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=settings.DEBUG,
+        reload=False,
         log_level="info"
     )

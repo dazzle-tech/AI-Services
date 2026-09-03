@@ -20,7 +20,6 @@ def test_env(monkeypatch):
     monkeypatch.setenv("S3_ACCESS_KEY", "test")
     monkeypatch.setenv("S3_SECRET_KEY", "test")
     monkeypatch.setenv("S3_ENDPOINT", "http://localhost:9000")
-    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     reload_settings()
     reset_engine()
 

@@ -54,7 +54,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "health"]
         },
-        "description": "Check service health (database, Redis, OpenAI configuration). No auth required."
+        "description": "Check service health (database, OpenAI configuration). No auth required."
       },
       "response": [
         {
@@ -129,7 +129,30 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "analyze"]
         },
-        "description": "Upload audio and receive the full pipeline result in one response: diarized transcript, speaker roles, intraoperative timeline, and WHO checklist. No case ID or polling required. If role confidence is low, `needs_review` is true and timeline/checklist may be null."
+        "description": "Upload audio and receive the full pipeline result in one response: diarized transcript, speaker roles, intraoperative timeline, and WHO checklist. No case ID, polling, or auth headers required. Accepts multipart `audio` or JSON `audio_base64`. If role confidence is low, `needs_review` is true and timeline/checklist may be null."
+      },
+      "response": []
+    },
+    {
+      "name": "Analyze Audio (Raw JSON)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"audio_base64\": \"UklGRnQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==\",\n  \"filename\": \"or_case.wav\",\n  \"procedure_type\": \"laparoscopic cholecystectomy\",\n  \"context_type\": \"operating_room\",\n  \"attendees\": [\n    \"surgeon\",\n    \"anesthetist\",\n    \"nurse\",\n    \"scrub_tech\",\n    \"resident\"\n  ],\n  \"purpose\": \"full_transcript_review\",\n  \"detail_level\": \"standard\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/analyze",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "analyze"]
+        },
+        "description": "Same endpoint as Analyze Audio, but Body is raw JSON with base64-encoded audio (no file upload, no auth headers).\n\nReplace `audio_base64` with your own file encoded as base64. Data URLs are also accepted: `data:audio/wav;base64,...`"
       },
       "response": []
     },

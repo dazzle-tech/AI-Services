@@ -1,14 +1,23 @@
+from pathlib import Path
+
 from pydantic import field_validator
-from pydantic_settings import BaseSettings
-from typing import Optional
-import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 
-load_dotenv()
+# Prefer this service's .env over any parent-process / global Ollama vars.
+_ENV_FILE = Path(__file__).resolve().parent / ".env"
+load_dotenv(_ENV_FILE, override=True)
 
 
 class Settings(BaseSettings):
     """Application settings and configuration"""
+
+    model_config = SettingsConfigDict(
+        env_file=str(_ENV_FILE),
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",
+    )
     
     # API Settings
     HOST: str = "0.0.0.0"
@@ -17,18 +26,18 @@ class Settings(BaseSettings):
     API_RELOAD: bool = False
     
     # OpenAI Settings
-    OPENAI_BASE_URL: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1") or "https://api.openai.com/v1"
-    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o")
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
     OPENAI_TEMPERATURE: float = 0.2
     OPENAI_MAX_TOKENS: int = 2000
     OPENAI_TIMEOUT: int = 120
-    OPENAI_MAX_RETRIES: int = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
+    OPENAI_MAX_RETRIES: int = 1
     
     # Validation Settings
     VALIDATION_CONFIDENCE_THRESHOLD: float = 0.7
-    MAX_RETRY_ATTEMPTS: int = int(os.getenv("OPENAI_MAX_RETRIES", "1"))
-    REQUEST_TIMEOUT: int = int(os.getenv("OPENAI_TIMEOUT", "120"))  # seconds
+    MAX_RETRY_ATTEMPTS: int = 1
+    REQUEST_TIMEOUT: int = 120  # seconds
     
     # System Prompts
     MEDICATION_VALIDATION_SYSTEM_PROMPT: str = """You are an expert clinical pharmacist and medical safety validator. 
@@ -106,10 +115,6 @@ Be thorough, evidence-based, and prioritize patient safety."""
             if normalized in {"debug", "dev", "development"}:
                 return True
         return value
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 
 settings = Settings()

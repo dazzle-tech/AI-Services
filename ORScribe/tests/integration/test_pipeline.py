@@ -145,7 +145,7 @@ def test_analyze_audio_sync(client, auth_headers):
     audio_bytes = _make_silent_wav()
     files = {"audio": ("case.wav", audio_bytes, "audio/wav")}
 
-    response = client.post("/api/v1/analyze", files=files, headers=auth_headers)
+    response = client.post("/api/v1/analyze", files=files)
     assert response.status_code == 200
     body = response.json()
     assert len(body["raw_transcript"]["segments"]) > 0
@@ -154,3 +154,21 @@ def test_analyze_audio_sync(client, auth_headers):
     assert body["timeline"] is not None
     assert body["checklist"] is not None
     assert "sign_in" in body["checklist"]
+
+
+def test_analyze_audio_base64_json(client):
+    import base64
+
+    payload = {
+        "audio_base64": base64.b64encode(_make_silent_wav()).decode("ascii"),
+        "filename": "case.wav",
+        "procedure_type": "laparoscopic cholecystectomy",
+        "context_type": "operating_room",
+        "purpose": "timeline",
+        "detail_level": "standard",
+    }
+    response = client.post("/api/v1/analyze", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["raw_transcript"]["segments"]) > 0
+    assert body["role_map"] is not None
