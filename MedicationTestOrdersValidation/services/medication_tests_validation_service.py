@@ -519,12 +519,13 @@ DRUGS TO VALIDATE (analyze ONLY these drugs; do not add or assume any other medi
 
 Please analyze for:
 1. Direct match between a listed allergy and a listed drug
-2. Cross-reactivity (same drug class)
-3. Drug-drug interactions between every pair of listed drugs
-4. Duplicate therapy or overlapping agents in the drug list
-5. Whether missing patient details change the conclusion (they should not invent data)
-6. Safer alternatives when a conflict is found
-7. Return findings ONLY for drugs listed above — never invent additional medications such as colchicine if it was not provided
+2. Indirect allergy risk from same drug class cross-reactivity
+3. Indirect allergy risk from known cross-class allergy patterns
+4. Drug-drug interactions between every pair of listed drugs
+5. Duplicate therapy or overlapping agents in the drug list
+6. Whether missing patient details change the conclusion (they should not invent data)
+7. Safer alternatives when a conflict is found
+8. Return findings ONLY for drugs listed above — never invent additional medications such as colchicine if it was not provided
 
 Respond with a JSON object containing:
 {{

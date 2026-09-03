@@ -103,6 +103,106 @@ def test_merge_upgrades_safe_llm_response():
     assert any("Duplicate statin therapy" in finding.issue for finding in merged.detailed_validations)
 
 
+def test_indirect_macrolide_allergy_cross_reactivity():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Azithromycin"}],
+    )
+    findings = run_deterministic_checks(request)
+    assert any("Indirect allergy risk (same drug class)" in finding.issue for finding in findings)
+
+
+def test_indirect_penicillin_cephalosporin_cross_reactivity():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Penicillin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Cephalexin"}],
+    )
+    findings = run_deterministic_checks(request)
+    assert any("Indirect allergy risk" in finding.issue for finding in findings)
+
+
+def test_each_drug_gets_allergy_screening_finding_when_no_conflict():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Colchicine", "drug_name1": "Simvastatin"}],
+    )
+    findings = run_deterministic_checks(request)
+    screening = [finding for finding in findings if finding.issue.startswith("Allergy screening:")]
+    assert len(screening) == 2
+    assert {finding.item for finding in screening} == {"Colchicine", "Simvastatin"}
+
+
+def test_colchicine_and_simvastatin_drug_interaction():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Colchicine", "drug_name1": "Simvastatin"}],
+    )
+    findings = run_deterministic_checks(request)
+    assert not any("Direct allergy conflict" in finding.issue for finding in findings)
+    assert any("colchicine combined with statin" in finding.issue.lower() for finding in findings)
+
+
+def test_clarithromycin_and_simvastatin_returns_allergy_and_ddi():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Clarithromycin", "drug_name1": "Simvastatin"}],
+    )
+    findings = run_deterministic_checks(request)
+    assert any("Direct allergy conflict" in finding.issue for finding in findings)
+    assert any("CYP3A4 inhibitor combined with statin" in finding.issue for finding in findings)
+    assert len([finding for finding in findings if finding.severity in {"high", "moderate", "critical"}]) >= 2
+
+
+def test_clarithromycin_finding_removed_when_not_in_drug_list():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Colchicine", "drug_name1": "Simvastatin"}],
+    )
+    response = ValidationResponse(
+        quick_summary=QuickSummary(
+            overall_status="CONTRAINDICATED",
+            top_priority="Patient has a documented allergy to clarithromycin.",
+        ),
+        detailed_validations=[
+            DetailedValidation(
+                item="Clarithromycin",
+                severity="critical",
+                issue="Patient has a documented allergy to clarithromycin.",
+                recommendation="Avoid prescribing clarithromycin.",
+                evidence="Direct allergy match with documented patient allergy.",
+            )
+        ],
+        recommended_alternatives=[],
+        confidence_score=0.95,
+    )
+    merged = merge_validation_response(response, run_deterministic_checks(request), request)
+    assert all("Clarithromycin" not in finding.item for finding in merged.detailed_validations if finding.severity != "info")
+    assert any("colchicine combined with statin" in finding.issue.lower() for finding in merged.detailed_validations)
+    assert any(finding.issue.startswith("Allergy screening:") for finding in merged.detailed_validations)
+    assert merged.quick_summary.overall_status == "CAUTION"
+    assert "No direct or cross-reactive allergy conflicts found" in merged.quick_summary.top_priority
+
+
+def test_top_priority_summarizes_allergy_and_ddi_when_both_present():
+    request = AllergyDrugValidationRequest(
+        allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
+        drugs=[{"drug_name": "Clarithromycin", "drug_name1": "Simvastatin"}],
+    )
+    response = ValidationResponse(
+        quick_summary=QuickSummary(overall_status="SAFE", top_priority="ignored"),
+        detailed_validations=[],
+        recommended_alternatives=[],
+        confidence_score=0.95,
+    )
+    merged = merge_validation_response(response, run_deterministic_checks(request), request)
+    summary = merged.quick_summary.top_priority
+    assert "Allergy:" in summary
+    assert "Drug-drug interaction:" in summary
+    assert "Direct allergy conflict" in summary
+    assert "CYP3A4 inhibitor combined with statin" in summary
+    assert merged.quick_summary.overall_status == "CONTRAINDICATED"
+
+
 def test_hallucinated_drug_findings_are_removed():
     request = AllergyDrugValidationRequest(
         allergies=[{"allergy_description": "Clarithromycin", "allergy_type_description": "Drug"}],
