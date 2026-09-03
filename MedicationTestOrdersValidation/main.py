@@ -156,7 +156,7 @@ async def validate_tests(request: TestValidationRequest) -> ValidationResponse:
 )
 async def validate_allergy_drugs(request: AllergyDrugValidationRequest) -> ValidationResponse:
     """
-    Check proposed drugs against documented allergies.
+    Check proposed drugs against documented allergies and drug-drug interactions.
 
     Patient demographics are optional. At least one drug is required.
     """

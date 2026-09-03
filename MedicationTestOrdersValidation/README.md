@@ -201,7 +201,7 @@ POST /api/v1/validate/tests
 POST /api/v1/validate/allergy-drugs
 ```
 
-Checks proposed drugs against documented allergies. `patient` is optional and may be omitted or empty. At least one drug is required. Allergies may be empty.
+Checks proposed drugs against documented allergies and for drug-drug interactions between listed drugs. `patient` is optional and may be omitted or empty. At least one drug is required. Allergies may be empty.
 
 **Request Body:**
 ```json
@@ -240,6 +240,17 @@ Minimal request (no patient):
     {
       "drug_name": "Penicillin"
     }
+  ]
+}
+```
+
+Drug-drug interaction example (no allergies):
+```json
+{
+  "allergies": [],
+  "drugs": [
+    { "drug_name": "Clarithromycin" },
+    { "drug_name": "Rosuvastatin" }
   ]
 }
 ```

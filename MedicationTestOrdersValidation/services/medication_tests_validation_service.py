@@ -481,7 +481,7 @@ Respond with a JSON object containing:
 
 
 class AllergyDrugValidationService(BaseValidationService):
-    """Service for checking proposed drugs against documented allergies."""
+    """Service for checking proposed drugs against allergies and each other."""
 
     async def validate(self, request: AllergyDrugValidationRequest) -> ValidationResponse:
         patient_label = "unknown"
@@ -503,7 +503,7 @@ class AllergyDrugValidationService(BaseValidationService):
         allergies_block = self._format_allergies(request.allergies)
         drugs_block = self._format_drugs(request.drugs)
 
-        return f"""Please check the following drugs against the patient's documented allergies.
+        return f"""Please check the following drugs against the patient's documented allergies and for drug-drug interactions.
 
 PATIENT INFORMATION (optional; omit from reasoning if not provided):
 {patient_block}
@@ -517,14 +517,16 @@ DRUGS TO VALIDATE:
 Please analyze for:
 1. Direct match between a listed allergy and a listed drug
 2. Cross-reactivity (same drug class)
-3. Whether missing patient details change the conclusion (they should not invent data)
-4. Safer alternatives when a conflict is found
+3. Drug-drug interactions between every pair of listed drugs
+4. Duplicate therapy or overlapping agents in the drug list
+5. Whether missing patient details change the conclusion (they should not invent data)
+6. Safer alternatives when a conflict is found
 
 Respond with a JSON object containing:
 {{
   "quick_summary": {{
     "overall_status": "SAFE|CAUTION|CONTRAINDICATED",
-    "top_priority": "Most critical issue or 'No allergy-drug conflicts found'"
+    "top_priority": "Most critical issue or 'No allergy or drug interaction conflicts found'"
   }},
   "detailed_validations": [
     {{

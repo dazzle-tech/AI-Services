@@ -63,3 +63,17 @@ def test_string_allergies_and_drugs_are_coerced():
     )
     assert request.allergies[0].allergy_description == "Penicillin"
     assert request.drugs[0].drug_name == "Amoxicillin"
+
+
+def test_allergy_drug_message_includes_drug_interaction_checks():
+    from services.medication_tests_validation_service import AllergyDrugValidationService
+
+    service = AllergyDrugValidationService.__new__(AllergyDrugValidationService)
+    request = AllergyDrugValidationRequest(
+        allergies=[],
+        drugs=[{"drug_name": "Clarithromycin"}, {"drug_name": "Rosuvastatin"}],
+    )
+    message = service._prepare_allergy_drug_message(request)
+    assert "drug-drug interactions" in message.lower()
+    assert "Clarithromycin" in message
+    assert "Rosuvastatin" in message

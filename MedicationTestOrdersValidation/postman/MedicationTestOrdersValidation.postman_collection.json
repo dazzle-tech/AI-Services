@@ -170,7 +170,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "validate", "allergy-drugs"]
         },
-        "description": "Check proposed drugs against documented allergies. Patient details are optional."
+        "description": "Check proposed drugs against documented allergies and drug-drug interactions. Patient details are optional."
       },
       "response": []
     },
@@ -193,7 +193,30 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "validate", "allergy-drugs"]
         },
-        "description": "Same allergy-drug check with no patient object."
+        "description": "Same allergy-drug and drug-drug interaction check with no patient object."
+      },
+      "response": []
+    },
+    {
+      "name": "Allergy-Drug Validation - Drug Interaction (Clarithromycin + Rosuvastatin)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"allergies\": [],\n  \"drugs\": [\n    {\n      \"drug_name\": \"Clarithromycin\"\n    },\n    {\n      \"drug_name\": \"Rosuvastatin\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/validate/allergy-drugs",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "validate", "allergy-drugs"]
+        },
+        "description": "Expect CAUTION or CONTRAINDICATED for CYP3A4 interaction when no allergy conflicts exist."
       },
       "response": []
     }

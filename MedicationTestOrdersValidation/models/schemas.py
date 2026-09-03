@@ -86,7 +86,7 @@ class DrugEntry(BaseModel):
 
 
 class AllergyDrugValidationRequest(BaseModel):
-    """Allergy vs proposed-drug check. Patient details are optional."""
+    """Allergy and drug-drug interaction check for proposed drugs. Patient details are optional."""
     patient: Optional[OptionalPatient] = None
     allergies: List[AllergyEntry] = Field(default_factory=list)
     drugs: List[DrugEntry] = Field(..., min_length=1, description="Drugs to validate")
