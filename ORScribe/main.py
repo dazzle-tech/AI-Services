@@ -34,6 +34,16 @@ async def lifespan(app: FastAPI):
     logger.info("Starting %s v%s", settings.api_title, settings.api_version)
     logger.info("Listening on http://%s:%s", settings.api_host, settings.api_port)
     logger.info("Role ID model: %s | Record model: %s", settings.role_id_model, settings.record_model)
+    backend = settings.transcription_backend.lower()
+    if backend == "stub":
+        logger.warning(
+            "TRANSCRIPTION_BACKEND=stub — audio content is ignored; "
+            "per-window STT returns fixed sample text. Set TRANSCRIPTION_BACKEND=whisper for real voice."
+        )
+    elif backend in {"whisper", "whisper_only"}:
+        logger.info("Transcription backend: whisper (%s)", settings.whisper_model_size)
+    elif backend == "whisper_pyannote":
+        logger.info("Transcription backend: whisper_pyannote (%s)", settings.whisper_model_size)
     if settings.use_llm_stub:
         logger.warning("USE_LLM_STUB=true — role/timeline/checklist use offline stubs, not OpenAI")
     elif settings.openai_api_key and len(settings.openai_api_key) > 20:

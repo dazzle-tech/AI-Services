@@ -47,6 +47,18 @@ python main.py
 
 Run ORScribe on **8030** and ORDisplayPlugin on **8032**.
 
+**Important:** ORVoiceAgent does not run speech-to-text itself. ORScribe must use real transcription:
+
+```env
+# ORScribe/.env
+TRANSCRIPTION_BACKEND=whisper
+WHISPER_MODEL_SIZE=base
+```
+
+With `TRANSCRIPTION_BACKEND=stub`, every window returns the same fixed sample text regardless of your audio clip. Install ORScribe deps: `pip install -r requirements.txt` (includes `faster-whisper`).
+
+Verify ORScribe health shows `"transcription_backend": "whisper"` at `GET http://localhost:8030/api/v1/health`.
+
 ## Example — Time Out tab
 
 Multipart WAV:

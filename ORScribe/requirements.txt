@@ -25,10 +25,10 @@ mutagen>=1.47.0
 numpy>=1.26.0
 scipy>=1.11.0
 
-# Speech (optional — heavy; install for production transcription)
-# faster-whisper>=1.0.3
-# pyannote.audio>=3.1.1
-# torch>=2.0.0
+# Speech — required when TRANSCRIPTION_BACKEND=whisper or whisper_pyannote
+faster-whisper>=1.0.3
+# pyannote.audio>=3.1.1  # only for whisper_pyannote
+# torch>=2.0.0           # only for whisper_pyannote
 
 # Testing
 pytest>=8.3.0

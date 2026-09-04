@@ -88,7 +88,7 @@ Valid `role` values: `nurse`, `anesthetist`, `surgeon`.
 | `ROLE_ID_MODEL` | `gpt-4o` | Role identification model |
 | `RECORD_MODEL` | `gpt-4o` | Timeline + checklist model |
 | `USE_LLM_STUB` | `false` | Offline rule-based LLM for dev/CI |
-| `TRANSCRIPTION_BACKEND` | `stub` | `stub` or `whisper_pyannote` |
+| `TRANSCRIPTION_BACKEND` | `stub` | `stub` (ignores audio), `whisper` (real STT, no HF token), or `whisper_pyannote` |
 | `AUDIO_RETENTION_DAYS` | `30` | Auto-delete raw audio after N days |
 
 See `.env.example` for the full list.
