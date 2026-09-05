@@ -473,8 +473,10 @@ class ClinicalExamination(_WindowFields):
 
 
 class AirwayAssessment(_WindowFields):
+    mallampatiClass: str = ""
     openMouth: str = ""
     thyromentalDistance: str = ""
+    dentalState: str = ""
     neckMobility: str = ""
     others: str = ""
 

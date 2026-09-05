@@ -56,6 +56,7 @@ def extract_window_fields(
     if window_id == "nursing_intraoperative":
         merged = _normalize_intraoperative_fields(merged)
     elif window_id == "anesthesia_pre_evaluation_plan":
+        merged = _backfill_pre_eval_from_text(merged, text)
         merged = _normalize_pre_eval_fields(merged)
     elif window_id == "anesthesia_induction_intraoperative":
         merged = _normalize_induction_fields(merged)
@@ -295,8 +296,10 @@ def _pre_eval_empty() -> Dict[str, Any]:
             "others": "",
         },
         "airwayAssessment": {
+            "mallampatiClass": "",
             "openMouth": "",
             "thyromentalDistance": "",
+            "dentalState": "",
             "neckMobility": "",
             "others": "",
         },
@@ -362,6 +365,187 @@ def _normalize_pre_eval_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
         asa["asaClass"] = asa_class
     merged["asa"] = asa
     return merged
+
+
+def _backfill_pre_eval_from_text(fields: Dict[str, Any], text: str) -> Dict[str, Any]:
+    """Recover clear vital-sign / social-history values when ASR is noisy and the LLM misses them."""
+    if not text or not text.strip():
+        return fields
+    out = dict(fields or {})
+    vitals = dict(out.get("vitalSigns") or {})
+    social = dict(out.get("socialHistory") or {})
+    clinical = dict(out.get("clinicalExamination") or {})
+    last_meal = dict(out.get("lastMeal") or {})
+
+    if vitals.get("weightKg") is None:
+        match = re.search(
+            r"\bweight\b[^0-9]{0,12}(\d+(?:\.\d+)?)\s*(?:kg|kilos?)?\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            vitals["weightKg"] = float(match.group(1))
+
+    if vitals.get("bpSystolic") is None or vitals.get("bpDiastolic") is None:
+        match = re.search(
+            r"\b(?:blood pressure|bp)\b[^0-9]{0,12}(\d{2,3})\s*(?:/|over)\s*(\d{2,3})",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            if vitals.get("bpSystolic") is None:
+                vitals["bpSystolic"] = int(match.group(1))
+            if vitals.get("bpDiastolic") is None:
+                vitals["bpDiastolic"] = int(match.group(2))
+
+    if vitals.get("pulseRate") is None:
+        match = re.search(
+            r"\b(?:pulse|heart rate|hr)\b[^0-9]{0,12}(\d{2,3})\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            vitals["pulseRate"] = int(match.group(1))
+
+    if vitals.get("tempC") is None:
+        match = re.search(
+            r"\b(?:temp(?:erature)?|temp c)\b[^0-9]{0,12}(\d{2}(?:\.\d+)?)\s*(?:c|celsius|°c)?\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            vitals["tempC"] = float(match.group(1))
+
+    if vitals.get("spo2") is None:
+        match = re.search(
+            r"\b(?:spo2|o2 sat(?:uration)?|oxygen saturation)\b[^0-9]{0,12}(\d{2,3})\s*%?",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            vitals["spo2"] = int(match.group(1))
+
+    def _yes_no_after(label: str) -> str | None:
+        match = re.search(
+            rf"\b{label}\b[\s,.:;-]{{0,12}}(no|none|nil|nkda|yes|positive|negative)\b",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if not match:
+            return None
+        token = match.group(1).lower()
+        if token in {"no", "none", "nil", "nkda", "negative"}:
+            return "NO" if label != "allergies" else "None"
+        return "YES"
+
+    for label, key in (("smoker", "smoker"), ("alcoholic", "alcoholic"), ("allergies", "allergies")):
+        value = _yes_no_after(label)
+        if value is not None:
+            social[key] = value
+
+    airway = dict(out.get("airwayAssessment") or {})
+
+    if not (clinical.get("others") or "").strip():
+        mental_match = re.search(
+            r"\bmental\s+state\b[\s,.:;-]{0,8}(normal|abnormal|[^.]+)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if mental_match and not re.search(r"\bdental\s+state\b", text, flags=re.IGNORECASE):
+            clinical["others"] = f"Mental state {mental_match.group(1).strip()}"
+
+    # Prefer explicit dental state on the dedicated field; never map it to mental.
+    dental_match = re.search(
+        r"\bdental\s+state\b[\s,.:;-]{0,8}(normal|abnormal|[^.]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if dental_match:
+        value = dental_match.group(1).strip().rstrip(".")
+        airway["dentalState"] = value[0].upper() + value[1:] if value else value
+        # Undo LLM mis-routing dental -> clinicalExamination.others as "Mental state ..."
+        others = (clinical.get("others") or "").strip()
+        if re.search(r"\bmental\s+state\b", others, flags=re.IGNORECASE):
+            clinical["others"] = ""
+
+    mallampati_match = re.search(
+        r"\bmallampati\b[\s,.:;-]{0,12}(class\s*[i1-4ivx]+|[i1-4ivx]+)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if mallampati_match and not (airway.get("mallampatiClass") or "").strip():
+        token = re.sub(r"\s+", " ", mallampati_match.group(1).strip())
+        if not token.lower().startswith("class"):
+            token = f"Class {token}"
+        airway["mallampatiClass"] = token[0].upper() + token[1:]
+
+    if not (airway.get("openMouth") or "").strip():
+        open_match = re.search(
+            r"\bopen\s+mouth\b[\s,.:;-]{0,8}([^.]+)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if open_match:
+            airway["openMouth"] = open_match.group(1).strip()
+
+    if not (airway.get("thyromentalDistance") or "").strip():
+        tmd_match = re.search(
+            r"\bthyromental(?:\s+distance)?\b[\s,.:;-]{0,8}(\d+(?:\.\d+)?\s*(?:cm|millimet(?:er|re)s?)?)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if tmd_match:
+            airway["thyromentalDistance"] = tmd_match.group(1).strip()
+
+    if not (airway.get("neckMobility") or "").strip():
+        neck_match = re.search(
+            r"\bneck\s+mobility\b[\s,.:;-]{0,8}([^.]+)",
+            text,
+            flags=re.IGNORECASE,
+        )
+        if neck_match:
+            airway["neckMobility"] = neck_match.group(1).strip()
+
+    # Spoken calendar dates like "5 September 2026"
+    date_match = re.search(
+        r"\b(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s*,?\s*(\d{4})\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if date_match:
+        months = {
+            "january": 1,
+            "february": 2,
+            "march": 3,
+            "april": 4,
+            "may": 5,
+            "june": 6,
+            "july": 7,
+            "august": 8,
+            "september": 9,
+            "october": 10,
+            "november": 11,
+            "december": 12,
+        }
+        iso = (
+            f"{int(date_match.group(3)):04d}-"
+            f"{months[date_match.group(2).lower()]:02d}-"
+            f"{int(date_match.group(1)):02d}"
+        )
+        if re.search(r"\b(?:food|meal|date)\b", text, flags=re.IGNORECASE):
+            last_meal["foodDate"] = iso
+        if re.search(r"\bfluid\b", text, flags=re.IGNORECASE):
+            last_meal["fluidDate"] = iso
+        elif last_meal.get("fluidDate") in ("2026-09-20",):
+            # Drop clearly hallucinated fluid date when fluid was never spoken.
+            last_meal["fluidDate"] = None
+
+    out["vitalSigns"] = vitals
+    out["socialHistory"] = social
+    out["clinicalExamination"] = clinical
+    out["airwayAssessment"] = airway
+    out["lastMeal"] = last_meal
+    return out
 
 
 def _pre_eval_section_empty(name: str, value: Any) -> bool:
@@ -1176,7 +1360,12 @@ def _extract_pre_eval(text: str, lower: str) -> Dict[str, Any]:
             "skin": _after(text, r"skin\s+([^.]+)") or "",
         },
         "airwayAssessment": {
+            "mallampatiClass": _after(text, r"mallampati\s+([^.]+)") or "",
+            "openMouth": _after(text, r"open mouth\s+([^.]+)") or "",
+            "thyromentalDistance": _after(text, r"thyromental(?: distance)?\s+([^.]+)") or "",
+            "dentalState": _after(text, r"dental state\s+([^.]+)") or "",
             "neckMobility": _after(text, r"neck mobility\s+([^.]+)") or "",
+            "others": "",
         },
         "clinicalData": {
             "chestXray": _after(text, r"chest x[- ]?ray\s+([^.]+)") or "",

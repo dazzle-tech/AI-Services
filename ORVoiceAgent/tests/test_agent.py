@@ -242,8 +242,10 @@ def _pre_eval_fields():
             "others": "",
         },
         "airwayAssessment": {
+            "mallampatiClass": "",
             "openMouth": "",
             "thyromentalDistance": "",
+            "dentalState": "",
             "neckMobility": "Full range",
             "others": "",
         },

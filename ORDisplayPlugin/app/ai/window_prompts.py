@@ -9,6 +9,9 @@ EXTRACTION_SYSTEM_PROMPT = """You extract structured clinical fields from a shor
 Rules:
 - Extract only what is explicitly stated or clearly implied in the text. Never invent clinical values.
 - Leave any field you cannot support from the text as null, and list its name in missing_fields.
+- Hearing only a field name (e.g. "smoker", "allergies") without a value is NOT enough — leave it null.
+  For yes/no social history, require an explicit yes/no/none nearby (e.g. "smoker no" -> "NO",
+  "allergies none" / "allergies no" -> "None"). Do not put "Normal" into allergies.
 - If existing_fields is provided, merge intelligently: keep prior non-null values unless the new text clearly updates them.
 - Output strict JSON matching the given field schema, nothing else. No markdown.
 - For numeric schema fields (int/float), return bare numbers only — no units or words
@@ -129,17 +132,18 @@ Return exactly these top-level keys (camelCase). Use null when not spoken; use e
 unmentioned free-text sub-fields inside pastMedicalHistory, clinicalExamination, airwayAssessment,
 and clinicalData.
 
-socialHistory: { allergies, smoker, alcoholic, substanceUse }
-lastMeal: { food, foodDate (YYYY-MM-DD), fluid, fluidDate (YYYY-MM-DD) }
-previousAnesthesiaAndSurgery: { previousAnesthesia, previousSurgery, difficultIntubation, complication, comments }
-pastMedicalHistory: { cardiovascular, respiratory, neurological, urological, musculoskeletal, psychiatric,
-  pregnancies, renalDisease, endocrine, hepatic, gastrointestinal, bloodVessel, otherDiseases }
-vitalSigns: {
-  weightKg (float kg, bare number), bpSystolic, bpDiastolic, pulseRate (ints),
-  tempC (float Celsius, bare number), spo2 (int %)
+socialHistory: {
+  allergies (allergy list, or "None"/"NKDA"; null if unknown),
+  smoker ("YES"/"NO"/null), alcoholic ("YES"/"NO"/null), substanceUse
 }
-clinicalExamination: { cardiovascular, respiratory, skin, sensors, neuromuscular, gcs (int or null), others }
-airwayAssessment: { openMouth, thyromentalDistance, neckMobility, others }
+lastMeal: { food, foodDate (YYYY-MM-DD), fluid, fluidDate (YYYY-MM-DD) }
+If "mental state normal" is spoken, put that under clinicalExamination.others (or neurological).
+Never rewrite "dental state" as "mental state".
+airwayAssessment: {
+  mallampatiClass (e.g. "Class II"), openMouth, thyromentalDistance (e.g. "7 cm"),
+  dentalState (e.g. "Normal"), neckMobility, others
+}
+Put spoken dental state into airwayAssessment.dentalState only.
 clinicalData: { chestXray, ecg, others }
 asa: { asaClass (e.g. "ASA II"), emergency (boolean) }
 preAnesthesiaOrders: { orders }

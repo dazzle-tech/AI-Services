@@ -65,6 +65,7 @@ class Settings(BaseSettings):
     # Transcription
     transcription_backend: str = "stub"
     whisper_model_size: str = "base"
+    openai_transcribe_model: str = "gpt-4o-transcribe"
     pyannote_hf_token: str = ""
     max_audio_duration_seconds: int = 14400
     allowed_audio_extensions: str = "wav,mp3,m4a"

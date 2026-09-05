@@ -208,8 +208,10 @@ class PreEvaluationClinicalExamination(BaseModel):
 
 
 class PreEvaluationAirwayAssessment(BaseModel):
+    mallampatiClass: str = ""
     openMouth: str = ""
     thyromentalDistance: str = ""
+    dentalState: str = ""
     neckMobility: str = ""
     others: str = ""
 

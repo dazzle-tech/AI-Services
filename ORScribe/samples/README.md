@@ -1,5 +1,16 @@
 # ORScribe sample audio
 
+## `pre_eval_test.wav`
+
+Clear single-speaker anesthesia pre-evaluation dictation (~32s) for ORVoiceAgent /
+`gpt-4o-transcribe` smoke tests. Also copied to `ORVoiceAgent/postman/pre_eval_test.wav`
+and `ORVoiceAgent/postman/pre_eval_test.json` (base64 body).
+
+```bash
+curl -X POST http://localhost:8035/api/v1/windows/anesthesia/pre-evaluation-plan `
+  -F "audio=@ORVoiceAgent/postman/pre_eval_test.wav"
+```
+
 ## `or_case_sample.wav`
 
 Multi-speaker operating room conversation (~55s) covering:
@@ -36,4 +47,4 @@ curl -X POST http://localhost:8030/api/v1/cases \
 
 Poll `GET /api/v1/cases/{case_id}` until `status` is `completed`.
 
-**Note:** With `TRANSCRIPTION_BACKEND=stub`, the pipeline uses a fixed transcript regardless of audio content. Use `whisper_pyannote` in production to transcribe real audio.
+**Note:** With `TRANSCRIPTION_BACKEND=stub`, the pipeline uses a fixed transcript regardless of audio content. Use `TRANSCRIPTION_BACKEND=openai` (`gpt-4o-transcribe`) for cloud STT.

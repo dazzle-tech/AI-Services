@@ -38,8 +38,18 @@ async def lifespan(app: FastAPI):
     if backend == "stub":
         logger.warning(
             "TRANSCRIPTION_BACKEND=stub — audio content is ignored; "
-            "per-window STT returns fixed sample text. Set TRANSCRIPTION_BACKEND=whisper for real voice."
+            "per-window STT returns fixed sample text. "
+            "Set TRANSCRIPTION_BACKEND=openai for gpt-4o-transcribe."
         )
+    elif backend in {"openai", "openai_transcribe", "gpt-4o-transcribe"}:
+        logger.info(
+            "Transcription backend: openai (%s)",
+            settings.openai_transcribe_model,
+        )
+        if not settings.openai_api_key or len(settings.openai_api_key) <= 20:
+            logger.warning(
+                "OPENAI_API_KEY missing or placeholder — openai STT will fail with 401"
+            )
     elif backend in {"whisper", "whisper_only"}:
         logger.info("Transcription backend: whisper (%s)", settings.whisper_model_size)
     elif backend == "whisper_pyannote":

@@ -379,6 +379,8 @@ async def health_check(db: Session = Depends(get_db)) -> HealthResponse:
         details["database_error"] = str(exc)
 
     details["transcription_backend"] = settings.transcription_backend
+    if settings.transcription_backend.lower() in {"openai", "openai_transcribe", "gpt-4o-transcribe"}:
+        details["openai_transcribe_model"] = settings.openai_transcribe_model
     if settings.openai_api_key:
         details["openai_configured"] = True
         details["role_id_model"] = settings.role_id_model

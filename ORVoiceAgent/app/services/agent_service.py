@@ -46,6 +46,8 @@ async def fill_window(
             window_id=spec.window_id,
         )
 
+    if isinstance(extracted, dict) and "raw_text" not in extracted:
+        extracted = {**extracted, "raw_text": transcript}
     return extracted
 
 

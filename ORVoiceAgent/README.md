@@ -51,13 +51,14 @@ Run ORScribe on **8030** and ORDisplayPlugin on **8032**.
 
 ```env
 # ORScribe/.env
-TRANSCRIPTION_BACKEND=whisper
+TRANSCRIPTION_BACKEND=openai
+OPENAI_TRANSCRIBE_MODEL=gpt-4o-transcribe
 WHISPER_MODEL_SIZE=base
 ```
 
-With `TRANSCRIPTION_BACKEND=stub`, every window returns the same fixed sample text regardless of your audio clip. Install ORScribe deps: `pip install -r requirements.txt` (includes `faster-whisper`).
+With `TRANSCRIPTION_BACKEND=stub`, every window returns the same fixed sample text regardless of your audio clip.
 
-Verify ORScribe health shows `"transcription_backend": "whisper"` at `GET http://localhost:8030/api/v1/health`.
+Verify ORScribe health shows `"transcription_backend": "openai"` and `"openai_transcribe_model": "gpt-4o-transcribe"` at `GET http://localhost:8030/api/v1/health`.
 
 ## Example — Time Out tab
 

@@ -7,8 +7,14 @@ from pathlib import Path
 from typing import List
 
 from app.core.config import settings
-from app.transcription.audio_preprocessing import preprocess_audio
 from app.transcription.base import DiarizedSegment, TranscriptionService
+
+_OR_INITIAL_PROMPT = (
+    "Operating room anesthesia dictation. Clinical terms: dental state, mental state, "
+    "weight kg, blood pressure, pulse, SpO2, temperature, ASA class, allergies, smoker, "
+    "alcoholic, NPO, last meal, food date, fluid date, airway, GCS, ECG, chest X-ray. "
+    "Keep dental and mental as spoken; do not swap them."
+)
 
 
 class WhisperOnlyTranscriptionService(TranscriptionService):
@@ -26,14 +32,25 @@ class WhisperOnlyTranscriptionService(TranscriptionService):
     def transcribe_and_diarize(
         self, audio_bytes: bytes, filename: str, *, time_offset: float = 0.0
     ) -> List[DiarizedSegment]:
-        processed = preprocess_audio(audio_bytes, filename)
+        # Skip band-pass / noise-gate preprocessing — it strips consonants and
+        # destroys short clinical dictations (verified vs raw WAV).
         suffix = Path(filename).suffix or ".wav"
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-            tmp.write(processed)
+            tmp.write(audio_bytes)
             audio_path = tmp.name
 
         try:
-            whisper_segments, _ = self._whisper.transcribe(audio_path, word_timestamps=False)
+            whisper_segments, _ = self._whisper.transcribe(
+                audio_path,
+                language="en",
+                task="transcribe",
+                beam_size=5,
+                best_of=5,
+                vad_filter=False,
+                condition_on_previous_text=False,
+                word_timestamps=False,
+                initial_prompt=_OR_INITIAL_PROMPT,
+            )
             raw_segments: List[DiarizedSegment] = []
             for segment in whisper_segments:
                 text = segment.text.strip()
