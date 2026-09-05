@@ -11,7 +11,9 @@ Rules:
 - Leave any field you cannot support from the text as null, and list its name in missing_fields.
 - If existing_fields is provided, merge intelligently: keep prior non-null values unless the new text clearly updates them.
 - Output strict JSON matching the given field schema, nothing else. No markdown.
-- Preserve numbers and units exactly as spoken (e.g. "100 mg", "36.5 °C").
+- For numeric schema fields (int/float), return bare numbers only — no units or words
+  (weightKg=82 not "82 kg"; tempC=36.8 not "36.8 C"; gcs=15 not "15").
+  Use null (not "") when a number is unknown. Keep units only inside free-text string fields.
 - Include _low_confidence_fields: an array of field names where the text was ambiguous.
 
 JSON shape:
@@ -95,6 +97,7 @@ diathermiaAndLaser: { na, electroSurgicalUnit, dispersiveElectrodeSite, electroR
 electroRangeCoagulation, skinConditionBefore, skinConditionAfter, note }
 
 laser: { na, pulseEnergy, frequency, stoneEffect, laserFiber, note }
+Store pulseEnergy/frequency/stoneEffect/laserFiber as strings (e.g. "50", "100 Hz"), not bare JSON numbers.
 If laser was not used / N/A, set na=true and leave the rest null.
 
 drains: { na, entries: [ { type, numberOfDrains, location, size, otherLabel } ] }
@@ -131,8 +134,11 @@ lastMeal: { food, foodDate (YYYY-MM-DD), fluid, fluidDate (YYYY-MM-DD) }
 previousAnesthesiaAndSurgery: { previousAnesthesia, previousSurgery, difficultIntubation, complication, comments }
 pastMedicalHistory: { cardiovascular, respiratory, neurological, urological, musculoskeletal, psychiatric,
   pregnancies, renalDisease, endocrine, hepatic, gastrointestinal, bloodVessel, otherDiseases }
-vitalSigns: { weightKg, bpSystolic, bpDiastolic, pulseRate, tempC, spo2 }
-clinicalExamination: { cardiovascular, respiratory, skin, sensors, neuromuscular, gcs, others }
+vitalSigns: {
+  weightKg (float kg, bare number), bpSystolic, bpDiastolic, pulseRate (ints),
+  tempC (float Celsius, bare number), spo2 (int %)
+}
+clinicalExamination: { cardiovascular, respiratory, skin, sensors, neuromuscular, gcs (int or null), others }
 airwayAssessment: { openMouth, thyromentalDistance, neckMobility, others }
 clinicalData: { chestXray, ecg, others }
 asa: { asaClass (e.g. "ASA II"), emergency (boolean) }

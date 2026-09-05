@@ -3,15 +3,131 @@
 """Placeholder clinical field schemas for the eight OR window/sub-tab screens.
 
 Every field is Optional — a single dictation will not cover the full window.
+
+LLM outputs often mistype values (numbers for string fields, unit-suffixed strings
+for numerics, "" for missing ints). `_WindowFields` coerces those before validation
+so all window endpoints share the same tolerance.
 """
 
-from typing import List, Literal, Optional
+from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+import re
+import types
+from typing import Any, List, Literal, Optional, Union, get_args, get_origin
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+_NUMERIC_TOKEN = re.compile(r"[-+]?(?:\d+\.?\d*|\.\d+)")
+
+
+def _coerce_optional_float(value: object) -> float | None:
+    """Accept bare numbers or unit-suffixed strings like '82 kg' / '36.8 C'."""
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return float(value)
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).strip().replace(",", "")
+    if not text:
+        return None
+    match = _NUMERIC_TOKEN.search(text)
+    if not match:
+        return None
+    return float(match.group(0))
+
+
+def _coerce_optional_int(value: object) -> int | None:
+    parsed = _coerce_optional_float(value)
+    if parsed is None:
+        return None
+    return int(round(parsed))
+
+
+def _coerce_optional_bool(value: object) -> bool | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return bool(value)
+    text = str(value).strip().lower()
+    if not text:
+        return None
+    if text in {"true", "1", "yes", "y"}:
+        return True
+    if text in {"false", "0", "no", "n"}:
+        return False
+    return None
+
+
+def _unwrap_optional(annotation: object) -> tuple[object, bool]:
+    origin = get_origin(annotation)
+    if origin is Union or origin is types.UnionType:
+        args = [arg for arg in get_args(annotation) if arg is not type(None)]
+        if len(args) == 1:
+            return args[0], True
+    return annotation, False
+
+
+def _is_basemodel_type(annotation: object) -> bool:
+    try:
+        return isinstance(annotation, type) and issubclass(annotation, BaseModel)
+    except TypeError:
+        return False
+
+
+def _coerce_scalar(value: object, annotation: object, *, optional: bool) -> object:
+    origin = get_origin(annotation)
+
+    if origin in (list, List) or _is_basemodel_type(annotation):
+        return value
+
+    if origin is Literal:
+        if value is None:
+            return None if optional else value
+        # Prefer string form for string literals (e.g. status enums).
+        literal_args = get_args(annotation)
+        if literal_args and all(isinstance(arg, str) for arg in literal_args):
+            return str(value)
+        return value
+
+    if annotation is str:
+        if value is None:
+            return None if optional else ""
+        return str(value)
+
+    if annotation is int:
+        return _coerce_optional_int(value)
+
+    if annotation is float:
+        return _coerce_optional_float(value)
+
+    if annotation is bool:
+        return _coerce_optional_bool(value)
+
+    return value
+
+
+def _coerce_llm_payload(cls: type[BaseModel], data: object) -> object:
+    if not isinstance(data, dict):
+        return data
+    coerced: dict[str, Any] = dict(data)
+    for name, field in cls.model_fields.items():
+        if name not in coerced:
+            continue
+        inner, optional = _unwrap_optional(field.annotation)
+        coerced[name] = _coerce_scalar(coerced[name], inner, optional=optional)
+    return coerced
 
 
 class _WindowFields(BaseModel):
     model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_llm_types(cls, data: object) -> object:
+        return _coerce_llm_payload(cls, data)
 
 
 class CountItem(_WindowFields):
@@ -104,11 +220,6 @@ class ChecklistItem(_WindowFields):
     checked: Optional[bool] = None
     note: str = ""
 
-    @field_validator("note", mode="before")
-    @classmethod
-    def _note_or_empty(cls, value: object) -> str:
-        return "" if value is None else str(value)
-
 
 class SiteMarking(_WindowFields):
     marked: Optional[bool] = None
@@ -197,11 +308,6 @@ class SignOutChecklistItem(_WindowFields):
     response: Optional[str] = None
     note: str = ""
 
-    @field_validator("note", mode="before")
-    @classmethod
-    def _note_or_empty(cls, value: object) -> str:
-        return "" if value is None else str(value)
-
 
 class NursingSignOutFields(_WindowFields):
     checklist: Optional[List[SignOutChecklistItem]] = None
@@ -227,11 +333,6 @@ class AnesthesiaTypeBlock(_WindowFields):
 class PositionBlock(_WindowFields):
     position: Optional[str] = None
     note: str = ""
-
-    @field_validator("note", mode="before")
-    @classmethod
-    def _note_or_empty(cls, value: object) -> str:
-        return "" if value is None else str(value)
 
 
 class SkinPreparationAndIncision(_WindowFields):
@@ -265,18 +366,6 @@ class DiathermiaAndLaser(_WindowFields):
     skinConditionAfter: Optional[str] = None
     note: str = ""
 
-    @field_validator("note", mode="before")
-    @classmethod
-    def _note_or_empty(cls, value: object) -> str:
-        return "" if value is None else str(value)
-
-    @field_validator("electroRangeCutting", "electroRangeCoagulation", mode="before")
-    @classmethod
-    def _electro_range_as_str(cls, value: object) -> Optional[str]:
-        if value is None:
-            return None
-        return str(value)
-
 
 class LaserBlock(_WindowFields):
     na: Optional[bool] = None
@@ -285,11 +374,6 @@ class LaserBlock(_WindowFields):
     stoneEffect: Optional[str] = None
     laserFiber: Optional[str] = None
     note: str = ""
-
-    @field_validator("note", mode="before")
-    @classmethod
-    def _note_or_empty(cls, value: object) -> str:
-        return "" if value is None else str(value)
 
 
 class DrainEntry(_WindowFields):
@@ -368,26 +452,6 @@ class PastMedicalHistory(_WindowFields):
     bloodVessel: str = ""
     otherDiseases: str = ""
 
-    @field_validator(
-        "cardiovascular",
-        "respiratory",
-        "neurological",
-        "urological",
-        "musculoskeletal",
-        "psychiatric",
-        "pregnancies",
-        "renalDisease",
-        "endocrine",
-        "hepatic",
-        "gastrointestinal",
-        "bloodVessel",
-        "otherDiseases",
-        mode="before",
-    )
-    @classmethod
-    def _empty_string(cls, value: object) -> str:
-        return "" if value is None else str(value)
-
 
 class PreEvalVitalSigns(_WindowFields):
     weightKg: Optional[float] = None
@@ -407,19 +471,6 @@ class ClinicalExamination(_WindowFields):
     gcs: Optional[int] = None
     others: str = ""
 
-    @field_validator(
-        "cardiovascular",
-        "respiratory",
-        "skin",
-        "sensors",
-        "neuromuscular",
-        "others",
-        mode="before",
-    )
-    @classmethod
-    def _empty_string(cls, value: object) -> str:
-        return "" if value is None else str(value)
-
 
 class AirwayAssessment(_WindowFields):
     openMouth: str = ""
@@ -427,21 +478,11 @@ class AirwayAssessment(_WindowFields):
     neckMobility: str = ""
     others: str = ""
 
-    @field_validator("openMouth", "thyromentalDistance", "neckMobility", "others", mode="before")
-    @classmethod
-    def _empty_string(cls, value: object) -> str:
-        return "" if value is None else str(value)
-
 
 class ClinicalData(_WindowFields):
     chestXray: str = ""
     ecg: str = ""
     others: str = ""
-
-    @field_validator("chestXray", "ecg", "others", mode="before")
-    @classmethod
-    def _empty_string(cls, value: object) -> str:
-        return "" if value is None else str(value)
 
 
 class AsaBlock(_WindowFields):
@@ -515,32 +556,10 @@ class ObservationVitalSign(_WindowFields):
     rbs: str = ""
     o2Air: str = ""
 
-    @field_validator(
-        "oxygenSupply",
-        "tempC",
-        "tidalVolume",
-        "rr",
-        "act",
-        "fio2",
-        "rbs",
-        "o2Air",
-        mode="before",
-    )
-    @classmethod
-    def _empty_string(cls, value: object) -> str:
-        if value is None:
-            return ""
-        return str(value)
-
 
 class ObservationBloodLoss(_WindowFields):
     bloodQuantity: str = ""
     bloodLoss: Optional[int] = None
-
-    @field_validator("bloodQuantity", mode="before")
-    @classmethod
-    def _empty_string(cls, value: object) -> str:
-        return "" if value is None else str(value)
 
 
 class AnesthesiaObservationDrugsFields(_WindowFields):

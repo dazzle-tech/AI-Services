@@ -1,14 +1,20 @@
 """Configuration management for ORDisplayPlugin."""
 
+from pathlib import Path
+
+from dotenv import load_dotenv
 from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(_ENV_FILE, override=True)
 
 
 class Settings(BaseSettings):
     """Application settings."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(_ENV_FILE),
         case_sensitive=False,
         env_file_encoding="utf-8",
         extra="ignore",
@@ -36,7 +42,6 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("MAPPING_MODEL", "OPENAI_MODEL", "mapping_model", "openai_model"),
     )
     openai_temperature: float = 0.2
-    openai_max_tokens: int = 2048
     openai_timeout: int = 120
     openai_max_retries: int = 1
     openai_retry_delay: float = 1.0
