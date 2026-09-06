@@ -237,6 +237,13 @@ class PreEvaluationPreMedication(BaseModel):
     prophylacticAntibioticNote: Optional[str] = None
 
 
+class PreEvaluationAnesthesiaPlan(BaseModel):
+    typeOfAnesthesia: str = ""
+    anesthesiologist: str = ""
+    anesthesiologistResident: str = ""
+    date: Optional[str] = None
+
+
 class PreEvaluationPlanResponse(BaseModel):
     socialHistory: PreEvaluationSocialHistory
     lastMeal: PreEvaluationLastMeal
@@ -249,6 +256,7 @@ class PreEvaluationPlanResponse(BaseModel):
     asa: PreEvaluationAsa
     preAnesthesiaOrders: PreEvaluationOrders
     preMedication: PreEvaluationPreMedication
+    anesthesiaPlan: PreEvaluationAnesthesiaPlan
 
 
 class InductionPreAssessment(BaseModel):

@@ -315,6 +315,12 @@ def _pre_eval_empty() -> Dict[str, Any]:
             "prophylacticAntibiotic": None,
             "prophylacticAntibioticNote": None,
         },
+        "anesthesiaPlan": {
+            "typeOfAnesthesia": "",
+            "anesthesiologist": "",
+            "anesthesiologistResident": "",
+            "date": None,
+        },
     }
 
 
@@ -329,15 +335,123 @@ def _capitalize_first(value: Any) -> Any:
     return text[0].upper() + text[1:]
 
 
+def _normalize_anesthesia_type(value: Any) -> str:
+    """Keep spoken abbreviations (GA, SA, MAC); do not title-case them to Ga/Sa."""
+    if value is None:
+        return ""
+    text = str(value).strip().rstrip(".")
+    if not text:
+        return ""
+    # If the LLM glued following fields onto the type, cut them off.
+    text = re.split(
+        r"\b(?:anesthesiologist|anaesthesiologist|resident|date)\b",
+        text,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0].strip(" ,.:;-")
+    if not text:
+        return ""
+
+    # Prefer a leading short code (GA, SA, MAC, TIVA, ...).
+    leading = re.match(r"^([A-Za-z]{2,5})\b", text)
+    if leading:
+        token = leading.group(1)
+        if token.isalpha() and token.upper() in {
+            "GA",
+            "SA",
+            "EA",
+            "LA",
+            "MAC",
+            "TIVA",
+            "CSE",
+        }:
+            return token.upper()
+
+    compact = re.sub(r"[\s.]+", "", text)
+    if compact.isalpha() and 2 <= len(compact) <= 5:
+        return compact.upper()
+
+    lower = text.lower()
+    expansions = {
+        "general": "GA",
+        "general anesthesia": "GA",
+        "general anaesthesia": "GA",
+        "spinal": "SA",
+        "spinal anesthesia": "SA",
+        "spinal anaesthesia": "SA",
+        "epidural": "EA",
+        "local": "LA",
+        "local anesthesia": "LA",
+        "monitored anesthesia care": "MAC",
+        "monitored anaesthesia care": "MAC",
+    }
+    if lower in expansions:
+        return expansions[lower]
+    # First word only when a longer phrase was glued on.
+    first = text.split()[0]
+    if first.isalpha() and 2 <= len(first) <= 5:
+        return first.upper()
+    return _capitalize_first(text)
+
+
+def _extract_anesthesia_plan_from_text(text: str) -> dict[str, Any]:
+    """Parse type / anesthesiologist fields from flat dictation without swallowing neighbors."""
+    plan: dict[str, Any] = {
+        "typeOfAnesthesia": "",
+        "anesthesiologist": "",
+        "anesthesiologistResident": "",
+        "date": None,
+    }
+    type_match = re.search(
+        r"\b(?:type\s+of\s+anesthesia|anesthesia\s+type)\b[\s,.:;-]{0,12}"
+        r"(GA|SA|EA|LA|MAC|TIVA|CSE|general(?:\s+ana?esthesia)?|spinal(?:\s+ana?esthesia)?|"
+        r"epidural|local(?:\s+ana?esthesia)?|monitored\s+ana?esthesia\s+care|[A-Za-z]{2,12})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if type_match:
+        plan["typeOfAnesthesia"] = _normalize_anesthesia_type(type_match.group(1))
+
+    resident_match = re.search(
+        r"\banesthesiologist\s+resident\b[\s,.:;-]{0,12}(.+?)(?=\b(?:date|type\s+of\s+anesthesia)\b|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if resident_match:
+        plan["anesthesiologistResident"] = _capitalize_first(resident_match.group(1).strip(" ,.:;-"))
+
+    anes_match = re.search(
+        r"\banesthesiologist(?!\s+resident)\b[\s,.:;-]{0,12}"
+        r"(.+?)(?=\b(?:anesthesiologist\s+resident|date|type\s+of\s+anesthesia)\b|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if anes_match:
+        plan["anesthesiologist"] = _capitalize_first(anes_match.group(1).strip(" ,.:;-"))
+
+    date_match = re.search(
+        r"(?:anesthesia\s+plan\s+)?\bdate\b[\s,.:;-]{0,12}(\d{4}-\d{2}-\d{2})",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if date_match:
+        plan["date"] = date_match.group(1)
+
+    return plan
+
+
 def _normalize_pre_eval_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
     merged = _deep_merge(_pre_eval_empty(), dumped or {})
-    for block_name in ("pastMedicalHistory", "clinicalExamination", "airwayAssessment", "clinicalData"):
+    for block_name in ("pastMedicalHistory", "clinicalExamination", "airwayAssessment", "clinicalData", "anesthesiaPlan"):
         block = merged.get(block_name) or {}
         for key, value in block.items():
-            if value is None and key != "gcs":
+            if value is None and key not in {"gcs", "date"}:
                 block[key] = ""
             elif isinstance(value, str):
-                block[key] = _capitalize_first(value)
+                if block_name == "anesthesiaPlan" and key == "typeOfAnesthesia":
+                    block[key] = _normalize_anesthesia_type(value)
+                else:
+                    block[key] = _capitalize_first(value)
         merged[block_name] = block
 
     for block_name in ("socialHistory", "lastMeal"):
@@ -540,11 +654,20 @@ def _backfill_pre_eval_from_text(fields: Dict[str, Any], text: str) -> Dict[str,
             # Drop clearly hallucinated fluid date when fluid was never spoken.
             last_meal["fluidDate"] = None
 
+    plan = dict(out.get("anesthesiaPlan") or {})
+    parsed_plan = _extract_anesthesia_plan_from_text(text)
+    for key, value in parsed_plan.items():
+        if value not in (None, ""):
+            plan[key] = value
+    if plan.get("typeOfAnesthesia"):
+        plan["typeOfAnesthesia"] = _normalize_anesthesia_type(plan.get("typeOfAnesthesia"))
+
     out["vitalSigns"] = vitals
     out["socialHistory"] = social
     out["clinicalExamination"] = clinical
     out["airwayAssessment"] = airway
     out["lastMeal"] = last_meal
+    out["anesthesiaPlan"] = plan
     return out
 
 
@@ -555,6 +678,8 @@ def _pre_eval_section_empty(name: str, value: Any) -> bool:
         return not any(not _is_empty(v) for v in value.values())
     if name in ("clinicalExamination", "airwayAssessment", "clinicalData"):
         return not any(not _is_empty(v) for k, v in value.items() if k != "gcs")
+    if name == "anesthesiaPlan":
+        return all(_is_empty(v) for v in value.values())
     return all(_is_empty(v) for v in value.values())
 
 
@@ -1383,6 +1508,7 @@ def _extract_pre_eval(text: str, lower: str) -> Dict[str, Any]:
             "prophylacticAntibiotic": antibiotic_yes,
             "prophylacticAntibioticNote": antibiotic_note,
         },
+        "anesthesiaPlan": _extract_anesthesia_plan_from_text(text),
     }
 
 

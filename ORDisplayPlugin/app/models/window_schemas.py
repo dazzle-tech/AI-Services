@@ -502,6 +502,13 @@ class PreMedication(_WindowFields):
     prophylacticAntibioticNote: Optional[str] = None
 
 
+class AnesthesiaPlan(_WindowFields):
+    typeOfAnesthesia: str = ""
+    anesthesiologist: str = ""
+    anesthesiologistResident: str = ""
+    date: Optional[str] = None
+
+
 class AnesthesiaPreEvaluationPlanFields(_WindowFields):
     socialHistory: Optional[SocialHistory] = None
     lastMeal: Optional[LastMeal] = None
@@ -514,6 +521,7 @@ class AnesthesiaPreEvaluationPlanFields(_WindowFields):
     asa: Optional[AsaBlock] = None
     preAnesthesiaOrders: Optional[PreAnesthesiaOrders] = None
     preMedication: Optional[PreMedication] = None
+    anesthesiaPlan: Optional[AnesthesiaPlan] = None
 
 
 class PreInductionAssessment(_WindowFields):

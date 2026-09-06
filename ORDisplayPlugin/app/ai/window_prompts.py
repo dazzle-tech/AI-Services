@@ -130,13 +130,21 @@ Window: Anesthesia Record — Pre-Anesthesia Evaluation Record & Anesthesia Plan
 
 Return exactly these top-level keys (camelCase). Use null when not spoken; use empty string for
 unmentioned free-text sub-fields inside pastMedicalHistory, clinicalExamination, airwayAssessment,
-and clinicalData.
+clinicalData, and anesthesiaPlan string fields.
 
 socialHistory: {
   allergies (allergy list, or "None"/"NKDA"; null if unknown),
   smoker ("YES"/"NO"/null), alcoholic ("YES"/"NO"/null), substanceUse
 }
 lastMeal: { food, foodDate (YYYY-MM-DD), fluid, fluidDate (YYYY-MM-DD) }
+previousAnesthesiaAndSurgery: { previousAnesthesia, previousSurgery, difficultIntubation, complication, comments }
+pastMedicalHistory: { cardiovascular, respiratory, neurological, urological, musculoskeletal, psychiatric,
+  pregnancies, renalDisease, endocrine, hepatic, gastrointestinal, bloodVessel, otherDiseases }
+vitalSigns: {
+  weightKg (float kg, bare number), bpSystolic, bpDiastolic, pulseRate (ints),
+  tempC (float Celsius, bare number), spo2 (int %)
+}
+clinicalExamination: { cardiovascular, respiratory, skin, sensors, neuromuscular, gcs (int or null), others }
 If "mental state normal" is spoken, put that under clinicalExamination.others (or neurological).
 Never rewrite "dental state" as "mental state".
 airwayAssessment: {
@@ -148,6 +156,14 @@ clinicalData: { chestXray, ecg, others }
 asa: { asaClass (e.g. "ASA II"), emergency (boolean) }
 preAnesthesiaOrders: { orders }
 preMedication: { preMedication, prophylacticAntibiotic ("YES"/"NO"), prophylacticAntibioticNote }
+anesthesiaPlan: {
+  typeOfAnesthesia — short code only as spoken (GA, SA, MAC); never include following words,
+  anesthesiologist — person name only (stop before resident/date),
+  anesthesiologistResident — person name only,
+  date (YYYY-MM-DD or null)
+}
+Parse each anesthesiaPlan field separately; do not concatenate them into typeOfAnesthesia.
+
 """,
     "anesthesia_induction_intraoperative": """
 Window: Anesthesia Record — Induction Assessment and Intraoperative Anesthesia

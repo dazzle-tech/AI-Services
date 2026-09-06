@@ -263,6 +263,12 @@ def _pre_eval_fields():
             "prophylacticAntibiotic": "YES",
             "prophylacticAntibioticNote": "Cefazolin 1g IV on call to OR",
         },
+        "anesthesiaPlan": {
+            "typeOfAnesthesia": "General",
+            "anesthesiologist": "Dr. Rami Nasser",
+            "anesthesiologistResident": "",
+            "date": "2026-09-03",
+        },
     }
 
 
