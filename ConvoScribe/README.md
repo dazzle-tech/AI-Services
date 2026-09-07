@@ -131,7 +131,7 @@ Ready-made visit recordings:
 |------|------------------|
 | [`samples/visit_sample.wav`](samples/visit_sample.wav) | Sequential two-speaker visit (doctor, patient) |
 | [`samples/visit_overlap_sample.wav`](samples/visit_overlap_sample.wav) | Three-speaker chest-pain visit with overlapping talk (doctor, patient, family) |
-| [`samples/visit_3min_sample.wav`](samples/visit_3min_sample.wav) | Sequential GP visit of at least 3 minutes (chest pressure, diabetes, plan). Script: [`samples/visit_3min_sample.txt`](samples/visit_3min_sample.txt) |
+| [`samples/visit_3min_sample.wav`](samples/visit_3min_sample.wav) | GP visit (≤3 min): note summary, vitals, and measurements for EMR forms. Script: [`samples/visit_3min_sample.txt`](samples/visit_3min_sample.txt) |
 
 Regenerate both anytime:
 
