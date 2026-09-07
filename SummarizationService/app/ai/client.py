@@ -3,11 +3,11 @@ import json
 import logging
 import re
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from openai import OpenAI
 from openai import APIError, RateLimitError, APITimeoutError, APIConnectionError
 from app.core.config import settings
-from app.ai.prompts import build_summary_prompt
+from app.ai.prompts import build_summary_prompt, build_encounter_summary_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -147,8 +147,96 @@ class AIClient:
         
         # If we get here, all retries failed
         raise ValueError(f"Failed to generate summary after {self.max_retries} attempts: {str(last_exception)}")
+
+    def generate_from_messages(
+        self,
+        messages: List[Dict[str, str]],
+        *,
+        keep_paragraphs: bool = False,
+    ) -> str:
+        """Run chat completion for an already-built message list."""
+        last_exception = None
+        for attempt in range(self.max_retries):
+            try:
+                prompt_length = len(json.dumps(messages, ensure_ascii=False))
+                logger.info(
+                    "Calling summary generation using model %s base_url=%s timeout=%ss prompt_length=%s",
+                    self.model,
+                    self.base_url,
+                    self.timeout,
+                    prompt_length,
+                )
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                    timeout=self.timeout,
+                )
+                content = response.choices[0].message.content
+                if not content:
+                    raise ValueError(
+                        f"Empty response from model '{self.model}' - the model may have "
+                        f"exhausted max_tokens on internal reasoning before producing "
+                        f"an answer; consider raising OPENAI_MAX_TOKENS"
+                    )
+                summary = self._clean_summary(content, keep_paragraphs=keep_paragraphs)
+                if not summary:
+                    summary = "Unable to generate clinical summary. Please check input data."
+                if settings.enable_usage_tracking and response.usage:
+                    usage = response.usage
+                    logger.info(
+                        f"Token usage - Prompt: {usage.prompt_tokens}, "
+                        f"Completion: {usage.completion_tokens}, "
+                        f"Total: {usage.total_tokens}"
+                    )
+                return summary
+            except RateLimitError as e:
+                last_exception = e
+                wait_time = self.retry_delay * (2 ** attempt)
+                logger.warning(f"Rate limit exceeded, retrying in {wait_time}s: {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(wait_time)
+                else:
+                    raise ValueError(f"Rate limit exceeded after {self.max_retries} attempts")
+            except (APITimeoutError, APIConnectionError) as e:
+                last_exception = e
+                wait_time = self.retry_delay * (attempt + 1)
+                logger.warning(f"API connection error, retrying in {wait_time}s: {e}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(wait_time)
+                else:
+                    raise ValueError(f"API connection failed after {self.max_retries} attempts: {str(e)}")
+            except APIError as e:
+                logger.error(f"OpenAI API error: {e}")
+                raise ValueError(f"OpenAI API error: {str(e)}")
+            except Exception as e:
+                logger.error(f"Unexpected error in AI summary generation: {e}")
+                raise ValueError(f"AI summary generation failed: {str(e)}")
+        raise ValueError(f"Failed to generate summary after {self.max_retries} attempts: {str(last_exception)}")
+
+    def generate_encounter_summary(
+        self,
+        *,
+        context_type: str,
+        purpose: str,
+        detail_level: str,
+        encounter_id: str,
+        extra_prompt: Optional[str],
+        encounter_data: Dict[str, Any],
+    ) -> str:
+        """Generate an encounter clinical-overview summary."""
+        messages = build_encounter_summary_prompt(
+            context_type=context_type,
+            purpose=purpose,
+            detail_level=detail_level,
+            encounter_id=encounter_id,
+            extra_prompt=extra_prompt,
+            encounter_data=encounter_data,
+        )
+        return self.generate_from_messages(messages, keep_paragraphs=True)
     
-    def _clean_summary(self, raw_output: str) -> str:
+    def _clean_summary(self, raw_output: str, *, keep_paragraphs: bool = False) -> str:
         """
         Clean and format the generated summary.
         Note: cleaning needs scale with model reliability - smaller/local
@@ -162,6 +250,7 @@ class AIClient:
             "here is the clinical summary:",
             "here's the clinical summary:",
             "clinical summary",
+            "encounter summary:",
         ]
         
         cleaned = raw_output.strip()
@@ -182,13 +271,16 @@ class AIClient:
                 if cleaned.startswith(":"):
                     cleaned = cleaned[1:].strip()
         
-        # Remove any trailing meta-commentary
-        lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
-        if len(lines) > 1:
-            # Take the first substantial (non-blank) line - usually the summary
-            cleaned = lines[0]
-        elif lines:
-            cleaned = lines[0]
+        if keep_paragraphs:
+            cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+        else:
+            # Remove any trailing meta-commentary
+            lines = [line.strip() for line in cleaned.splitlines() if line.strip()]
+            if len(lines) > 1:
+                # Take the first substantial (non-blank) line - usually the summary
+                cleaned = lines[0]
+            elif lines:
+                cleaned = lines[0]
         
         # Ensure it's a complete sentence/paragraph
         if cleaned and not cleaned.endswith(('.', '!', '?')):

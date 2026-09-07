@@ -1,6 +1,6 @@
 """Prompt templates for clinical summary generation."""
 import json
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 from app.core.config import settings
 
@@ -117,5 +117,178 @@ def build_summary_prompt(patient_data: Dict[str, Any]) -> List[Dict[str, str]]:
             "role": "user",
             "content": get_user_prompt(patient_data)
         }
+    ]
+
+
+def get_encounter_system_prompt() -> str:
+    """System prompt for encounter clinical-overview summaries."""
+    return """You are an expert clinical documentation AI that writes encounter summaries for clinicians.
+
+Your task is to synthesize structured encounter chart data into a clear clinical overview that:
+- Reflects the hospital course chronologically when notes support it
+- Integrates diagnoses, medications, allergies, warnings, vitals, and order results when present
+- Flags deterioration trends and pending/rejected investigations when asked or when evident in the data
+- Uses professional medical documentation style
+
+CRITICAL REQUIREMENTS:
+1. FIDELITY: Only use information present in ENCOUNTER DATA. Never invent diagnoses, drugs, labs, vitals, or events.
+2. PRECISION: Keep codes, drug names, doses, units, dates, and abnormal flags exactly as given.
+3. Do not invent pending work unless the source data indicates it (e.g. rejected sample, explicit plan, awaiting result).
+4. Respect detail_level and any EXTRA INSTRUCTIONS from the request.
+5. Return ONLY the summary text — no titles, JSON, or meta-commentary."""
+
+
+def format_encounter_data(encounter_data: Dict[str, Any]) -> str:
+    """Format encounter_data into readable prompt sections."""
+    sections: List[str] = []
+
+    for key, label in (
+        ("physician_notes", "Physician notes"),
+        ("nurse_notes", "Nurse notes"),
+        ("hospital_course_notes", "Hospital course notes"),
+    ):
+        notes = encounter_data.get(key) or []
+        if notes:
+            bullets = "\n".join(f"- {n}" for n in notes if n)
+            sections.append(f"{label}:\n{bullets}")
+
+    diagnoses = encounter_data.get("diagnosis") or []
+    if diagnoses:
+        lines = []
+        for d in diagnoses:
+            dtype = d.get("diagnosis_type") or ""
+            code = d.get("diagnosis_code") or ""
+            desc = d.get("diagnosis_description") or ""
+            lines.append(f"- [{dtype}] {code} {desc}".strip())
+        sections.append("Diagnoses:\n" + "\n".join(lines))
+
+    meds = encounter_data.get("medications") or []
+    if meds:
+        lines = []
+        for m in meds:
+            parts = [
+                m.get("drug_name") or m.get("scientific_name") or "Unknown drug",
+                f"{m.get('dose') or ''} {m.get('dose_unit') or ''}".strip(),
+                m.get("route") or "",
+                m.get("frequency") or "",
+                m.get("duration") or "",
+                f"status={m.get('status')}" if m.get("status") else "",
+                "STAT" if m.get("is_stat") else "",
+                f"start={m.get('start_date')}" if m.get("start_date") else "",
+                f"end={m.get('end_date')}" if m.get("end_date") else "",
+            ]
+            lines.append("- " + " | ".join(p for p in parts if p))
+        sections.append("Medications:\n" + "\n".join(lines))
+
+    allergies = encounter_data.get("allergies") or []
+    if allergies:
+        lines = []
+        for a in allergies:
+            note = f" ({a.get('note')})" if a.get("note") else ""
+            lines.append(
+                f"- {a.get('allergy_description')} [{a.get('allergy_type_description')}]{note}"
+            )
+        sections.append("Allergies:\n" + "\n".join(lines))
+
+    warnings = encounter_data.get("warnings") or []
+    if warnings:
+        lines = []
+        for w in warnings:
+            resolved = "resolved" if w.get("resolved") else "active"
+            lines.append(
+                f"- {w.get('warning_description')} [{w.get('warning_type')}] ({resolved})"
+            )
+        sections.append("Warnings:\n" + "\n".join(lines))
+
+    results = encounter_data.get("order_results") or []
+    if results:
+        lines = []
+        for r in results:
+            rejected = " REJECTED" if r.get("is_sample_rejected") else ""
+            value = r.get("result_value")
+            unit = r.get("unit") or ""
+            flag = r.get("abnormal_flag")
+            notes = r.get("result_notes") or ""
+            value_text = f"{value} {unit}".strip() if value not in (None, "") else "n/a"
+            flag_text = f" flag={flag}" if flag else ""
+            lines.append(
+                f"- [{r.get('order_type')}] {r.get('profile_name')} / {r.get('result_name')}: "
+                f"{value_text}{flag_text}{rejected}"
+                + (f"; {notes}" if notes else "")
+                + (f" ({r.get('result_date')})" if r.get("result_date") else "")
+            )
+        sections.append("Order results:\n" + "\n".join(lines))
+
+    vitals = encounter_data.get("vital_signs") or {}
+    if vitals:
+        pairs = [f"{k}={v}" for k, v in vitals.items() if v not in (None, "")]
+        if pairs:
+            sections.append("Vital signs: " + ", ".join(pairs))
+
+    return "\n\n".join(sections) if sections else "(no encounter data provided)"
+
+
+def get_encounter_user_prompt(
+    *,
+    context_type: str,
+    purpose: str,
+    detail_level: str,
+    encounter_id: str,
+    extra_prompt: Optional[str],
+    encounter_data: Dict[str, Any],
+) -> str:
+    """User prompt for encounter summary generation."""
+    data_text = format_encounter_data(encounter_data)
+    extra = (extra_prompt or "").strip()
+    extra_block = f"\nEXTRA INSTRUCTIONS:\n{extra}\n" if extra else "\n"
+
+    prompt = f"""Write a clinical encounter summary for the request below.
+
+CONTEXT:
+- context_type: {context_type}
+- purpose: {purpose}
+- detail_level: {detail_level}
+- encounter_id: {encounter_id}
+{extra_block}
+ENCOUNTER DATA:
+{data_text}
+
+INSTRUCTIONS:
+1. Produce a {detail_level} clinical overview suitable for {purpose}
+2. Use only facts from ENCOUNTER DATA
+3. Call out deterioration trends only if supported by the notes/results; otherwise state improvement/stability when supported
+4. Explicitly mention pending or failed investigations when present (e.g. rejected samples, awaiting input)
+5. Return only the summary prose
+"""
+
+    if _uses_qwen3_thinking_model():
+        prompt += "\n\n/no_think"
+
+    return prompt
+
+
+def build_encounter_summary_prompt(
+    *,
+    context_type: str,
+    purpose: str,
+    detail_level: str,
+    encounter_id: str,
+    extra_prompt: Optional[str],
+    encounter_data: Dict[str, Any],
+) -> List[Dict[str, str]]:
+    """Build OpenAI chat messages for encounter summary."""
+    return [
+        {"role": "system", "content": get_encounter_system_prompt()},
+        {
+            "role": "user",
+            "content": get_encounter_user_prompt(
+                context_type=context_type,
+                purpose=purpose,
+                detail_level=detail_level,
+                encounter_id=encounter_id,
+                extra_prompt=extra_prompt,
+                encounter_data=encounter_data,
+            ),
+        },
     ]
 

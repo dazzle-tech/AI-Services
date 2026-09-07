@@ -94,3 +94,107 @@ class SummaryResponse(BaseModel):
         description="Additional processing metadata"
     )
 
+
+# --- Encounter summary (clinical overview from encounter chart data) ---
+
+
+class EncounterDiagnosis(BaseModel):
+    diagnosis_type: Optional[str] = None
+    diagnosis_code: Optional[str] = None
+    diagnosis_description: Optional[str] = None
+
+
+class EncounterMedication(BaseModel):
+    drug_name: Optional[str] = None
+    scientific_name: Optional[str] = None
+    dose: Optional[str] = None
+    dose_unit: Optional[str] = None
+    route: Optional[str] = None
+    frequency: Optional[str] = None
+    duration: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    status: Optional[str] = None
+    is_stat: Optional[bool] = None
+
+
+class EncounterAllergy(BaseModel):
+    allergy_description: Optional[str] = None
+    allergy_type_description: Optional[str] = None
+    note: Optional[str] = None
+    start_date: Optional[str] = None
+
+
+class EncounterWarning(BaseModel):
+    warning_description: Optional[str] = None
+    warning_type: Optional[str] = None
+    resolved: Optional[bool] = None
+
+
+class EncounterOrderResult(BaseModel):
+    order_type: Optional[str] = None
+    profile_name: Optional[str] = None
+    result_name: Optional[str] = None
+    result_value: Optional[str] = None
+    reference_range: Optional[str] = None
+    unit: Optional[str] = None
+    abnormal_flag: Optional[str] = None
+    is_sample_rejected: Optional[bool] = None
+    result_notes: Optional[str] = None
+    result_date: Optional[str] = None
+
+
+class EncounterVitalSigns(BaseModel):
+    temperature_c: Optional[str] = None
+    spo2_pct: Optional[str] = None
+    bp_systolic: Optional[str] = None
+    bp_diastolic: Optional[str] = None
+    pulse_rate: Optional[str] = None
+    pain_score: Optional[str] = None
+    respiratory_rate: Optional[str] = None
+    reading_datetime: Optional[str] = None
+
+
+class EncounterData(BaseModel):
+    physician_notes: List[str] = Field(default_factory=list)
+    nurse_notes: List[str] = Field(default_factory=list)
+    hospital_course_notes: List[str] = Field(default_factory=list)
+    diagnosis: List[EncounterDiagnosis] = Field(default_factory=list)
+    medications: List[EncounterMedication] = Field(default_factory=list)
+    allergies: List[EncounterAllergy] = Field(default_factory=list)
+    warnings: List[EncounterWarning] = Field(default_factory=list)
+    order_results: List[EncounterOrderResult] = Field(default_factory=list)
+    vital_signs: Optional[EncounterVitalSigns] = None
+
+
+class EncounterSummaryRequest(BaseModel):
+    """Request body for encounter clinical overview summary."""
+    context_type: str = Field(
+        default="encounter_summary",
+        description="Summary context type",
+    )
+    purpose: str = Field(
+        default="clinical_overview",
+        description="Intended clinical purpose of the summary",
+    )
+    detail_level: str = Field(
+        default="standard",
+        description="Detail level: brief | standard | detailed",
+    )
+    encounter_id: str = Field(..., description="Encounter identifier")
+    extra_prompt: Optional[str] = Field(
+        None,
+        description="Optional additional instructions for the summarizer",
+    )
+    encounter_data: EncounterData = Field(..., description="Structured encounter chart data")
+
+
+class EncounterSummaryResponse(BaseModel):
+    """Response for encounter clinical overview summary."""
+    encounter_id: str
+    context_type: str
+    purpose: str
+    detail_level: str
+    ClinicalSummary: str = Field(..., description="Generated encounter clinical summary")
+    processing_metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
+

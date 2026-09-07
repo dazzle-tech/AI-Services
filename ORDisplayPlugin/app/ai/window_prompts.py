@@ -70,9 +70,12 @@ Put extra spoken detail in note (empty string if none). Do not invent staff IDs.
 staff:
 {
   "surgeon": { "staffId": string or null, "displayName": string or null },
-  "nurse": { "staffId": string or null, "displayName": string or null }
+  "nurse": { "staffId": string or null, "displayName": string or null },
+  "anesthesiologist": { "staffId": string or null, "displayName": string or null },
+  "anestheticNurse": { "staffId": string or null, "displayName": string or null }
 }
 Only fill staffId/displayName if spoken. Never invent IDs or names.
+Map "anesthetic nurse" / "anaesthetic nurse" / "anesthesia nurse" to anestheticNurse.
 """,
     "nursing_intraoperative": """
 Window: Nursing — Intraoperative
@@ -136,7 +139,7 @@ socialHistory: {
   allergies (allergy list, or "None"/"NKDA"; null if unknown),
   smoker ("YES"/"NO"/null), alcoholic ("YES"/"NO"/null), substanceUse
 }
-lastMeal: { food, foodDate (YYYY-MM-DD), fluid, fluidDate (YYYY-MM-DD) }
+lastMeal: { food, foodDate (ISO-8601 datetime, e.g. 2026-09-02T08:00:00), fluid, fluidDate (ISO-8601 datetime) }
 previousAnesthesiaAndSurgery: { previousAnesthesia, previousSurgery, difficultIntubation, complication, comments }
 pastMedicalHistory: { cardiovascular, respiratory, neurological, urological, musculoskeletal, psychiatric,
   pregnancies, renalDisease, endocrine, hepatic, gastrointestinal, bloodVessel, otherDiseases }
@@ -153,14 +156,14 @@ airwayAssessment: {
 }
 Put spoken dental state into airwayAssessment.dentalState only.
 clinicalData: { chestXray, ecg, others }
-asa: { asaClass (e.g. "ASA II"), emergency (boolean) }
+asa: { asaClass (digit only "1"-"6"; spoken "ASA 3" / "ASA class III" / "ASA III" → "3"), emergency (boolean) }
 preAnesthesiaOrders: { orders }
 preMedication: { preMedication, prophylacticAntibiotic ("YES"/"NO"), prophylacticAntibioticNote }
 anesthesiaPlan: {
   typeOfAnesthesia — short code only as spoken (GA, SA, MAC); never include following words,
   anesthesiologist — person name only (stop before resident/date),
   anesthesiologistResident — person name only,
-  date (YYYY-MM-DD or null)
+  date (ISO-8601 datetime, e.g. 2026-09-03T08:30:00; include time when spoken)
 }
 Parse each anesthesiaPlan field separately; do not concatenate them into typeOfAnesthesia.
 
@@ -174,7 +177,7 @@ preInductionAssessment: {
   bpSystolic, bpDiastolic, hr, rr, o2Sat,
   npo ("YES"/"NO"), npoDate (YYYY-MM-DD),
   preMedication ("YES"/"NO"), preMedicationNote,
-  date (YYYY-MM-DD)
+  date (ISO-8601 datetime, e.g. 2026-09-12T08:30:00; include time when spoken)
 }
 intraoperativeAnesthesia: {
   induction, intubation, airway, position,

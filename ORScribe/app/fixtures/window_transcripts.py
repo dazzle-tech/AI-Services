@@ -37,7 +37,7 @@ WINDOW_STUB_TRANSCRIPTS = {
     ),
     "anesthesia_pre_evaluation_plan": (
         "Allergies penicillin. Non smoker. Non alcoholic. Substance use none. "
-        "Last meal light breakfast. Food date 2026-09-02. Last fluid water. Fluid date 2026-09-03. "
+        "Last meal light breakfast. Food date 2026-09-02 08:00. Last fluid water. Fluid date 2026-09-03 22:00. "
         "Previous anesthesia yes. Previous surgery yes. Difficult intubation no. Complication no. "
         "Comments appendectomy in 2018 under general anesthesia, uneventful. "
         "Musculoskeletal chronic right knee pain. Endocrine type 2 diabetes, controlled. "
@@ -48,7 +48,7 @@ WINDOW_STUB_TRANSCRIPTS = {
         "Pre-medication midazolam 2 mg IV. Prophylactic antibiotic yes, cefazolin 1 g IV on call to OR."
     ),
     "anesthesia_induction_intraoperative": (
-        "Pre-induction assessment date 2026-09-12. Blood pressure 120 over 80. Heart rate 78. "
+        "Pre-induction assessment date 2026-09-12 08:30. Blood pressure 120 over 80. Heart rate 78. "
         "Respiratory rate 16. O2 sat 98. NPO yes. NPO date 2026-09-12. "
         "Pre-medication yes, midazolam 2 mg IV given. Induction method IV induction. "
         "Intubation endotracheal tube. Airway cuffed ETT size 7.5. Position supine. "

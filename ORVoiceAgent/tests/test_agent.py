@@ -82,6 +82,8 @@ def _time_out_fields():
         "staff": {
             "surgeon": {"staffId": "stf_2041", "displayName": "Dr. Omar Haddad"},
             "nurse": {"staffId": "stf_5590", "displayName": "Lina Odeh"},
+            "anesthesiologist": {"staffId": None, "displayName": None},
+            "anestheticNurse": {"staffId": None, "displayName": None},
         },
     }
 
@@ -198,9 +200,9 @@ def _pre_eval_fields():
         },
         "lastMeal": {
             "food": "Light breakfast",
-            "foodDate": "2026-09-02",
+            "foodDate": "2026-09-02T08:00:00",
             "fluid": "Water",
-            "fluidDate": "2026-09-03",
+            "fluidDate": "2026-09-03T22:00:00",
         },
         "previousAnesthesiaAndSurgery": {
             "previousAnesthesia": "Yes",
@@ -254,7 +256,7 @@ def _pre_eval_fields():
             "ecg": "Normal sinus rhythm",
             "others": "",
         },
-        "asa": {"asaClass": "ASA II", "emergency": False},
+        "asa": {"asaClass": "2", "emergency": False},
         "preAnesthesiaOrders": {
             "orders": "NPO after midnight, continue home antihypertensives",
         },
@@ -267,7 +269,7 @@ def _pre_eval_fields():
             "typeOfAnesthesia": "General",
             "anesthesiologist": "Dr. Rami Nasser",
             "anesthesiologistResident": "",
-            "date": "2026-09-03",
+            "date": "2026-09-03T08:30:00",
         },
     }
 
@@ -284,7 +286,7 @@ def _induction_fields():
             "npoDate": "2026-09-12",
             "preMedication": "YES",
             "preMedicationNote": "Midazolam 2mg IV given",
-            "date": "2026-09-12",
+            "date": "2026-09-12T08:30:00",
         },
         "intraoperativeAnesthesia": {
             "induction": "IV induction",

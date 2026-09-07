@@ -1,7 +1,12 @@
 """API routes for the Clinical Summary Service."""
 import logging
 from fastapi import APIRouter, HTTPException, status
-from app.models.schemas import SummaryRequest, SummaryResponse
+from app.models.schemas import (
+    SummaryRequest,
+    SummaryResponse,
+    EncounterSummaryRequest,
+    EncounterSummaryResponse,
+)
 from app.services.summarization_service import SummarizationService
 
 logger = logging.getLogger(__name__)
@@ -51,6 +56,35 @@ async def summarize(request: SummaryRequest) -> SummaryResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"
+        )
+
+
+@router.post(
+    "/encounter-summary",
+    response_model=EncounterSummaryResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate clinical overview from encounter chart data",
+    description="""
+    Generates an encounter clinical overview from physician/nurse/hospital-course notes,
+    diagnoses, medications, allergies, warnings, order results, and vital signs.
+    Supports detail_level and optional extra_prompt instructions.
+    """,
+)
+async def encounter_summary(request: EncounterSummaryRequest) -> EncounterSummaryResponse:
+    """Generate a clinical overview summary for one encounter."""
+    try:
+        return summarization_service.process_encounter_request(request)
+    except ValueError as e:
+        logger.error("Validation error for encounter %s: %s", request.encounter_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Request validation failed: {str(e)}",
+        )
+    except Exception as e:
+        logger.error("Unexpected error for encounter %s: %s", request.encounter_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Internal server error: {str(e)}",
         )
 
 

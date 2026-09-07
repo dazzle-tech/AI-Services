@@ -103,6 +103,8 @@ def test_checklist_windows_coerce_notes_and_ids():
         {"staff": {"surgeon": {"staffId": 2041, "displayName": "Omar"}, "nurse": {}}}
     )
     assert timeout.staff.surgeon.staffId == "2041"
+    assert timeout.staff.anesthesiologist.staffId is None
+    assert timeout.staff.anestheticNurse.displayName is None
 
     sign_out = NursingSignOutFields.model_validate(
         {

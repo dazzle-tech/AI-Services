@@ -1,0 +1,292 @@
+{
+  "info": {
+    "_postman_id": "summarization-service-local",
+    "name": "SummarizationService",
+    "description": "Clinical Summary Service API — patient summary and encounter clinical overview endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Root Endpoint",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "Get service information and status"
+      },
+      "response": []
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/health",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "health"
+          ]
+        },
+        "description": "Check service health and OpenAI API status"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Minimal",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-test-001\",\n  \"patient_data\": {\n    \"Age\": \"45 years\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Type 2 Diabetes\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/summarize",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "summarize"
+          ]
+        },
+        "description": "Generate clinical summary with minimal patient data (only required fields)"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Complete",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"postman-test-002\",\n  \"patient_data\": {\n    \"Age\": \"58 years\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Acute ST-Elevation Myocardial Infarction (STEMI)\",\n    \"Symptoms\": [\n      \"Chest pain\",\n      \"Shortness of breath\",\n      \"Diaphoresis\"\n    ],\n    \"Medications\": [\n      \"Aspirin 325mg daily\",\n      \"Metoprolol 50mg BID\",\n      \"Atorvastatin 40mg daily\"\n    ],\n    \"Surgeries\": [\n      { \"name\": \"Appendectomy 2010\", \"status\": \"completed\" },\n      { \"name\": \"Knee replacement\", \"status\": \"scheduled\" }\n    ],\n    \"Allergies\": [\n      \"Penicillin\"\n    ],\n    \"Medical_Warnings\": [\n      \"Renal impairment\"\n    ],\n    \"Problems\": [\n      \"Hypertension\",\n      \"Hyperlipidemia\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"140/90\",\n      \"HR\": \"72 bpm\",\n      \"RR\": \"18\",\n      \"Temp\": \"98.6 F\",\n      \"SpO2\": \"98%\"\n    },\n    \"Lab_Results\": {\n      \"Troponin\": \"0.4 ng/mL\",\n      \"HbA1c\": \"7.5%\",\n      \"Creatinine\": \"1.1 mg/dL\",\n      \"LDL\": \"95 mg/dL\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/summarize",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "summarize"
+          ]
+        },
+        "description": "Generate clinical summary with complete patient data (all fields including lab results)"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Encounter Summary - Clinical Overview",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"context_type\": \"encounter_summary\",\n  \"purpose\": \"clinical_overview\",\n  \"detail_level\": \"standard\",\n  \"encounter_id\": \"ENC-2026-004471\",\n  \"extra_prompt\": \"Highlight any deterioration trend and flag pending investigations. Keep the summary under 400 words.\",\n  \"encounter_data\": {\n    \"physician_notes\": [\n      \"Admitted overnight with community-acquired pneumonia. Started on IV ceftriaxone 1g daily. Oxygen 4L via nasal cannula. Plan: reassess in 24 hours, chest x-ray in the morning.\",\n      \"Day 3 review. Afebrile for 24 hours, oxygen weaned to room air. Tolerating oral intake. Switch to oral amoxicillin-clavulanate. Consider discharge in 48 hours if trend continues.\"\n    ],\n    \"nurse_notes\": [\n      \"Patient ambulated to bathroom with frame, no dizziness reported. Appetite improving, ate half of lunch.\",\n      \"Night shift: slept well, no cough episodes recorded. IV site clean and dry, no phlebitis.\"\n    ],\n    \"hospital_course_notes\": [\n      \"Day 4: continued clinical improvement, physiotherapy review completed, awaiting social work input for home support before discharge.\",\n      \"Day 2: oxygen requirement reduced from 4L to 2L. Inflammatory markers trending down.\",\n      \"Day 1: admitted via ED, commenced IV antibiotics and supplemental oxygen.\"\n    ],\n    \"diagnosis\": [\n      {\n        \"diagnosis_type\": \"Principal\",\n        \"diagnosis_code\": \"J18.9\",\n        \"diagnosis_description\": \"Pneumonia, unspecified organism\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"I48.0\",\n        \"diagnosis_description\": \"Paroxysmal atrial fibrillation\"\n      },\n      {\n        \"diagnosis_type\": \"Secondary\",\n        \"diagnosis_code\": \"E11.9\",\n        \"diagnosis_description\": \"Type 2 diabetes mellitus without complications\"\n      }\n    ],\n    \"medications\": [\n      {\n        \"drug_name\": \"Amoxicillin-Clavulanate 625mg\",\n        \"scientific_name\": \"Amoxicillin/Clavulanic acid\",\n        \"dose\": \"1\",\n        \"dose_unit\": \"Tablet\",\n        \"route\": \"ORAL\",\n        \"frequency\": \"each 8 Hours\",\n        \"duration\": \"5 Days\",\n        \"start_date\": \"2026-09-05T08:00:00\",\n        \"end_date\": \"2026-09-10T08:00:00\",\n        \"status\": \"Active\",\n        \"is_stat\": false\n      },\n      {\n        \"drug_name\": \"Apixaban 5mg\",\n        \"scientific_name\": \"Apixaban\",\n        \"dose\": \"1\",\n        \"dose_unit\": \"Tablet\",\n        \"route\": \"ORAL\",\n        \"frequency\": \"each 12 Hours\",\n        \"duration\": \"Ongoing\",\n        \"start_date\": \"2026-09-02T20:00:00\",\n        \"end_date\": null,\n        \"status\": \"Active\",\n        \"is_stat\": false\n      },\n      {\n        \"drug_name\": \"Paracetamol 1g/100ml sol. for inj\",\n        \"scientific_name\": \"Paracetamol\",\n        \"dose\": \"1\",\n        \"dose_unit\": \"Vial\",\n        \"route\": \"INTRAVENOUS\",\n        \"frequency\": null,\n        \"duration\": null,\n        \"start_date\": \"2026-09-06T14:30:00\",\n        \"end_date\": null,\n        \"status\": \"Administered\",\n        \"is_stat\": true\n      }\n    ],\n    \"allergies\": [\n      {\n        \"allergy_description\": \"Penicillin\",\n        \"allergy_type_description\": \"Drug\",\n        \"note\": \"Rash reported in 2019\",\n        \"start_date\": \"2019-04-12\"\n      },\n      {\n        \"allergy_description\": \"Peanuts\",\n        \"allergy_type_description\": \"Food\",\n        \"note\": \"\",\n        \"start_date\": \"2015-01-01\"\n      }\n    ],\n    \"warnings\": [\n      {\n        \"warning_description\": \"MRSA colonisation\",\n        \"warning_type\": \"Infection Control\",\n        \"resolved\": false\n      },\n      {\n        \"warning_description\": \"High falls risk\",\n        \"warning_type\": \"Safety\",\n        \"resolved\": false\n      }\n    ],\n    \"order_results\": [\n      {\n        \"order_type\": \"Laboratory\",\n        \"profile_name\": \"Full Blood Count\",\n        \"result_name\": \"White Cell Count\",\n        \"result_value\": \"14.2\",\n        \"reference_range\": \"4.0 - 11.0\",\n        \"unit\": \"x10^9/L\",\n        \"abnormal_flag\": \"High\",\n        \"is_sample_rejected\": false,\n        \"result_notes\": \"Repeat in 48 hours\",\n        \"result_date\": \"2026-09-05T09:15:00\"\n      },\n      {\n        \"order_type\": \"Laboratory\",\n        \"profile_name\": \"C-Reactive Protein\",\n        \"result_name\": \"CRP\",\n        \"result_value\": \"48\",\n        \"reference_range\": \"0 - 5\",\n        \"unit\": \"mg/L\",\n        \"abnormal_flag\": \"High\",\n        \"is_sample_rejected\": false,\n        \"result_notes\": \"\",\n        \"result_date\": \"2026-09-06T09:00:00\"\n      },\n      {\n        \"order_type\": \"Radiology\",\n        \"profile_name\": \"Chest X-Ray\",\n        \"result_name\": \"CXR PA view\",\n        \"result_value\": null,\n        \"reference_range\": null,\n        \"unit\": null,\n        \"abnormal_flag\": null,\n        \"is_sample_rejected\": false,\n        \"result_notes\": \"Right lower lobe consolidation, improving compared with admission film.\",\n        \"result_date\": \"2026-09-06T11:20:00\"\n      },\n      {\n        \"order_type\": \"Pathology\",\n        \"profile_name\": \"Sputum Culture\",\n        \"result_name\": \"Culture and Sensitivity\",\n        \"result_value\": null,\n        \"reference_range\": null,\n        \"unit\": null,\n        \"abnormal_flag\": null,\n        \"is_sample_rejected\": true,\n        \"result_notes\": \"Sample rejected: insufficient volume. Recollection requested.\",\n        \"result_date\": \"2026-09-04T16:00:00\"\n      }\n    ],\n    \"vital_signs\": {\n      \"temperature_c\": \"37.1\",\n      \"spo2_pct\": \"96\",\n      \"bp_systolic\": \"128\",\n      \"bp_diastolic\": \"76\",\n      \"pulse_rate\": \"84\",\n      \"pain_score\": \"2\",\n      \"respiratory_rate\": \"18\",\n      \"reading_datetime\": \"2026-09-07T08:00:00\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/encounter-summary",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "encounter-summary"
+          ]
+        },
+        "description": "Generate an encounter clinical overview from notes, diagnoses, medications, allergies, warnings, order results, and vitals. Supports detail_level and extra_prompt."
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Pediatric",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Age\": \"5 years\",\n    \"Gender\": \"Female\",\n    \"Diagnosis\": \"Community-Acquired Pneumonia\",\n    \"Symptoms\": [\n      \"Cough\",\n      \"Fever\",\n      \"Difficulty breathing\"\n    ],\n    \"Medications\": [\n      \"Amoxicillin 500mg TID\",\n      \"Albuterol inhaler PRN\"\n    ],\n    \"Allergies\": [\n      \"None known\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"100/60\",\n      \"HR\": \"110 bpm\",\n      \"RR\": \"24\",\n      \"Temp\": \"101.2 F\",\n      \"SpO2\": \"95%\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/summarize",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "summarize"
+          ]
+        },
+        "description": "Generate clinical summary for pediatric patient"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Elderly",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Age\": \"82 years\",\n    \"Gender\": \"Female\",\n    \"Diagnosis\": \"Urinary Tract Infection\",\n    \"Symptoms\": [\n      \"Dysuria\",\n      \"Frequency\",\n      \"Fever\"\n    ],\n    \"Medications\": [\n      \"Ciprofloxacin 500mg BID\",\n      \"Acetaminophen 650mg PRN\"\n    ],\n    \"Allergies\": [\n      \"Sulfa drugs\"\n    ],\n    \"Problems\": [\n      \"Diabetes\",\n      \"Hypertension\",\n      \"Osteoarthritis\"\n    ],\n    \"Vitals\": {\n      \"BP\": \"150/85\",\n      \"HR\": \"88 bpm\",\n      \"Temp\": \"99.8 F\"\n    }\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/summarize",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "summarize"
+          ]
+        },
+        "description": "Generate clinical summary for elderly patient"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Error Test (Missing Age)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Diabetes\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/summarize",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "summarize"
+          ]
+        },
+        "description": "Test error handling - missing required Age field (should return 422)"
+      },
+      "response": []
+    },
+    {
+      "name": "Generate Summary - Error Test (Empty Age)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient_data\": {\n    \"Age\": \"\",\n    \"Gender\": \"Male\",\n    \"Diagnosis\": \"Diabetes\"\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{summarizationservice_base_url}}/api/v1/summarize",
+          "host": [
+            "{{summarizationservice_base_url}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "summarize"
+          ]
+        },
+        "description": "Test error handling - empty Age field (should return 422)"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "summarizationservice_base_url",
+      "value": "http://localhost:8009"
+    }
+  ]
+}

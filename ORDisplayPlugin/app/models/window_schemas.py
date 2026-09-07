@@ -262,6 +262,8 @@ class StaffMember(_WindowFields):
 class TimeOutStaff(_WindowFields):
     surgeon: StaffMember = Field(default_factory=StaffMember)
     nurse: StaffMember = Field(default_factory=StaffMember)
+    anesthesiologist: StaffMember = Field(default_factory=StaffMember)
+    anestheticNurse: StaffMember = Field(default_factory=StaffMember)
 
 
 class NursingTimeOutFields(_WindowFields):

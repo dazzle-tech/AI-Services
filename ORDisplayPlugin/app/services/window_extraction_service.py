@@ -117,6 +117,7 @@ def _missing_field_names(window_id: str, dumped: Dict[str, Any]) -> List[str]:
             if item.get("checked") is None:
                 missing.append(item.get("key") or "checklist")
         staff = dumped.get("staff") or {}
+        # surgeon/nurse remain required for review; anesthesia roles are optional until spoken
         for role_key in ("surgeon", "nurse"):
             person = staff.get(role_key) or {}
             if not person.get("displayName") and not person.get("staffId"):
@@ -404,7 +405,7 @@ def _extract_anesthesia_plan_from_text(text: str) -> dict[str, Any]:
     }
     type_match = re.search(
         r"\b(?:type\s+of\s+anesthesia|anesthesia\s+type)\b[\s,.:;-]{0,12}"
-        r"(GA|SA|EA|LA|MAC|TIVA|CSE|general(?:\s+ana?esthesia)?|spinal(?:\s+ana?esthesia)?|"
+        r"(GA|SA|EA|LA|MAC|TIVA|CSE|sedation|general(?:\s+ana?esthesia)?|spinal(?:\s+ana?esthesia)?|"
         r"epidural|local(?:\s+ana?esthesia)?|monitored\s+ana?esthesia\s+care|[A-Za-z]{2,12})",
         text,
         flags=re.IGNORECASE,
@@ -413,31 +414,86 @@ def _extract_anesthesia_plan_from_text(text: str) -> dict[str, Any]:
         plan["typeOfAnesthesia"] = _normalize_anesthesia_type(type_match.group(1))
 
     resident_match = re.search(
-        r"\banesthesiologist\s+resident\b[\s,.:;-]{0,12}(.+?)(?=\b(?:date|type\s+of\s+anesthesia)\b|$)",
+        r"\banesthesiologist\s+resident\b[\s,.:;-]{0,12}"
+        r"(.+?)(?=\b(?:anesthesia\s+plan(?:ned)?|date|type\s+of\s+anesthesia)\b|$)",
         text,
         flags=re.IGNORECASE,
     )
     if resident_match:
-        plan["anesthesiologistResident"] = _capitalize_first(resident_match.group(1).strip(" ,.:;-"))
+        plan["anesthesiologistResident"] = _clean_person_name(resident_match.group(1))
 
     anes_match = re.search(
         r"\banesthesiologist(?!\s+resident)\b[\s,.:;-]{0,12}"
-        r"(.+?)(?=\b(?:anesthesiologist\s+resident|date|type\s+of\s+anesthesia)\b|$)",
+        r"(.+?)(?=\b(?:anesthesiologist\s+resident|anesthesia\s+plan(?:ned)?|date|type\s+of\s+anesthesia)\b|$)",
         text,
         flags=re.IGNORECASE,
     )
     if anes_match:
-        plan["anesthesiologist"] = _capitalize_first(anes_match.group(1).strip(" ,.:;-"))
+        plan["anesthesiologist"] = _clean_person_name(anes_match.group(1))
 
     date_match = re.search(
-        r"(?:anesthesia\s+plan\s+)?\bdate\b[\s,.:;-]{0,12}(\d{4}-\d{2}-\d{2})",
+        r"(?:anesthesia\s+plan(?:ned)?\s+)?(?<!food\s)(?<!fluid\s)(?<!npo\s)\bdate\b[\s,.:;-]{0,12}"
+        r"(.+?)(?:\.|$)",
         text,
         flags=re.IGNORECASE,
     )
     if date_match:
-        plan["date"] = date_match.group(1)
+        parsed = _datetime_from_natural_phrase(date_match.group(1).strip())
+        if parsed:
+            plan["date"] = parsed
+        else:
+            isoish = re.search(
+                r"(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?)",
+                date_match.group(1),
+            )
+            if isoish:
+                plan["date"] = isoish.group(1)
 
     return plan
+
+
+def _clean_person_name(raw: str) -> str:
+    """Keep only the person name; drop trailing plan/date clauses."""
+    name = (raw or "").strip(" ,.:;-")
+    name = re.split(
+        r"\b(?:anesthesia\s+plan(?:ned)?|date|type\s+of\s+anesthesia)\b",
+        name,
+        maxsplit=1,
+        flags=re.IGNORECASE,
+    )[0]
+    name = name.split(".")[0].strip(" ,.:;-")
+    return _capitalize_first(name) if name else ""
+
+
+def _normalize_asa_class(value: Any) -> Any:
+    """Map spoken ASA class to a digit string '1'..'6'."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        n = int(value)
+        return str(n) if 1 <= n <= 6 else str(n)
+    text = str(value).strip()
+    if not text:
+        return None
+    roman = {
+        "I": "1",
+        "II": "2",
+        "III": "3",
+        "IV": "4",
+        "V": "5",
+        "VI": "6",
+    }
+    m = re.search(
+        r"(?:asa(?:\s*class)?\s*)?([IVX]{1,4}|[1-6])\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return text
+    token = m.group(1).upper()
+    if token.isdigit():
+        return token
+    return roman.get(token, token)
 
 
 def _normalize_pre_eval_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
@@ -450,8 +506,10 @@ def _normalize_pre_eval_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
             elif isinstance(value, str):
                 if block_name == "anesthesiaPlan" and key == "typeOfAnesthesia":
                     block[key] = _normalize_anesthesia_type(value)
-                else:
+                elif not (block_name == "anesthesiaPlan" and key == "date"):
                     block[key] = _capitalize_first(value)
+        if block_name == "anesthesiaPlan":
+            block["date"] = _normalize_iso_datetime(block.get("date"))
         merged[block_name] = block
 
     for block_name in ("socialHistory", "lastMeal"):
@@ -459,6 +517,9 @@ def _normalize_pre_eval_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
         for key, value in block.items():
             if isinstance(value, str):
                 block[key] = _capitalize_first(value)
+        if block_name == "lastMeal":
+            block["foodDate"] = _normalize_iso_datetime(block.get("foodDate"))
+            block["fluidDate"] = _normalize_iso_datetime(block.get("fluidDate"))
         merged[block_name] = block
 
     prev = merged.get("previousAnesthesiaAndSurgery") or {}
@@ -473,10 +534,7 @@ def _normalize_pre_eval_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
     merged["preMedication"] = pre_med
 
     asa = merged.get("asa") or {}
-    asa_class = asa.get("asaClass")
-    if isinstance(asa_class, str):
-        asa_class = re.sub(r"^ASA\s*Class\s*", "ASA ", asa_class, flags=re.IGNORECASE).strip()
-        asa["asaClass"] = asa_class
+    asa["asaClass"] = _normalize_asa_class(asa.get("asaClass"))
     merged["asa"] = asa
     return merged
 
@@ -620,39 +678,18 @@ def _backfill_pre_eval_from_text(fields: Dict[str, Any], text: str) -> Dict[str,
         if neck_match:
             airway["neckMobility"] = neck_match.group(1).strip()
 
-    # Spoken calendar dates like "5 September 2026"
-    date_match = re.search(
-        r"\b(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s*,?\s*(\d{4})\b",
-        text,
-        flags=re.IGNORECASE,
-    )
-    if date_match:
-        months = {
-            "january": 1,
-            "february": 2,
-            "march": 3,
-            "april": 4,
-            "may": 5,
-            "june": 6,
-            "july": 7,
-            "august": 8,
-            "september": 9,
-            "october": 10,
-            "november": 11,
-            "december": 12,
-        }
-        iso = (
-            f"{int(date_match.group(3)):04d}-"
-            f"{months[date_match.group(2).lower()]:02d}-"
-            f"{int(date_match.group(1)):02d}"
-        )
-        if re.search(r"\b(?:food|meal|date)\b", text, flags=re.IGNORECASE):
-            last_meal["foodDate"] = iso
-        if re.search(r"\bfluid\b", text, flags=re.IGNORECASE):
-            last_meal["fluidDate"] = iso
-        elif last_meal.get("fluidDate") in ("2026-09-20",):
-            # Drop clearly hallucinated fluid date when fluid was never spoken.
-            last_meal["fluidDate"] = None
+    # Spoken food/fluid dates, e.g. "Food date 24 September 2026 10:00 AM"
+    food_dt = _parse_spoken_meal_datetime(text, kind="food")
+    if food_dt:
+        last_meal["foodDate"] = food_dt
+    fluid_dt = _parse_spoken_meal_datetime(text, kind="fluid")
+    if fluid_dt:
+        last_meal["fluidDate"] = fluid_dt
+    elif last_meal.get("fluidDate") in ("2026-09-20", "2026-09-20T00:00:00") and not re.search(
+        r"\bfluid\b", text, flags=re.IGNORECASE
+    ):
+        # Drop clearly hallucinated fluid date when fluid was never spoken.
+        last_meal["fluidDate"] = None
 
     plan = dict(out.get("anesthesiaPlan") or {})
     parsed_plan = _extract_anesthesia_plan_from_text(text)
@@ -662,13 +699,39 @@ def _backfill_pre_eval_from_text(fields: Dict[str, Any], text: str) -> Dict[str,
     if plan.get("typeOfAnesthesia"):
         plan["typeOfAnesthesia"] = _normalize_anesthesia_type(plan.get("typeOfAnesthesia"))
 
+    asa = dict(out.get("asa") or {})
+    asa_from_text = _parse_asa_class_from_text(text)
+    if asa_from_text:
+        asa["asaClass"] = asa_from_text
+    elif asa.get("asaClass") is not None:
+        asa["asaClass"] = _normalize_asa_class(asa.get("asaClass"))
+    if asa.get("emergency") is None and re.search(
+        r"\bnot emergency\b|\bnon[- ]emergency\b|\belective\b",
+        text,
+        flags=re.IGNORECASE,
+    ):
+        asa["emergency"] = False
+
     out["vitalSigns"] = vitals
     out["socialHistory"] = social
     out["clinicalExamination"] = clinical
     out["airwayAssessment"] = airway
     out["lastMeal"] = last_meal
+    out["asa"] = asa
     out["anesthesiaPlan"] = plan
     return out
+
+
+def _parse_asa_class_from_text(text: str) -> Optional[str]:
+    """Recognize 'ASA 3' / 'ASA class III' / 'ASA III' without requiring the word class."""
+    m = re.search(
+        r"\bASA\b(?:\s*class)?\s*[:\s]*([IVX]{1,4}|[1-6])\b",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return None
+    return _normalize_asa_class(m.group(1))
 
 
 def _pre_eval_section_empty(name: str, value: Any) -> bool:
@@ -708,9 +771,108 @@ def _induction_empty() -> Dict[str, Any]:
     }
 
 
+def _normalize_iso_datetime(value: Any) -> Any:
+    """Normalize date/datetime strings to ISO-8601 date+time (field names unchanged)."""
+    if not isinstance(value, str):
+        return value
+    raw = value.strip()
+    if not raw:
+        return None
+    # Prefer already-ISO values so we do not drop an existing time component.
+    m = re.fullmatch(
+        r"(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)",
+        raw,
+    )
+    if m:
+        time_part = m.group(2)
+        if len(time_part) == 5:
+            time_part = f"{time_part}:00"
+        return f"{m.group(1)}T{time_part}"
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", raw):
+        return f"{raw}T00:00:00"
+    spoken = _datetime_from_natural_phrase(raw)
+    if spoken:
+        return spoken
+    return raw
+
+
+_MONTH_NAME_TO_NUM = {
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+}
+
+
+def _datetime_from_natural_phrase(text: str) -> Optional[str]:
+    """Parse '24 September 2026 10:00 AM' / '2026-09-24 10:00' into ISO datetime."""
+    if not text:
+        return None
+    month_names = "|".join(_MONTH_NAME_TO_NUM)
+    m = re.search(
+        rf"\b(?:(\d{{4}})-(\d{{2}})-(\d{{2}})|(\d{{1,2}})\s+({month_names})\s*,?\s*(\d{{4}}))"
+        rf"(?:[T\s,]+(?:at\s+)?(\d{{1,2}})(?::(\d{{2}}))?(?::\d{{2}})?\s*(a\.?m\.?|p\.?m\.?)?)?",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if not m:
+        return None
+    if m.group(1):
+        year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    else:
+        day = int(m.group(4))
+        month = _MONTH_NAME_TO_NUM[m.group(5).lower()]
+        year = int(m.group(6))
+    hour = 0
+    minute = 0
+    if m.group(7) is not None:
+        hour = int(m.group(7))
+        minute = int(m.group(8) or 0)
+        ampm = re.sub(r"\.", "", (m.group(9) or "").lower())
+        if ampm == "pm" and hour < 12:
+            hour += 12
+        elif ampm == "am" and hour == 12:
+            hour = 0
+    return f"{year:04d}-{month:02d}-{day:02d}T{hour:02d}:{minute:02d}:00"
+
+
+def _parse_spoken_meal_datetime(text: str, *, kind: str) -> Optional[str]:
+    """Extract foodDate / fluidDate from spoken phrases including optional time."""
+    label = "food" if kind == "food" else "fluid"
+    # Prefer explicit "<kind> date ..."
+    m = re.search(
+        rf"\b{label}\s+date\b[\s,.:;-]{{0,12}}(.+?)(?:\.|$)",
+        text,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        parsed = _datetime_from_natural_phrase(m.group(1))
+        if parsed:
+            return parsed
+    # Fallback: "<kind|meal> ... <date+time>" when only one clear date is present
+    if kind == "food" and re.search(r"\b(?:food|meal)\b", text, flags=re.IGNORECASE):
+        return _datetime_from_natural_phrase(text)
+    if kind == "fluid" and re.search(r"\bfluid\b", text, flags=re.IGNORECASE):
+        return _datetime_from_natural_phrase(text)
+    return None
+
+
 def _normalize_induction_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
     merged = _deep_merge(_induction_empty(), dumped or {})
     pre = merged.get("preInductionAssessment") or {}
+    # Accept alternate LLM key dateAndTime
+    if pre.get("date") is None and pre.get("dateAndTime") is not None:
+        pre["date"] = pre.get("dateAndTime")
+    pre.pop("dateAndTime", None)
+    pre["date"] = _normalize_iso_datetime(pre.get("date"))
     if isinstance(pre.get("preMedicationNote"), str):
         pre["preMedicationNote"] = _capitalize_first(pre["preMedicationNote"])
     if isinstance(pre.get("npo"), str):
@@ -794,19 +956,21 @@ def _observation_section_empty(name: str, value: Any) -> bool:
 
 def _normalize_time_out_fields(dumped: Dict[str, Any]) -> Dict[str, Any]:
     staff = dumped.get("staff") or {}
-    surgeon = staff.get("surgeon") or {}
-    nurse = staff.get("nurse") or {}
+
+    def _person(role: str) -> dict:
+        person = staff.get(role) or {}
+        return {
+            "staffId": person.get("staffId"),
+            "displayName": person.get("displayName"),
+        }
+
     return {
         "checklist": _fill_checklist(TIME_OUT_CHECKLIST_TEMPLATE, dumped),
         "staff": {
-            "surgeon": {
-                "staffId": surgeon.get("staffId"),
-                "displayName": surgeon.get("displayName"),
-            },
-            "nurse": {
-                "staffId": nurse.get("staffId"),
-                "displayName": nurse.get("displayName"),
-            },
+            "surgeon": _person("surgeon"),
+            "nurse": _person("nurse"),
+            "anesthesiologist": _person("anesthesiologist"),
+            "anestheticNurse": _person("anestheticNurse"),
         },
     }
 
@@ -1072,18 +1236,50 @@ def _extract_time_out(text: str, lower: str) -> Dict[str, Any]:
     surgeon_name = _after(text, r"surgeon\s+(dr\.?\s+[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*)*)")
     if surgeon_name:
         surgeon_name = re.split(r"\s+staff\s+id", surgeon_name, flags=re.IGNORECASE)[0].strip(" .,")
-    nurse_name = _after(text, r"nurse\s+((?!staff)[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*)*)")
+
+    anes_name = _after(
+        text,
+        r"anesthesiologist\s+(dr\.?\s+[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*)*)",
+    )
+    if anes_name:
+        anes_name = re.split(r"\s+staff\s+id", anes_name, flags=re.IGNORECASE)[0].strip(" .,")
+
+    anesthetic_nurse_name = _after(
+        text,
+        r"ana?esthet(?:ic|esia)\s+nurse\s+((?!staff)[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*)*)",
+    )
+    if anesthetic_nurse_name:
+        anesthetic_nurse_name = re.split(
+            r"\s+staff\s+id", anesthetic_nurse_name, flags=re.IGNORECASE
+        )[0].strip(" .,")
+
+    nurse_name = _after(
+        text,
+        r"(?<!anesthetic\s)(?<!anaesthetic\s)(?<!anesthesia\s)(?<!anaesthesia\s)"
+        r"nurse\s+((?!staff)[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*)*)",
+    )
     if nurse_name:
         nurse_name = re.split(r"\s+staff\s+id", nurse_name, flags=re.IGNORECASE)[0].strip(" .,")
 
     surgeon_id = _after(text, r"surgeon.*?staff id\s+(\S+)")
-    nurse_id = _after(text, r"nurse.*?staff id\s+(\S+)")
+    nurse_id = _after(
+        text,
+        r"(?<!anesthetic\s)(?<!anaesthetic\s)(?<!anesthesia\s)(?<!anaesthesia\s)"
+        r"nurse.*?staff id\s+(\S+)",
+    )
+    anes_id = _after(text, r"anesthesiologist.*?staff id\s+(\S+)")
+    anesthetic_nurse_id = _after(text, r"ana?esthet(?:ic|esia)\s+nurse.*?staff id\s+(\S+)")
 
     return {
         "checklist": checklist,
         "staff": {
             "surgeon": {"staffId": surgeon_id, "displayName": surgeon_name},
             "nurse": {"staffId": nurse_id, "displayName": nurse_name},
+            "anesthesiologist": {"staffId": anes_id, "displayName": anes_name},
+            "anestheticNurse": {
+                "staffId": anesthetic_nurse_id,
+                "displayName": anesthetic_nurse_name,
+            },
         },
     }
 
@@ -1419,7 +1615,7 @@ def _extract_pre_eval(text: str, lower: str) -> Dict[str, Any]:
     pulse_match = re.search(r"(?:pulse(?: rate)?|hr)\s+(\d+)", text, flags=re.IGNORECASE)
     temp_match = re.search(r"temp(?:erature)?\s+(\d+(?:\.\d+)?)", text, flags=re.IGNORECASE)
     spo2_match = re.search(r"(?:spo2|saturations?)\s+(\d+)", text, flags=re.IGNORECASE)
-    asa_match = re.search(r"(ASA\s*(?:class\s*)?[IVX1-6]+)", text, flags=re.IGNORECASE)
+    asa_match = re.search(r"\bASA\b(?:\s*class)?\s*[:\s]*([IVX]{1,4}|[1-6])\b", text, flags=re.IGNORECASE)
     emergency = None
     if re.search(r"\bnot emergency\b|\bnon[- ]emergency\b|\belective\b", text, flags=re.IGNORECASE):
         emergency = False
@@ -1441,11 +1637,7 @@ def _extract_pre_eval(text: str, lower: str) -> Dict[str, Any]:
     if not alcoholic and re.search(r"non[- ]alcoholic", text, flags=re.IGNORECASE):
         alcoholic = "No"
 
-    asa_class = None
-    if asa_match:
-        asa_class = re.sub(r"\s+", " ", asa_match.group(1).upper().replace("CLASS", "Class"))
-        if not asa_class.startswith("ASA"):
-            asa_class = f"ASA {asa_class.replace('ASA', '').strip()}"
+    asa_class = _normalize_asa_class(asa_match.group(1)) if asa_match else None
 
     return {
         "socialHistory": {
@@ -1456,9 +1648,17 @@ def _extract_pre_eval(text: str, lower: str) -> Dict[str, Any]:
         },
         "lastMeal": {
             "food": _after(text, r"last meal\s+([^.]+?)(?:\.\s|$)") or _after(text, r"food\s+([^.]+?)(?:\.\s|$)"),
-            "foodDate": _after(text, r"food date\s+(\d{4}-\d{2}-\d{2})"),
+            "foodDate": _after(
+                text,
+                r"food date\s+(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?)",
+            )
+            or _parse_spoken_meal_datetime(text, kind="food"),
             "fluid": _after(text, r"last fluid\s+([^.]+?)(?:\.\s|$)") or _after(text, r"fluid\s+([^.]+?)(?:\.\s|$)"),
-            "fluidDate": _after(text, r"fluid date\s+(\d{4}-\d{2}-\d{2})"),
+            "fluidDate": _after(
+                text,
+                r"fluid date\s+(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?)",
+            )
+            or _parse_spoken_meal_datetime(text, kind="fluid"),
         },
         "previousAnesthesiaAndSurgery": {
             "previousAnesthesia": _yes_no(r"previous anesthesia\s+([^.]+)"),
@@ -1563,7 +1763,11 @@ def _extract_induction(text: str, lower: str) -> Dict[str, Any]:
             "npoDate": npo_date,
             "preMedication": pre_med,
             "preMedicationNote": pre_med_note,
-            "date": _after(text, r"(?:pre[- ]induction assessment )?date\s+(\d{4}-\d{2}-\d{2})"),
+            "date": _after(
+                text,
+                r"(?:pre[- ]induction assessment )?(?:date\s*(?:and\s*time)?|datetime)\s+"
+                r"(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2})?)?)",
+            ),
         },
         "intraoperativeAnesthesia": {
             "induction": _after(text, r"induction method\s+([^.]+)") or _after(text, r"intraoperative induction\s+([^.]+)"),

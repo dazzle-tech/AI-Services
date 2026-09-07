@@ -138,6 +138,12 @@ def test_time_out_shape(client):
     assert fields["staff"]["surgeon"]["staffId"] == "stf_2041"
     assert "Omar Haddad" in fields["staff"]["surgeon"]["displayName"]
     assert fields["staff"]["nurse"]["staffId"] == "stf_5590"
+    assert "anesthesiologist" in fields["staff"]
+    assert "anestheticNurse" in fields["staff"]
+    assert fields["staff"]["anesthesiologist"]["staffId"] is None
+    assert fields["staff"]["anesthesiologist"]["displayName"] is None
+    assert fields["staff"]["anestheticNurse"]["staffId"] is None
+    assert fields["staff"]["anestheticNurse"]["displayName"] is None
     assert "Lina Odeh" in fields["staff"]["nurse"]["displayName"]
 
 
@@ -212,9 +218,9 @@ def test_pre_evaluation_plan_shape(client):
     assert body["socialHistory"]["alcoholic"] == "No"
     assert body["socialHistory"]["substanceUse"] == "None"
     assert body["lastMeal"]["food"] == "Light breakfast"
-    assert body["lastMeal"]["foodDate"] == "2026-09-02"
+    assert body["lastMeal"]["foodDate"] == "2026-09-02T08:00:00"
     assert body["lastMeal"]["fluid"] == "Water"
-    assert body["lastMeal"]["fluidDate"] == "2026-09-03"
+    assert body["lastMeal"]["fluidDate"] == "2026-09-03T22:00:00"
     assert body["previousAnesthesiaAndSurgery"]["previousAnesthesia"] == "Yes"
     assert body["previousAnesthesiaAndSurgery"]["comments"] == (
         "Appendectomy in 2018 under general anesthesia, uneventful"
@@ -234,7 +240,7 @@ def test_pre_evaluation_plan_shape(client):
     assert body["airwayAssessment"]["neckMobility"] == "Full range"
     assert body["clinicalData"]["chestXray"] == "Unremarkable"
     assert body["clinicalData"]["ecg"] == "Normal sinus rhythm"
-    assert body["asa"]["asaClass"] == "ASA II"
+    assert body["asa"]["asaClass"] == "2"
     assert body["asa"]["emergency"] is False
     assert "NPO after midnight" in body["preAnesthesiaOrders"]["orders"]
     assert body["preMedication"]["preMedication"].lower().startswith("midazolam 2")
@@ -260,7 +266,7 @@ def test_induction_intraoperative_shape(client):
     assert pre["npoDate"] == "2026-09-12"
     assert pre["preMedication"] == "YES"
     assert pre["preMedicationNote"].lower().startswith("midazolam 2")
-    assert pre["date"] == "2026-09-12"
+    assert pre["date"] == "2026-09-12T08:30:00"
     intra = body["intraoperativeAnesthesia"]
     assert intra["induction"] == "IV induction"
     assert intra["intubation"] == "Endotracheal tube"

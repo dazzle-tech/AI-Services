@@ -29,6 +29,8 @@ class TimeOutStaffMember(BaseModel):
 class TimeOutStaff(BaseModel):
     surgeon: TimeOutStaffMember
     nurse: TimeOutStaffMember
+    anesthesiologist: TimeOutStaffMember
+    anestheticNurse: TimeOutStaffMember
 
 
 class TimeOutResponse(BaseModel):

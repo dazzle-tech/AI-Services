@@ -4,7 +4,12 @@ import re
 from typing import Dict, Any, Set
 from datetime import datetime
 
-from app.models.schemas import SummaryRequest, SummaryResponse
+from app.models.schemas import (
+    SummaryRequest,
+    SummaryResponse,
+    EncounterSummaryRequest,
+    EncounterSummaryResponse,
+)
 from app.ai.client import AIClient
 from app.core.config import settings
 
@@ -186,4 +191,58 @@ class SummarizationService:
         except Exception as e:
             logger.error(f"Unexpected error processing request {request.request_id}: {e}")
             raise ValueError(f"Summary generation failed: {str(e)}")
+
+    def process_encounter_request(
+        self, request: EncounterSummaryRequest
+    ) -> EncounterSummaryResponse:
+        """Generate a clinical overview summary from encounter chart data."""
+        try:
+            logger.info(
+                "Processing encounter summary %s purpose=%s detail=%s",
+                request.encounter_id,
+                request.purpose,
+                request.detail_level,
+            )
+            encounter_dict = request.encounter_data.model_dump()
+            summary = self.ai_client.generate_encounter_summary(
+                context_type=request.context_type,
+                purpose=request.purpose,
+                detail_level=request.detail_level,
+                encounter_id=request.encounter_id,
+                extra_prompt=request.extra_prompt,
+                encounter_data=encounter_dict,
+            )
+            suspect_numbers = find_hallucinated_numbers(encounter_dict, summary)
+            if suspect_numbers:
+                logger.warning(
+                    "Possible hallucination in encounter %s: unverified numbers %s",
+                    request.encounter_id,
+                    sorted(suspect_numbers),
+                )
+            return EncounterSummaryResponse(
+                encounter_id=request.encounter_id,
+                context_type=request.context_type,
+                purpose=request.purpose,
+                detail_level=request.detail_level,
+                ClinicalSummary=summary,
+                processing_metadata={
+                    "model": settings.openai_model,
+                    "timestamp": datetime.now().isoformat(),
+                    "summary_length": len(summary),
+                    "word_count": len(summary.split()),
+                    "provider": "openai",
+                    "api_version": "v1",
+                    "possible_hallucination": bool(suspect_numbers),
+                    "unverified_values": sorted(suspect_numbers) if suspect_numbers else [],
+                },
+            )
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(
+                "Unexpected error processing encounter %s: %s",
+                request.encounter_id,
+                e,
+            )
+            raise ValueError(f"Encounter summary generation failed: {str(e)}")
 

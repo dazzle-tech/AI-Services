@@ -160,6 +160,14 @@ Typical 200 from Time Out (`POST /api/v1/windows/nursing/time-out`) — checklis
     "nurse": {
       "staffId": "stf_5590",
       "displayName": "Lina Odeh"
+    },
+    "anesthesiologist": {
+      "staffId": null,
+      "displayName": null
+    },
+    "anestheticNurse": {
+      "staffId": null,
+      "displayName": null
     }
   }
 }
