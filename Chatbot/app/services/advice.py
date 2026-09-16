@@ -218,7 +218,7 @@ class ClinicianAdviceService:
             f"Patient context JSON:\n{json.dumps(patient_context, ensure_ascii=False, indent=2, default=_json_default)}\n"
         )
 
-        reply = (self.llm_client.generate(prompt, options={"temperature": 0.0, "max_tokens": 900}) or "").strip()
+        reply = (self.llm_client.generate(prompt, options={"temperature": 0.0}) or "").strip()
         ok, err = validate_advice_output(reply)
         if not ok:
             logger.warning("Blocked clinician-support output for MRN=%s: %s", record.mrn, err)

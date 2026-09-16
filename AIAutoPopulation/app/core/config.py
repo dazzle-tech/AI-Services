@@ -24,8 +24,6 @@ class Settings(BaseSettings):
     openai_temperature: float = 0.0  # Deterministic behavior
     openai_timeout: int = 120
     openai_max_retries: int = 1
-    openai_max_tokens: int = 4000
-    openai_max_tokens_vitals_only: int = 500  # Reduced tokens for faster vitals-only extraction (only vitals needed)
     
     # Service Configuration
     max_input_length: int = 10000  # Maximum characters in user input

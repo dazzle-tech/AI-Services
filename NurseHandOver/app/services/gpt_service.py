@@ -47,7 +47,6 @@ async def call_gpt(system_prompt: str, user_prompt: str) -> str:
                     {"role": "user",   "content": user_prompt},
                 ],
                 temperature=settings.temperature,
-                max_tokens=settings.max_tokens,
                 response_format={"type": "json_object"},  # enforce valid JSON at the protocol level
             )
             return response.choices[0].message.content

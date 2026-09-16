@@ -9,8 +9,8 @@ def _uses_qwen3_thinking_model() -> bool:
     """
     Qwen3-family models (served locally via Ollama in this setup) think by
     default: they emit a <think>...</think> reasoning block before the
-    actual answer, and those reasoning tokens count against max_tokens. With
-    a low max_tokens budget the model can burn the whole budget "thinking"
+    actual answer, and those reasoning tokens count against the output budget. With
+    a tight cap the model can burn the whole budget "thinking"
     and return an empty content field. Appending "/no_think" to the prompt
     is the documented way to disable this for Qwen3. This should only be
     applied for Qwen3 models - it would just be inert clutter in a prompt

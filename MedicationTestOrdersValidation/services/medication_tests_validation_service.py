@@ -112,7 +112,6 @@ class BaseValidationService:
         self.base_url = base_url or "https://api.openai.com/v1"
         self.model = settings.OPENAI_MODEL
         self.temperature = settings.OPENAI_TEMPERATURE
-        self.max_tokens = settings.OPENAI_MAX_TOKENS
         self.timeout = settings.OPENAI_TIMEOUT
 
     def _uses_qwen_model(self) -> bool:
@@ -178,7 +177,6 @@ class BaseValidationService:
                         {"role": "user", "content": json_only_user},
                     ],
                     "temperature": self.temperature,
-                    "max_tokens": self.max_tokens,
                     "response_format": {"type": "json_object"},
                     "timeout": self.timeout,
                 }
@@ -194,8 +192,7 @@ class BaseValidationService:
                 finish_reason = getattr(choice, "finish_reason", None)
                 if finish_reason == "length":
                     logger.warning(
-                        "Model response truncated by max_tokens=%s; thinking may have consumed the budget",
-                        self.max_tokens,
+                        "Model response truncated at output limit; thinking may have consumed the budget",
                     )
                 if not content.strip():
                     reasoning = getattr(choice.message, "reasoning_content", None) or getattr(

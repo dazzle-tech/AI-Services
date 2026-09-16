@@ -51,13 +51,13 @@ class OpenAIClient:
         Args:
             prompt: Input prompt
             model: Model name (overrides default)
-            options: Generation options (temperature, max_tokens, etc.)
+            options: Generation options (temperature, etc.)
             
         Returns:
             Generated text response
         """
         model = model or self.model
-        options = options or {"temperature": 0.1, "max_tokens": 2000}
+        options = options or {"temperature": 0.1}
         
         try:
             prompt_length = len(prompt)
@@ -74,7 +74,6 @@ class OpenAIClient:
                     {"role": "user", "content": prompt}
                 ],
                 temperature=options.get("temperature", 0.1),
-                max_tokens=options.get("max_tokens", 2000),
                 timeout=self.timeout,
             )
             return (response.choices[0].message.content or "").strip()

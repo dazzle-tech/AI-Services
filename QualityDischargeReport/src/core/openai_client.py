@@ -38,7 +38,6 @@ class OpenAIClient:
         prompt: str,
         system_message: Optional[str] = None,
         temperature: float = 0.3,
-        max_tokens: int = 4000
     ) -> str:
         """Complete a prompt using OpenAI API.
         
@@ -46,7 +45,6 @@ class OpenAIClient:
             prompt: User prompt text
             system_message: Optional system message
             temperature: Sampling temperature (0-1)
-            max_tokens: Maximum tokens in response
             
         Returns:
             Response text
@@ -71,7 +69,6 @@ class OpenAIClient:
                 model=self.model,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens,
                 timeout=self.timeout,
             )
             
@@ -84,14 +81,13 @@ class OpenAIClient:
                 if reasoning:
                     logger.error(
                         "Model '%s' returned only reasoning content and no final answer "
-                        "(likely exhausted max_tokens=%s while thinking). Reasoning preview: %.200s",
+                        "(likely hit the model output limit while thinking). Reasoning preview: %.200s",
                         self.model,
-                        max_tokens,
                         reasoning,
                     )
                 raise RuntimeError(
                     f"Empty response from model '{self.model}' - the model may have "
-                    f"exhausted max_tokens on internal reasoning before producing an answer"
+                    f"exhausted its output budget on internal reasoning before producing an answer"
                 )
             return content
         except RuntimeError:

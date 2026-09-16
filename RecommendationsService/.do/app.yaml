@@ -22,8 +22,6 @@ services:
     value: gpt-4o
   - key: OPENAI_TEMPERATURE
     value: "0.3"
-  - key: OPENAI_MAX_TOKENS
-    value: "1500"
   - key: OPENAI_TIMEOUT
     value: "30"
   - key: API_HOST

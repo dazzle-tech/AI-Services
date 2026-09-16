@@ -28,7 +28,6 @@ class AIClient:
         self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
-        self.max_tokens = settings.openai_max_tokens
         self.max_retries = settings.openai_max_retries
         self.retry_delay = settings.openai_retry_delay
         self.timeout = settings.openai_timeout
@@ -69,7 +68,6 @@ class AIClient:
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
-                    max_tokens=self.max_tokens,
                     timeout=self.timeout,
                 )
                 
@@ -78,7 +76,7 @@ class AIClient:
 
                 if not content:
                     # If a model with hybrid reasoning (e.g. Qwen3 family)
-                    # spends its entire max_tokens budget on the internal
+                    # spends its entire output budget on the internal
                     # <think> block, content comes back empty even though
                     # the API call itself succeeded (HTTP 200). See
                     # app.ai.prompts._uses_qwen3_thinking_model / /no_think.
@@ -87,14 +85,14 @@ class AIClient:
                     if reasoning:
                         logger.error(
                             "Model '%s' returned only reasoning content and no "
-                            "final answer (likely exhausted max_tokens=%s while "
+                            "final answer (likely hit the model output limit while "
                             "thinking). Reasoning preview: %.200s",
-                            self.model, self.max_tokens, reasoning
+                            self.model, reasoning
                         )
                     raise ValueError(
                         f"Empty response from model '{self.model}' - the model may have "
-                        f"exhausted max_tokens on internal reasoning before producing "
-                        f"an answer; consider raising OPENAI_MAX_TOKENS"
+                        f"exhausted its output budget on internal reasoning before producing "
+                        f"an answer; try a non-reasoning model or /no_think"
                     )
                 
                 # NOTE: reliability depends on the configured model (see OPENAI_MODEL).
@@ -170,15 +168,14 @@ class AIClient:
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
-                    max_tokens=self.max_tokens,
                     timeout=self.timeout,
                 )
                 content = response.choices[0].message.content
                 if not content:
                     raise ValueError(
                         f"Empty response from model '{self.model}' - the model may have "
-                        f"exhausted max_tokens on internal reasoning before producing "
-                        f"an answer; consider raising OPENAI_MAX_TOKENS"
+                        f"exhausted its output budget on internal reasoning before producing "
+                        f"an answer; try a non-reasoning model or /no_think"
                     )
                 summary = self._clean_summary(content, keep_paragraphs=keep_paragraphs)
                 if not summary:

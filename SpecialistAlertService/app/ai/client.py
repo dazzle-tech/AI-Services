@@ -35,7 +35,6 @@ class AIClient:
         self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
-        self.max_tokens = settings.openai_max_tokens
         self.max_retries = settings.openai_max_retries
         self.retry_delay = settings.openai_retry_delay
         self.timeout = settings.openai_timeout
@@ -60,13 +59,6 @@ class AIClient:
         """
         messages = build_alert_prompt(patient_record, risk_signals=risk_signals)
 
-        # Adaptive token budget: starts at the configured max_tokens, but grows if a
-        # response gets cut off by finish_reason="length" so the retry actually has
-        # a chance of completing the JSON instead of truncating in the same place.
-        current_max_tokens = self.max_tokens
-        token_budget_cap = max(self.max_tokens * 4, 8000)
-        truncated_last_attempt = False
-
         last_exception: Optional[Exception] = None
         for attempt in range(self.max_retries):
             try:
@@ -74,12 +66,11 @@ class AIClient:
                 prompt_length = len(json.dumps(messages, ensure_ascii=False))
                 logger.info(
                     "Calling specialist alerts using model %s base_url=%s timeout=%ss "
-                    "prompt_length=%s max_tokens=%s",
+                    "prompt_length=%s",
                     self.model,
                     self.base_url,
                     self.timeout,
                     prompt_length,
-                    current_max_tokens,
                 )
 
                 extra_body = {}
@@ -96,7 +87,6 @@ class AIClient:
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
-                    max_tokens=current_max_tokens,
                     timeout=self.timeout,
                     extra_body=extra_body or None,
                 )
@@ -104,12 +94,10 @@ class AIClient:
                 choice = response.choices[0]
                 content = choice.message.content
                 finish_reason = getattr(choice, "finish_reason", None)
-                truncated_last_attempt = finish_reason == "length"
-                if truncated_last_attempt:
+                if finish_reason == "length":
                     logger.warning(
-                        "Model response was truncated by max_tokens (%s); "
+                        "Model response was truncated at the output limit; "
                         "the reasoning trace may be consuming most of the budget.",
-                        current_max_tokens,
                     )
 
                 if not content:
@@ -142,19 +130,7 @@ class AIClient:
             except AlertParsingError as e:
                 last_exception = e
                 wait_time = self.retry_delay * (attempt + 1)
-                if truncated_last_attempt and current_max_tokens < token_budget_cap:
-                    previous_budget = current_max_tokens
-                    current_max_tokens = min(int(current_max_tokens * 1.75), token_budget_cap)
-                    logger.warning(
-                        "Alert parsing failed after truncation, retrying in %ss with max_tokens "
-                        "raised from %s to %s: %s",
-                        wait_time,
-                        previous_budget,
-                        current_max_tokens,
-                        e,
-                    )
-                else:
-                    logger.warning("Alert parsing failed, retrying in %ss: %s", wait_time, e)
+                logger.warning("Alert parsing failed, retrying in %ss: %s", wait_time, e)
                 if attempt < self.max_retries - 1:
                     time.sleep(wait_time)
                 else:
@@ -230,7 +206,7 @@ class AIClient:
         """Remove <think>...</think> reasoning blocks emitted by reasoning models.
 
         Handles both a properly closed block and a block left open because the
-        response was truncated by max_tokens before the model finished thinking.
+        response was truncated at the model output limit before the model finished thinking.
         """
         text = raw_output
         text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE)
@@ -239,7 +215,7 @@ class AIClient:
         if re.search(r"<think>", text, flags=re.IGNORECASE):
             raise AlertParsingError(
                 "Model response was truncated inside its reasoning block before any "
-                "JSON was produced; increase max_tokens or disable thinking mode"
+                "JSON was produced; use a non-reasoning model or disable thinking mode"
             )
         return text.strip()
 

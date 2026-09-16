@@ -21,7 +21,6 @@ class Settings(BaseSettings):
     openai_base_url: str | None = None
     openai_model: str = "gpt-4o"
     openai_temperature: float = 0.1
-    openai_max_tokens: int = 4000
     openai_disable_thinking: bool = True
 
     openai_timeout: int = 120

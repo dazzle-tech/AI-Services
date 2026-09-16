@@ -28,7 +28,6 @@ class AIClient:
         self.base_url = settings.openai_base_url or "https://api.openai.com/v1"
         self.model = settings.openai_model
         self.temperature = settings.openai_temperature
-        self.max_tokens = settings.openai_max_tokens
         self.max_retries = settings.openai_max_retries
         self.retry_delay = settings.openai_retry_delay
         self.timeout = settings.openai_timeout
@@ -65,7 +64,6 @@ class AIClient:
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
-                    max_tokens=self.max_tokens,
                     timeout=self.timeout,
                 )
 

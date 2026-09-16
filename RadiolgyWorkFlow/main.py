@@ -1309,7 +1309,6 @@ def _gpt4o_radiology_report(png_b64: str, ctx: dict) -> dict:
         ],
         response_format={"type": "json_object"},
         temperature=0.2,
-        max_tokens=900,
     )
     content = resp.choices[0].message.content or "{}"
     try:

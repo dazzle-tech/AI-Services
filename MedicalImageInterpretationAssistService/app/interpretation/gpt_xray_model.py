@@ -457,7 +457,6 @@ def run_gpt_xray_model(
         )
         response = client.chat.completions.create(
             model=selected_model,
-            max_tokens=1500,
             messages=messages,
             temperature=0.1,
             timeout=openai_timeout,
@@ -470,7 +469,6 @@ def run_gpt_xray_model(
                 try:
                     response = client.chat.completions.create(
                         model=selected_model,
-                        max_tokens=1500,
                         messages=messages,
                         temperature=0.1,
                         timeout=openai_timeout,

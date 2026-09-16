@@ -27,7 +27,6 @@ class AIClient:
         self.model = settings.openai_model
         self.timeout = settings.openai_timeout
         self.temperature = settings.openai_temperature
-        self.max_tokens = settings.openai_max_tokens
     
     def extract_structured_data(
         self,
@@ -54,8 +53,7 @@ class AIClient:
                 output_language=output_language
             )
             
-            # Use reduced tokens if only vitals are requested (faster processing)
-            max_tokens = settings.openai_max_tokens_vitals_only if vitals_only else self.max_tokens
+            del vitals_only  # same completion budget for full vs vitals-only extraction
             prompt_length = len(json.dumps(messages, ensure_ascii=False))
             logger.info(
                 "Calling AI extraction using model %s base_url=%s timeout=%ss prompt_length=%s",
@@ -70,7 +68,6 @@ class AIClient:
                 model=self.model,
                 messages=messages,
                 temperature=self.temperature,
-                max_tokens=max_tokens,
                 response_format={"type": "json_object"},  # Force JSON output
                 timeout=self.timeout,
             )

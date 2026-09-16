@@ -21,7 +21,6 @@ class Settings(BaseSettings):
     openai_base_url: str | None = None
     openai_model: str = "gpt-4o"
     openai_temperature: float = 0.2
-    openai_max_tokens: int = 2048
 
     # API Configuration
     openai_timeout: int = 120

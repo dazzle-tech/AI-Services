@@ -21,7 +21,6 @@ class Settings(BaseSettings):
 
     # Generation parameters
     temperature: float = 0.2
-    max_tokens: int = 700
     max_retries: int = 2
 
     # HTTP

@@ -63,7 +63,6 @@ class PromptRunner:
         response_text = self.client.complete(
             prompt=prompt,
             temperature=0.3,
-            max_tokens=4000
         )
         
         # Extract JSON from response
