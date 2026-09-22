@@ -1,0 +1,220 @@
+{
+  "info": {
+    "name": "OCRParsingService",
+    "description": "Postman collection for OCR Parsing Service — OCR from images, structured parse via OpenAI, and ID/passport identity extraction.\n\n**Setup**\n1. Import this collection.\n2. Set `baseUrl` (default `http://localhost:8012`).\n3. For upload requests, select a passport or ID image in the **file** form field.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8012"
+    }
+  ],
+  "item": [
+    {
+      "name": "Service Root",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": ["{{baseUrl}}"],
+          "path": [""]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Health",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status code is 200', function () {",
+              "  pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "health"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Extract Text From Image",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Passport or ID image (JPEG/PNG)"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/extract-text",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "extract-text"]
+        },
+        "description": "OCR only — returns `text_lines` and confidence metrics."
+      },
+      "response": []
+    },
+    {
+      "name": "Parse Text Lines To Structured Data",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text_lines\": [\n    \"PASSPORT\",\n    \"Document No: A1234567\",\n    \"Surname: DOE\",\n    \"Given Names: JOHN\",\n    \"Nationality: USA\",\n    \"Date of Birth: 1990-01-15\",\n    \"Sex: M\",\n    \"Place of Birth: NEW YORK\"\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/parse-text",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "parse-text"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Parse Raw Text To Structured Data",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"PASSPORT\\nDocument No: A1234567\\nSurname: DOE\\nGiven Names: JOHN\\nNationality: USA\\nDate of Birth: 1990-01-15\\nSex: M\\nPlace of Birth: NEW YORK\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/parse-text",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "parse-text"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Extract And Parse From Image",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Passport or ID image"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/extract-and-parse",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "extract-and-parse"]
+        },
+        "description": "OCR then OpenAI structured parse in one call."
+      },
+      "response": []
+    },
+    {
+      "name": "Extract Identity From Image (strict quality)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Passport or national ID image"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/identity/extract?strict_quality=true",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "identity", "extract"],
+          "query": [
+            {
+              "key": "strict_quality",
+              "value": "true"
+            }
+          ]
+        },
+        "description": "Structured patient identity (MRZ + visual). Returns 422 LOW_QUALITY_SCAN when the image fails quality checks."
+      },
+      "response": []
+    },
+    {
+      "name": "Extract Identity From Image (best effort)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "",
+              "description": "Passport or national ID image"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/identity/extract?strict_quality=false",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "identity", "extract"],
+          "query": [
+            {
+              "key": "strict_quality",
+              "value": "false"
+            }
+          ]
+        },
+        "description": "Same as strict mode but allows low-quality scans; use for debugging poor photos."
+      },
+      "response": []
+    }
+  ]
+}

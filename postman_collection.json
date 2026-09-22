@@ -2462,6 +2462,78 @@
                 },
                 "description": "Upload a passport or ID image to run OCR first and then structured extraction with OpenAI."
               }
+            },
+            {
+              "name": "Extract Identity From Image (strict quality)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{ocrparsingservice_base_url}}/api/v1/identity/extract?strict_quality=true",
+                  "host": [
+                    "{{ocrparsingservice_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "identity",
+                    "extract"
+                  ],
+                  "query": [
+                    {
+                      "key": "strict_quality",
+                      "value": "true"
+                    }
+                  ]
+                },
+                "description": "Structured ID/passport fields with MRZ validation. Returns 422 when scan quality is too low."
+              }
+            },
+            {
+              "name": "Extract Identity From Image (best effort)",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": ""
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{ocrparsingservice_base_url}}/api/v1/identity/extract?strict_quality=false",
+                  "host": [
+                    "{{ocrparsingservice_base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "identity",
+                    "extract"
+                  ],
+                  "query": [
+                    {
+                      "key": "strict_quality",
+                      "value": "false"
+                    }
+                  ]
+                },
+                "description": "Identity extraction with strict_quality=false for low-quality images."
+              }
             }
           ]
         }
