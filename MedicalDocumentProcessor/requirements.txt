@@ -1,0 +1,19 @@
+fastapi==0.111.1
+uvicorn==0.30.6
+pydantic==2.8.2
+pydantic-settings==2.4.0
+python-dotenv==1.0.1
+python-multipart==0.0.9
+openai>=1.30.0
+
+# Document text extraction
+pypdf==4.0.1          # PDF -- already used elsewhere in this repo (MedicalGuidelineValidation)
+python-docx==1.1.2    # DOCX -- new dependency, no existing lib for Word documents in this repo
+Pillow==10.4.0         # Image validation for the OCR path
+
+# easyocr==1.7.1   # OPTIONAL local OCR engine (OCR_ENGINE=easyocr). Heavy (pulls torch
+#                    ~2GB); the default OCR_ENGINE=vision path (gpt-4o) needs neither this
+#                    nor numpy/opencv below. Uncomment together with the two lines below to
+#                    enable the local-OCR engine, matching OCRParsingService's convention.
+# numpy==1.26.4
+# opencv-python-headless==4.10.0.84

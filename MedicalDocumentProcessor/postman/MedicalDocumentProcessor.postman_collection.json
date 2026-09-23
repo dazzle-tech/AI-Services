@@ -1,0 +1,294 @@
+{
+  "info": {
+    "_postman_id": "medical-document-processor-service",
+    "name": "MedicalDocumentProcessor",
+    "description": "Postman collection for Medical Document Processor Service REST API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "health"]
+        },
+        "description": "Check service health and OpenAI API status"
+      },
+      "response": []
+    },
+    {
+      "name": "Process Document (Valid, No Translation)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response has field status', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json).to.have.property('status');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            },
+            {
+              "key": "patient",
+              "value": "{\"patient_id\":\"P-1001\",\"full_name\":\"Jane Doe\",\"sex\":\"female\",\"date_of_birth\":\"1980-05-14\"}",
+              "type": "text"
+            },
+            {
+              "key": "translate",
+              "value": "false",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/process-document",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "process-document"]
+        },
+        "description": "Process a document already in the target language -- expect status 'processed', translated=false."
+      },
+      "response": []
+    },
+    {
+      "name": "Process Document (Valid, Translation Required)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            },
+            {
+              "key": "patient",
+              "value": "{\"patient_id\":\"P-1001\",\"full_name\":\"Jane Doe\",\"sex\":\"female\",\"date_of_birth\":\"1980-05-14\"}",
+              "type": "text"
+            },
+            {
+              "key": "translate",
+              "value": "true",
+              "type": "text"
+            },
+            {
+              "key": "target_language",
+              "value": "en",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/process-document",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "process-document"]
+        },
+        "description": "Process a non-English document with translate=true -- expect status 'processed', translated=true."
+      },
+      "response": []
+    },
+    {
+      "name": "Process Document (Invalid Patient Match)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response status is invalid', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('invalid');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            },
+            {
+              "key": "patient",
+              "value": "{\"patient_id\":\"P-1001\",\"full_name\":\"Jane Doe\",\"sex\":\"female\",\"date_of_birth\":\"1980-05-14\"}",
+              "type": "text"
+            },
+            {
+              "key": "translate",
+              "value": "false",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/process-document",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "process-document"]
+        },
+        "description": "Upload a document describing a different sex/DOB than the given patient -- expect status 'invalid' with a specific reason."
+      },
+      "response": []
+    },
+    {
+      "name": "Process Document (Irrelevant / Outdated)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test('Response status is irrelevant', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.status).to.eql('irrelevant');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            },
+            {
+              "key": "patient",
+              "value": "{\"patient_id\":\"P-1001\",\"full_name\":\"Jane Doe\",\"sex\":\"female\",\"date_of_birth\":\"1980-05-14\"}",
+              "type": "text"
+            },
+            {
+              "key": "translate",
+              "value": "false",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/process-document",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "process-document"]
+        },
+        "description": "Upload a document dated well outside its type's relevance window -- expect status 'irrelevant' with a specific reason."
+      },
+      "response": []
+    },
+    {
+      "name": "Process Document (Invalid Payload)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status code equals 400', function () {",
+              "    pm.expect(pm.response.code).to.eql(400);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": ""
+            },
+            {
+              "key": "patient",
+              "value": "not valid json",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/process-document",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "process-document"]
+        },
+        "description": "Test error handling -- malformed `patient` field (should return 400)."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8029",
+      "type": "string"
+    }
+  ]
+}

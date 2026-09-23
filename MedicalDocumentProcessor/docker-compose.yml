@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: medical-document-processor-service
+    ports:
+      - "8029:8029"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o}
+      - OPENAI_TEMPERATURE=${OPENAI_TEMPERATURE:-0.1}
+      - OPENAI_MAX_TOKENS=${OPENAI_MAX_TOKENS:-2000}
+      - OPENAI_TIMEOUT=${OPENAI_TIMEOUT:-120}
+      - OCR_ENGINE=${OCR_ENGINE:-vision}
+      - DEFAULT_TARGET_LANGUAGE=${DEFAULT_TARGET_LANGUAGE:-en}
+      - API_HOST=0.0.0.0
+      - API_PORT=8029
+      - API_RELOAD=false
+      - ENABLE_USAGE_TRACKING=${ENABLE_USAGE_TRACKING:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8029/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
