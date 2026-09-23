@@ -1,0 +1,20 @@
+PRESCRIPTION
+Facility: Asklepios Demo Hospital
+Patient: Jane Doe
+Patient ID: P-1001
+Sex: Female
+Date of Birth: 1980-05-14
+Date: 2026-08-10
+Prescribing Provider: Dr. Amina Hassan
+
+Medication: Amoxicillin 500 mg
+Frequency: Three times daily
+Route: Oral
+Duration: 7 days
+Instructions: Take with food. Complete the full course.
+
+Medication: Ibuprofen 200 mg
+Frequency: Every 8 hours as needed
+Route: Oral
+Duration: 5 days
+Instructions: Do not exceed 1200 mg in 24 hours.

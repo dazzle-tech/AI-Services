@@ -1,0 +1,22 @@
+DISCHARGE SUMMARY
+Facility: Asklepios Demo Hospital
+Patient: Jane Doe
+Patient ID: P-1001
+Sex: Female
+Date of Birth: 1980-05-14
+Admission Date: 2026-08-02
+Discharge Date: 2026-08-04
+Attending Physician: Dr. Amina Hassan
+Admitting Diagnosis: Acute bronchitis
+Discharge Diagnosis: Resolving acute bronchitis
+
+Hospital Course:
+The patient presented with cough and low-grade fever. Chest x-ray was normal.
+She improved with supportive care and was discharged in stable condition.
+
+Discharge Medications:
+Amoxicillin 500 mg orally three times daily for 7 days.
+Ibuprofen 200 mg orally every 8 hours as needed.
+
+Follow-up:
+Primary care in 7 days. Return sooner for worsening shortness of breath.

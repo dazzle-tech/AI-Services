@@ -1,0 +1,20 @@
+LABORATORY REPORT
+Facility: Asklepios Demo Hospital
+Patient: Jane Doe
+Patient ID: P-1001
+Sex: Female
+Date of Birth: 1980-05-14
+Test Date: 2026-08-01
+Ordering Provider: Dr. Amina Hassan
+Specimen: Whole blood
+
+Test Name        Value   Unit      Reference Range   Flag
+WBC               11.2   10^9/L    4.0-11.0           high
+Hemoglobin        13.5   g/dL      12.0-16.0          normal
+Hematocrit        40.1   %         36.0-46.0          normal
+Platelets        248     10^9/L    150-400            normal
+Sodium           138     mmol/L    135-145            normal
+Potassium          4.1   mmol/L    3.5-5.1            normal
+Creatinine         0.8   mg/dL     0.5-1.1            normal
+
+Comment: Mild leukocytosis. Repeat CBC if symptoms persist.

@@ -1,0 +1,16 @@
+LABORATORY REPORT
+Facility: Asklepios Demo Hospital
+Patient: Jane Doe
+Patient ID: P-1001
+Sex: Female
+Date of Birth: 1980-05-14
+Test Date: 2019-03-11
+Ordering Provider: Dr. Amina Hassan
+Specimen: Whole blood
+
+Test Name        Value   Unit      Reference Range   Flag
+WBC                7.2   10^9/L    4.0-11.0           normal
+Hemoglobin        13.1   g/dL      12.0-16.0          normal
+Creatinine         0.7   mg/dL     0.5-1.1            normal
+
+Comment: Historical CBC. Dated well outside the 180-day lab_result window.

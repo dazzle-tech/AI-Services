@@ -1,0 +1,8 @@
+patient_name,patient_id,sex,date_of_birth,test_date,ordering_provider,test_name,value,unit,reference_range,flag
+Jane Doe,P-1001,female,1980-05-14,2026-08-01,Dr. Amina Hassan,WBC,11.2,10^9/L,4.0-11.0,high
+Jane Doe,P-1001,female,1980-05-14,2026-08-01,Dr. Amina Hassan,Hemoglobin,13.5,g/dL,12.0-16.0,normal
+Jane Doe,P-1001,female,1980-05-14,2026-08-01,Dr. Amina Hassan,Hematocrit,40.1,%,36.0-46.0,normal
+Jane Doe,P-1001,female,1980-05-14,2026-08-01,Dr. Amina Hassan,Platelets,248,10^9/L,150-400,normal
+Jane Doe,P-1001,female,1980-05-14,2026-08-01,Dr. Amina Hassan,Sodium,138,mmol/L,135-145,normal
+Jane Doe,P-1001,female,1980-05-14,2026-08-01,Dr. Amina Hassan,Potassium,4.1,mmol/L,3.5-5.1,normal
+Jane Doe,P-1001,female,1980-05-14,2026-08-01,Dr. Amina Hassan,Creatinine,0.8,mg/dL,0.5-1.1,normal

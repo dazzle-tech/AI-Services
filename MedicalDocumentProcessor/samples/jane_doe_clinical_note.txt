@@ -1,0 +1,24 @@
+CLINICAL NOTE
+Facility: Asklepios Demo Hospital
+Patient: Jane Doe
+Patient ID: P-1001
+Sex: Female
+Date of Birth: 1980-05-14
+Date: 2026-08-15
+Author: Dr. Amina Hassan
+Note Type: Outpatient progress note
+
+Subjective:
+Patient reports mild headache for 2 days. No fever, photophobia, or neck stiffness.
+Sleep has been poor. No new medications.
+
+Objective:
+BP 118/76, HR 72, RR 16, temperature 36.7 C. Alert and oriented.
+Neurologic exam nonfocal. No meningismus.
+
+Assessment:
+Tension headache.
+
+Plan:
+OTC analgesics as needed. Hydration and sleep hygiene.
+Return if headache worsens, or if fever or neurologic symptoms develop.

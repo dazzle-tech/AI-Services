@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "medical-document-processor-service",
     "name": "MedicalDocumentProcessor",
-    "description": "Postman collection for Medical Document Processor Service REST API",
+    "description": "Postman collection for Medical Document Processor Service REST API. Sample uploads live in ../samples/ (see samples/README.md).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -62,7 +62,7 @@
             {
               "key": "file",
               "type": "file",
-              "src": ""
+              "src": "C:/Users/User/Desktop/AI-Services/MedicalDocumentProcessor/samples/jane_doe_lab_result.txt"
             },
             {
               "key": "patient",
@@ -81,7 +81,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "process-document"]
         },
-        "description": "Process a document already in the target language -- expect status 'processed', translated=false."
+        "description": "Process samples/jane_doe_lab_result.txt -- expect status 'processed', translated=false."
       },
       "response": []
     },
@@ -109,7 +109,7 @@
             {
               "key": "file",
               "type": "file",
-              "src": ""
+              "src": "C:/Users/User/Desktop/AI-Services/MedicalDocumentProcessor/samples/jane_doe_clinical_note_fr.txt"
             },
             {
               "key": "patient",
@@ -166,7 +166,7 @@
             {
               "key": "file",
               "type": "file",
-              "src": ""
+              "src": "C:/Users/User/Desktop/AI-Services/MedicalDocumentProcessor/samples/john_smith_lab_result.txt"
             },
             {
               "key": "patient",
@@ -185,7 +185,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "process-document"]
         },
-        "description": "Upload a document describing a different sex/DOB than the given patient -- expect status 'invalid' with a specific reason."
+        "description": "Upload samples/john_smith_lab_result.txt against Jane Doe -- expect status 'invalid' with a specific reason."
       },
       "response": []
     },
@@ -218,7 +218,7 @@
             {
               "key": "file",
               "type": "file",
-              "src": ""
+              "src": "C:/Users/User/Desktop/AI-Services/MedicalDocumentProcessor/samples/jane_doe_old_lab_result.txt"
             },
             {
               "key": "patient",
@@ -237,7 +237,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "process-document"]
         },
-        "description": "Upload a document dated well outside its type's relevance window -- expect status 'irrelevant' with a specific reason."
+        "description": "Upload samples/jane_doe_old_lab_result.txt (2019-03-11) -- expect status 'irrelevant' with a specific reason."
       },
       "response": []
     },

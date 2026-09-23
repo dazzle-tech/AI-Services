@@ -1,0 +1,76 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+endobj
+5 0 obj
+<< /Length 1066 >>
+stream
+BT
+/F1 11 Tf
+36 760 Td
+(LABORATORY REPORT) Tj
+0 -14 Td
+(Facility: Asklepios Demo Hospital) Tj
+0 -14 Td
+(Patient: Jane Doe) Tj
+0 -14 Td
+(Patient ID: P-1001) Tj
+0 -14 Td
+(Sex: Female) Tj
+0 -14 Td
+(Date of Birth: 1980-05-14) Tj
+0 -14 Td
+(Test Date: 2026-08-01) Tj
+0 -14 Td
+(Ordering Provider: Dr. Amina Hassan) Tj
+0 -14 Td
+(Specimen: Whole blood) Tj
+0 -14 Td
+( ) Tj
+0 -14 Td
+(Test Name        Value   Unit      Reference Range   Flag) Tj
+0 -14 Td
+(WBC               11.2   10^9/L    4.0-11.0           high) Tj
+0 -14 Td
+(Hemoglobin        13.5   g/dL      12.0-16.0          normal) Tj
+0 -14 Td
+(Hematocrit        40.1   %         36.0-46.0          normal) Tj
+0 -14 Td
+(Platelets        248     10^9/L    150-400            normal) Tj
+0 -14 Td
+(Sodium           138     mmol/L    135-145            normal) Tj
+0 -14 Td
+(Potassium          4.1   mmol/L    3.5-5.1            normal) Tj
+0 -14 Td
+(Creatinine         0.8   mg/dL     0.5-1.1            normal) Tj
+0 -14 Td
+( ) Tj
+0 -14 Td
+(Comment: Mild leukocytosis. Repeat CBC if symptoms persist.) Tj
+0 -14 Td
+( ) Tj
+ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000309 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1427
+%%EOF

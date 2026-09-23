@@ -1,0 +1,19 @@
+RADIOLOGY REPORT
+Facility: Asklepios Demo Hospital
+Patient: Jane Doe
+Patient ID: P-1001
+Sex: Female
+Date of Birth: 1980-05-14
+Study Date: 2026-07-20
+Ordering Provider: Dr. Amina Hassan
+Modality: X-Ray
+Body Part: Chest
+Technique: PA and lateral views of the chest.
+
+Findings:
+The lungs are clear without focal consolidation, effusion, or pneumothorax.
+The cardiomediastinal silhouette is normal in size and contour.
+No acute osseous abnormality is identified.
+
+Impression:
+Normal chest x-ray. No acute cardiopulmonary process.

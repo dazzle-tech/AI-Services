@@ -99,11 +99,13 @@ docker-compose up --build
 
 ```bash
 curl -X POST http://localhost:8029/api/v1/process-document \
-  -F "file=@lab_report.pdf" \
+  -F "file=@samples/jane_doe_lab_result.pdf" \
   -F 'patient={"patient_id":"P-1001","full_name":"Jane Doe","sex":"female","date_of_birth":"1980-05-14"}' \
-  -F "translate=true" \
-  -F "target_language=en"
+  -F "translate=false"
 ```
+
+Ready-to-upload files for every supported format and pipeline outcome live in
+[`samples/`](samples/README.md).
 
 **Example response (processed):**
 
@@ -165,7 +167,14 @@ Health check and OpenAI configuration status.
 Import `postman/MedicalDocumentProcessor.postman_collection.json`, set `baseUrl` to
 `http://localhost:8029`, and run: Health Check, Process Document (valid, no translation),
 Process Document (valid, translation required), Process Document (invalid patient match),
-Process Document (irrelevant/outdated).
+Process Document (irrelevant/outdated). Those requests already point at files in
+`samples/`.
+
+## Samples
+
+See [`samples/README.md`](samples/README.md) for Jane Doe / John Smith documents in TXT,
+CSV, PDF, DOCX, and PNG, plus curl commands for processed, translated, invalid, and
+irrelevant outcomes.
 
 ## Testing
 

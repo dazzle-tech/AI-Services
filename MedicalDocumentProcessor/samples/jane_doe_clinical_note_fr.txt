@@ -1,0 +1,22 @@
+NOTE CLINIQUE
+Etablissement : Hopital Demo Asklepios
+Patient : Jane Doe
+Identifiant : P-1001
+Sexe : Feminin
+Date de naissance : 1980-05-14
+Date : 2026-08-15
+Auteur : Dr Amina Hassan
+
+Motif :
+La patiente se plaint de maux de tete legers depuis 2 jours.
+Pas de fievre, pas de photophobie, pas de raideur de la nuque.
+
+Examen :
+Tension arterielle 118/76, frequence cardiaque 72, temperature 36.7 C.
+Examen neurologique sans deficit.
+
+Conclusion :
+Cephalee de tension.
+
+Conduite a tenir :
+Antalgiques en vente libre si besoin. Revoir si aggravation.
