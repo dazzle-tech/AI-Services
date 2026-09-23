@@ -1,12 +1,9 @@
 # OtherServices - moved to other-services branch
 OtherServices/
 
-# Secrets / local env
-.env
+# Local env variants (`.env` files are tracked)
 .env.local
 .env.*.local
-**/.env
-!**/.env.example
 
 # Python
 __pycache__/
