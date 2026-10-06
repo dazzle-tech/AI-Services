@@ -218,6 +218,13 @@ Then extract the fields relevant to that type into extracted_fields, using only 
 present in the document text. Never fabricate values -- use null for anything not present.
 Preserve numeric values, units, and dates exactly as written.
 
+Keep the JSON compact:
+- Do NOT copy the full source document into any field.
+- For lab_result, put every test in extracted_fields.results as a short object
+  {{test_name, value, unit, reference_range, flag}} -- no commentary.
+- For long narrative fields (findings, impression, subjective, plan), summarize to
+  the clinically essential sentences rather than pasting pages of text.
+
 Return STRICT JSON only. No markdown, no code fences, no extra text before or after the JSON
 object. The output must be one JSON object with this exact top-level structure:
 {json.dumps(schema, indent=2)}

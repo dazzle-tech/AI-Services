@@ -1,0 +1,316 @@
+{
+  "name": "Medical Document Processor - Intake (Webhook)",
+  "nodes": [
+    {
+      "id": "node-sticky-1",
+      "name": "Read Me",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "width": 460,
+        "height": 380,
+        "content": "## Medical Document Processor intake\n\nThis workflow is a thin webhook proxy in front of the\n`MedicalDocumentProcessor` FastAPI service (port 8029).\n\n**Caller contract (identical to the service's own API):**\nPOST multipart/form-data with fields:\n- `file` (the document)\n- `patient` (JSON string: patient_id, full_name, sex, date_of_birth)\n- `translate` (\"true\"/\"false\", optional)\n- `target_language` (optional)\n- `existing_documents` (JSON array string, optional)\n\n**Test with the service's own samples/, e.g.:**\n```\ncurl -X POST http://localhost:5678/webhook-test/medical-document-processor \\\n  -F \"file=@samples/jane_doe_lab_result.txt\" \\\n  -F \"patient=<samples/patients/jane_doe.json\" \\\n  -F \"translate=false\"\n```\n\n**Output routing is NOT decided yet.** The `processed` branch\ncurrently just tags + returns the structured_data to the caller.\nWire it into hospital.db / Postgres / Sheets / Slack once you\ndecide where results should land."
+      }
+    },
+    {
+      "id": "node-webhook",
+      "name": "Document Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [480, 200],
+      "webhookId": "a1b2c3d4-0000-4000-8000-000000000001",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "medical-document-processor",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-normalize",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 200],
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst body = item.json.body ?? item.json ?? {};\n\nfunction asString(value) {\n  if (value === undefined || value === null) return '';\n  if (typeof value === 'string') return value;\n  return JSON.stringify(value);\n}\n\nreturn [{\n  json: {\n    patient: asString(body.patient),\n    translate: (body.translate === true || body.translate === 'true') ? 'true' : 'false',\n    target_language: asString(body.target_language),\n    existing_documents: asString(body.existing_documents)\n  },\n  binary: item.binary\n}];"
+      }
+    },
+    {
+      "id": "node-http-request",
+      "name": "Call Document Processor API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 200],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8029/api/v1/process-document",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            { "parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "file" },
+            { "parameterType": "formData", "name": "patient", "value": "={{ $json.patient }}" },
+            { "parameterType": "formData", "name": "translate", "value": "={{ $json.translate }}" },
+            { "parameterType": "formData", "name": "target_language", "value": "={{ $json.target_language }}" },
+            { "parameterType": "formData", "name": "existing_documents", "value": "={{ $json.existing_documents }}" }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      }
+    },
+    {
+      "id": "node-switch",
+      "name": "Route by Pipeline Status",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [1200, 120],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "outputKey": "invalid",
+              "conditions": {
+                "combinator": "and",
+                "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 },
+                "conditions": [
+                  {
+                    "id": "cond-invalid",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "invalid",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "irrelevant",
+              "conditions": {
+                "combinator": "and",
+                "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 },
+                "conditions": [
+                  {
+                    "id": "cond-irrelevant",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "irrelevant",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true
+            },
+            {
+              "outputKey": "processed",
+              "conditions": {
+                "combinator": "and",
+                "options": { "caseSensitive": true, "typeValidation": "strict", "version": 2 },
+                "conditions": [
+                  {
+                    "id": "cond-processed",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "processed",
+                    "operator": { "type": "string", "operation": "equals" }
+                  }
+                ]
+              },
+              "renameOutput": true
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      }
+    },
+    {
+      "id": "node-set-invalid",
+      "name": "Tag: Invalid (Patient Mismatch)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1460, -40],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "route_taken", "value": "invalid_patient_mismatch", "type": "string" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-set-irrelevant",
+      "name": "Tag: Irrelevant (Outdated/Superseded)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1460, 120],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "route_taken", "value": "irrelevant_outdated", "type": "string" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-set-processed",
+      "name": "Tag: Processed (Store Pending)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1460, 280],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "route_taken", "value": "processed_ready_to_store", "type": "string" }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "node-set-fallback",
+      "name": "Tag: Unexpected Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1460, 440],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "route_taken", "value": "unexpected_status", "type": "string" }
+          ]
+        },
+        "options": { "includeOtherFields": true }
+      }
+    },
+    {
+      "id": "node-set-http-error",
+      "name": "Tag: HTTP Call Failed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1200, 620],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "route_taken", "value": "http_call_failed", "type": "string" }
+          ]
+        },
+        "options": { "includeOtherFields": true }
+      }
+    },
+    {
+      "id": "node-respond-invalid",
+      "name": "Respond: Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1720, -40],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ status: $json.status, reason: $json.reason, document_type: $json.document_type, structured_data: $json.structured_data, raw_extracted_text: $json.raw_extracted_text, route_taken: $json.route_taken }) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "node-respond-irrelevant",
+      "name": "Respond: Irrelevant",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1720, 120],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ status: $json.status, reason: $json.reason, document_type: $json.document_type, structured_data: $json.structured_data, raw_extracted_text: $json.raw_extracted_text, route_taken: $json.route_taken }) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "node-respond-processed",
+      "name": "Respond: Processed",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1720, 280],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ status: $json.status, reason: $json.reason, document_type: $json.document_type, structured_data: $json.structured_data, raw_extracted_text: $json.raw_extracted_text, route_taken: $json.route_taken }) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "node-respond-fallback",
+      "name": "Respond: Unexpected",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1720, 440],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ status: $json.status, reason: $json.reason, document_type: $json.document_type, structured_data: $json.structured_data, raw_extracted_text: $json.raw_extracted_text, route_taken: $json.route_taken }) }}",
+        "options": { "responseCode": 200 }
+      }
+    },
+    {
+      "id": "node-respond-error",
+      "name": "Respond: HTTP Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1460, 620],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": { "responseCode": 502 }
+      }
+    }
+  ],
+  "connections": {
+    "Document Intake Webhook": {
+      "main": [[{ "node": "Normalize Input", "type": "main", "index": 0 }]]
+    },
+    "Normalize Input": {
+      "main": [[{ "node": "Call Document Processor API", "type": "main", "index": 0 }]]
+    },
+    "Call Document Processor API": {
+      "main": [
+        [{ "node": "Route by Pipeline Status", "type": "main", "index": 0 }],
+        [{ "node": "Tag: HTTP Call Failed", "type": "main", "index": 0 }]
+      ]
+    },
+    "Route by Pipeline Status": {
+      "main": [
+        [{ "node": "Tag: Invalid (Patient Mismatch)", "type": "main", "index": 0 }],
+        [{ "node": "Tag: Irrelevant (Outdated/Superseded)", "type": "main", "index": 0 }],
+        [{ "node": "Tag: Processed (Store Pending)", "type": "main", "index": 0 }],
+        [{ "node": "Tag: Unexpected Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Tag: Invalid (Patient Mismatch)": {
+      "main": [[{ "node": "Respond: Invalid", "type": "main", "index": 0 }]]
+    },
+    "Tag: Irrelevant (Outdated/Superseded)": {
+      "main": [[{ "node": "Respond: Irrelevant", "type": "main", "index": 0 }]]
+    },
+    "Tag: Processed (Store Pending)": {
+      "main": [[{ "node": "Respond: Processed", "type": "main", "index": 0 }]]
+    },
+    "Tag: Unexpected Status": {
+      "main": [[{ "node": "Respond: Unexpected", "type": "main", "index": 0 }]]
+    },
+    "Tag: HTTP Call Failed": {
+      "main": [[{ "node": "Respond: HTTP Error", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

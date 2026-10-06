@@ -2,8 +2,9 @@
 
 Retry behavior mirrors LabResultInterpreterService's AIClient: transient errors
 (rate limits, timeouts, connection errors) are retried up to `openai_max_retries`
-attempts with backoff; a malformed/non-JSON model response is NOT retried -- it
-fails immediately, matching the existing repo convention.
+attempts with backoff. Truncated JSON (token-limit cut-off) is retried once with a
+higher max_tokens budget, then repaired if still incomplete. Other malformed JSON
+fails after that recovery attempt.
 """
 import base64
 import json
@@ -83,7 +84,14 @@ class AIClient:
     def classify_and_extract(self, extracted_text: str) -> Dict[str, Any]:
         """Step 4: document-type classification + loose structured extraction."""
         messages = build_classification_prompt(extracted_text, settings.max_input_length)
-        return self._call_json("classification + extraction", messages)
+        # Lab panels and long notes routinely exceed the default 2000-token cap and
+        # produce truncated JSON ("Expecting value" at EOF). Floor this step like
+        # translation does.
+        return self._call_json(
+            "classification + extraction",
+            messages,
+            max_tokens=max(self.max_tokens, 8000),
+        )
 
     def extract_text_from_image(self, image_bytes: bytes, mime_type: str) -> str:
         """OCR an image document via gpt-4o vision (primary OCR path, see image_extractor)."""
@@ -152,14 +160,19 @@ class AIClient:
         max_tokens: Optional[int] = None,
     ) -> Dict[str, Any]:
         last_exception: Optional[Exception] = None
-        for attempt in range(self.max_retries):
+        token_budget = max_tokens or self.max_tokens
+        truncation_retries_left = 1
+        for attempt in range(self.max_retries + truncation_retries_left):
             try:
-                logger.debug("OpenAI call attempt %d/%d for %s", attempt + 1, self.max_retries, step_name)
+                logger.debug(
+                    "OpenAI call attempt %d for %s (max_tokens=%s)",
+                    attempt + 1, step_name, token_budget,
+                )
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
                     temperature=self.temperature,
-                    max_tokens=max_tokens or self.max_tokens,
+                    max_tokens=token_budget,
                     timeout=self.timeout,
                     response_format={"type": "json_object"},
                 )
@@ -167,15 +180,35 @@ class AIClient:
                 if not content:
                     raise ValueError(f"Empty response from model during {step_name}")
 
+                finish_reason = getattr(response.choices[0], "finish_reason", None)
                 if settings.enable_usage_tracking and response.usage:
                     usage = response.usage
                     logger.info(
-                        "%s token usage - prompt=%s completion=%s total=%s",
-                        step_name, usage.prompt_tokens, usage.completion_tokens, usage.total_tokens,
+                        "%s token usage - prompt=%s completion=%s total=%s finish_reason=%s",
+                        step_name,
+                        usage.prompt_tokens,
+                        usage.completion_tokens,
+                        usage.total_tokens,
+                        finish_reason,
                     )
 
-                # Malformed JSON is NOT retried -- fails immediately (existing repo convention).
-                return self._parse_json(content, step_name)
+                try:
+                    return self._parse_json(content, step_name)
+                except ValueError as parse_exc:
+                    truncated = finish_reason == "length" or self._looks_truncated(content)
+                    if truncated and truncation_retries_left > 0:
+                        truncation_retries_left -= 1
+                        token_budget = min(max(token_budget * 2, 8000), 16384)
+                        logger.warning(
+                            "Truncated JSON during %s (finish_reason=%s); retrying with max_tokens=%s",
+                            step_name, finish_reason, token_budget,
+                        )
+                        continue
+                    repaired = self._repair_truncated_json(content)
+                    if repaired is not None:
+                        logger.warning("Repaired truncated JSON during %s", step_name)
+                        return repaired
+                    raise parse_exc
 
             except RateLimitError as exc:
                 last_exception = exc
@@ -202,7 +235,6 @@ class AIClient:
                 raise ValueError(f"OpenAI API error during {step_name}: {exc}") from exc
 
             except ValueError:
-                # Empty response / malformed JSON -- propagate immediately, no retry.
                 raise
 
             except Exception as exc:  # noqa: BLE001
@@ -210,6 +242,63 @@ class AIClient:
                 raise ValueError(f"{step_name} failed: {exc}") from exc
 
         raise ValueError(f"Failed {step_name} after {self.max_retries} attempts: {last_exception}")
+
+    @staticmethod
+    def _looks_truncated(raw_output: str) -> bool:
+        stripped = (raw_output or "").rstrip()
+        if not stripped:
+            return True
+        return not stripped.endswith("}") and not stripped.endswith("]")
+
+    @staticmethod
+    def _repair_truncated_json(raw_output: str) -> Optional[Dict[str, Any]]:
+        """Best-effort close of JSON cut off at a token limit (unclosed string/array/object)."""
+        cleaned = (raw_output or "").strip()
+        start = cleaned.find("{")
+        if start < 0:
+            return None
+        text = cleaned[start:]
+
+        in_string = False
+        escape = False
+        stack: List[str] = []
+        for ch in text:
+            if in_string:
+                if escape:
+                    escape = False
+                elif ch == "\\":
+                    escape = True
+                elif ch == '"':
+                    in_string = False
+                continue
+            if ch == '"':
+                in_string = True
+                continue
+            if ch == "{":
+                stack.append("}")
+            elif ch == "[":
+                stack.append("]")
+            elif ch in "}]":
+                if stack and stack[-1] == ch:
+                    stack.pop()
+
+        if in_string:
+            if escape:
+                text = text[:-1]
+            text += '"'
+
+        text = text.rstrip()
+        if text.endswith(","):
+            text = text[:-1]
+
+        while stack:
+            text += stack.pop()
+
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        return data if isinstance(data, dict) else None
 
     @staticmethod
     def _parse_json(raw_output: str, step_name: str) -> Dict[str, Any]:
@@ -221,9 +310,20 @@ class AIClient:
 
         try:
             data = json.loads(cleaned)
-        except json.JSONDecodeError as exc:
-            logger.warning("Malformed JSON from model during %s: %s", step_name, exc)
-            raise ValueError(f"Malformed JSON in model output during {step_name}: {exc}") from exc
+        except json.JSONDecodeError:
+            start = cleaned.find("{")
+            end = cleaned.rfind("}")
+            if start != -1 and end > start:
+                try:
+                    data = json.loads(cleaned[start : end + 1])
+                except json.JSONDecodeError as exc:
+                    logger.warning("Malformed JSON from model during %s: %s", step_name, exc)
+                    raise ValueError(
+                        f"Malformed JSON in model output during {step_name}: {exc}"
+                    ) from exc
+            else:
+                logger.warning("Malformed JSON from model during %s", step_name)
+                raise ValueError(f"Malformed JSON in model output during {step_name}")
 
         if not isinstance(data, dict):
             raise ValueError(f"Model output for {step_name} is not a JSON object")
