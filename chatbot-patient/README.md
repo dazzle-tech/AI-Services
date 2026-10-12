@@ -3,7 +3,7 @@
 The patient-facing agent. Separate container, separate prompts, separate tool set from
 the clinician bot on 8017 — they share nothing at runtime.
 
-- **Port:** 8030 (always starts, like the clinician bot)
+- **Port:** 8038 (always starts, like the clinician bot)
 - **Prompts:** `Prompts_patient.md` at the repo root (mounted read-only)
 - **Tools:** the `[PATIENT]` section of `Services.txt`
 
@@ -86,7 +86,7 @@ pip install -r requirements.txt
 MEDAI_TOOLS_HOST=localhost \
 MEDAI_SERVICES_FILE=../Services.txt \
 MEDAI_PROMPTS_FILE=../Prompts_patient.md \
-PORT=8030 python main.py
+PORT=8038 python main.py
 ```
 
 Redis is optional locally — the session store falls back to an in-process dict.

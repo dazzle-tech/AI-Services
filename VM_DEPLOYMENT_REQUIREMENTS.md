@@ -33,8 +33,14 @@ This document outlines the recommended VM specifications needed to deploy all AI
 - **ConvoScribe**: 8026
 - **STT Service (Radiology)**: 8027
 - **NurseHandOver**: 8028
+- **Medical Document Processor**: 8029
 - **ORScribe**: 8030
 - **System Display Plugin**: 8031
+- **OR Display Plugin**: 8032
+- **OR Voice Agent**: 8035
+- **Convo Voice Agent**: 8036
+- **Clinical Summary Voice**: 8037
+- **Patient Assistant**: 8038
 - **Radiology Workflow**: 8090
 - **Chatbot UI/Web (if enabled)**: 8080
 
@@ -163,8 +169,14 @@ This document outlines the recommended VM specifications needed to deploy all AI
 | ConvoScribe | 8026 | Standalone service |
 | STT Service (Radiology) | 8027 | Standalone service |
 | NurseHandOver | 8028 | Standalone service |
+| Medical Document Processor | 8029 | Standalone service |
 | ORScribe | 8030 | Standalone service |
 | System Display Plugin | 8031 | Standalone service |
+| OR Display Plugin | 8032 | Standalone service |
+| OR Voice Agent | 8035 | Starts ORScribe and OR Display Plugin |
+| Convo Voice Agent | 8036 | Starts ConvoScribe and System Display Plugin |
+| Clinical Summary Voice | 8037 | Standalone service |
+| Patient Assistant | 8038 | Standalone service |
 | Radiology Workflow | 8090 | Standalone service |
 | Chatbot UI/Web | 8080 | Optional |
 | Redis | 6379 | Infrastructure (host mapping differs per compose) |
@@ -182,7 +194,7 @@ New-NetFirewallRule -DisplayName "HTTP" -Direction Inbound -LocalPort 80 -Protoc
 New-NetFirewallRule -DisplayName "HTTPS" -Direction Inbound -LocalPort 443 -Protocol TCP -Action Allow
 
 # Allow service ports
-New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8001-8031,8080,8090 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "AI Services" -Direction Inbound -LocalPort 8001-8038,8080,8090 -Protocol TCP -Action Allow
 
 # Allow Redis (internal only - restrict to localhost)
 New-NetFirewallRule -DisplayName "Redis" -Direction Inbound -LocalPort 6379 -Protocol TCP -Action Allow -RemoteAddress 127.0.0.1

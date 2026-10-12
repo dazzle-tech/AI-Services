@@ -3,7 +3,7 @@
 Same Meta handshake, seen/typing, dedup, and reply path as
 ``Chatbot/app/api/routes/whatsapp.py``, but the turn runs in-process
 (phone → patient_id → ``/agent/chat``) instead of hopping to an orchestrator.
-Webhook URL: ``GET/POST /webhook/whatsapp`` on port 8030.
+Webhook URL: ``GET/POST /webhook/whatsapp`` on port 8038.
 """
 import json
 import logging

@@ -45,7 +45,7 @@ copy .env.example .env
 python main.py
 ```
 
-Run ORScribe on **8030** and ORDisplayPlugin on **8032**.
+`python main.py` starts ORScribe on **8030** and ORDisplayPlugin on **8032** when those ports are not already up. Their code is unchanged under `services/`. A service that is already running is left as it is, and it is not stopped when the agent exits.
 
 **Important:** ORVoiceAgent does not run speech-to-text itself. ORScribe must use real transcription:
 

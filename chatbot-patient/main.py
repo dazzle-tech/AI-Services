@@ -68,7 +68,7 @@ def _start_service(name: str) -> Optional[subprocess.Popen]:
         return None
 
     env = os.environ.copy()
-    # Parent .env has PORT=8030; children must not inherit that.
+    # Parent .env has PORT=8038; children must not inherit that.
     env["PORT"] = str(spec.port)
     env["API_PORT"] = str(spec.port)
     env["API_RELOAD"] = "false"

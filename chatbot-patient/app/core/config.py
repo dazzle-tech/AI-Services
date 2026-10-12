@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # ---- Server ----
     api_host: str = "0.0.0.0"
-    api_port: int = 8030
+    api_port: int = 8038
     api_reload: bool = False
 
     log_level: str = "INFO"

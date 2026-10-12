@@ -54,10 +54,16 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(
-        "main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=settings.api_reload,
-        log_level="info",
-    )
+    from app.services.local_services import ensure_downstream, stop_started
+
+    started = ensure_downstream()
+    try:
+        uvicorn.run(
+            "main:app",
+            host=settings.api_host,
+            port=settings.api_port,
+            reload=False,
+            log_level="info",
+        )
+    finally:
+        stop_started(started)

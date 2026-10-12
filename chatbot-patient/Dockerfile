@@ -32,9 +32,9 @@ RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8030
+EXPOSE 8038
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8030/health')" || exit 1
+    CMD python -c "import requests; requests.get('http://localhost:8038/health')" || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8030"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8038"]
