@@ -46,7 +46,7 @@
       "onError": "continueErrorOutput",
       "parameters": {
         "method": "POST",
-        "url": "http://host.docker.internal:8029/api/v1/process-document",
+        "url": "http://127.0.0.1:8029/api/v1/process-document",
         "sendBody": true,
         "contentType": "multipart-form-data",
         "bodyParameters": {
@@ -187,12 +187,13 @@
       "position": [1460, 440],
       "parameters": {
         "mode": "manual",
+        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             { "id": "a1", "name": "route_taken", "value": "unexpected_status", "type": "string" }
           ]
         },
-        "options": { "includeOtherFields": true }
+        "options": {}
       }
     },
     {
@@ -203,12 +204,13 @@
       "position": [1200, 620],
       "parameters": {
         "mode": "manual",
+        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             { "id": "a1", "name": "route_taken", "value": "http_call_failed", "type": "string" }
           ]
         },
-        "options": { "includeOtherFields": true }
+        "options": {}
       }
     },
     {
