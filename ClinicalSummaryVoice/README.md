@@ -66,3 +66,4 @@ The summary model is instructed that the transcript is one person dictating, not
 ```bash
 pytest
 ```
+clinical-summary-voice-service
