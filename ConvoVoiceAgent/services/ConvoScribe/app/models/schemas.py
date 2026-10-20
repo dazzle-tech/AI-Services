@@ -44,6 +44,10 @@ class SOAPSummary(BaseModel):
     medications_mentioned: List[str] = Field(default_factory=list)
     follow_up: str
     flags: List[str] = Field(default_factory=list)
+    # Display-ready fields produced in the same model call, copied by SystemDisplayPlugin as-is.
+    chart: Dict[str, Any] = Field(default_factory=dict)
+    vitals: Dict[str, Any] = Field(default_factory=dict)
+    measurements: Dict[str, Any] = Field(default_factory=dict)
 
 
 class NarrativeSummary(BaseModel):

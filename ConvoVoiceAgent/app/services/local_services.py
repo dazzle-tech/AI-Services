@@ -16,6 +16,9 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
+# ConvoScribe has no /api/v1/health route; FastAPI always serves its OpenAPI schema.
+CONVOSCRIBE_PROBE_PATH = "/openapi.json"
+
 _AGENT_ROOT = Path(__file__).resolve().parents[2]
 _START_TIMEOUT_SECONDS = 60.0
 _POLL_SECONDS = 0.5
@@ -27,7 +30,7 @@ def ensure_downstream() -> list[subprocess.Popen]:
     started.extend(
         _ensure(
             "ConvoScribe",
-            f"{settings.convoscribe_base_url.rstrip('/')}/api/v1/health",
+            f"{settings.convoscribe_base_url.rstrip('/')}{CONVOSCRIBE_PROBE_PATH}",
             _AGENT_ROOT / "services" / "ConvoScribe",
             _AGENT_ROOT / "services" / "ConvoScribe" / ".env",
         )
@@ -94,7 +97,8 @@ def _ensure(name: str, health_url: str, workdir: Path, env_file: Path) -> list[s
 
 def _healthy(url: str) -> bool:
     try:
-        response = httpx.get(url, timeout=2.0)
+        # SystemDisplayPlugin's health check takes a few seconds when its database is down.
+        response = httpx.get(url, timeout=10.0)
     except httpx.HTTPError:
         return False
     return response.status_code == 200

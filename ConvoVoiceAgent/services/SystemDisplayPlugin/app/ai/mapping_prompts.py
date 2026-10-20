@@ -39,6 +39,25 @@ TRANSFORM_FRAGMENTS: dict[str, str] = {
 }
 
 
+MEDICAL_TERMINOLOGY_FRAGMENT = (
+    "MEDICAL TERMINOLOGY (mandatory)\n"
+    "1. Copy medical terms exactly as they appear in the source slice: drug names, doses, units, frequencies, "
+    "routes, diagnoses, anatomy, test names, abbreviations (HbA1c, CBC, BP, PRN) and every number. Do not "
+    "paraphrase them, expand or shorten an abbreviation, convert a unit, round a number, swap a brand and a "
+    "generic name, or replace a lay term with a clinical one (\"high blood pressure\" stays \"high blood "
+    "pressure\"; it is not rewritten as \"hypertension\" in the patient's history).\n"
+    "2. Possible speech recognition errors: if a term looks misheard (for example \"less than a pearl 10 mg\"), "
+    "keep it exactly as in the source. Never correct it; only the physician confirms a correction.\n"
+    "3. Arabic and mixed text: keep drug names, doses and numbers in the form they appear, even when the "
+    "field is written in another language. Translate the surrounding words only.\n"
+    "4. Negatives and findings: carry a negative only when the source states it. Never add \"denies X\", "
+    "\"normal\" or \"negative\" that the source does not contain.\n"
+    "5. Hedges stay: \"possible\", \"maybe\", \"patient unsure\", \"ربما\" are kept in the text.\n"
+    "6. Attribution stays: if the source says a relative or companion reported something, keep it as their "
+    "report, not as the patient's own statement."
+)
+
+
 def build_system_prompt(*, context: str, purpose: str) -> str:
     parts: list[str] = [
         "You are a field-level mapper for clinical structured data. "
@@ -46,6 +65,7 @@ def build_system_prompt(*, context: str, purpose: str) -> str:
         "Never regenerate, infer, or fabricate clinical content.",
         CONTEXT_FRAGMENTS.get(context, CONTEXT_FRAGMENTS["other"]),
         PURPOSE_FRAGMENTS.get(purpose, PURPOSE_FRAGMENTS["summary"]),
+        MEDICAL_TERMINOLOGY_FRAGMENT,
         "Return a single JSON object whose keys are exactly the listed field_name values "
         "(these may be namespaced as view_id::original_field_name when mapping several views). "
         "Each value must match the field's field_type (string, list, boolean, object, or date as ISO-like string). "

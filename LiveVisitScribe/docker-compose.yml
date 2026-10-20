@@ -1,0 +1,43 @@
+services:
+  live-visit-scribe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: live-visit-scribe
+    ports:
+      - "${PORT:-8037}:8037"
+    # Optional: copy .env.example to .env to override anything below.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8037
+      # true = scripted lines, no Whisper model and no API key (demos, wiring checks)
+      USE_LLM_STUB: ${USE_LLM_STUB:-false}
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      LIVE_EXTRACT_MODEL: ${LIVE_EXTRACT_MODEL:-gpt-4o-mini}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    volumes:
+      - live_visit_scribe_models:/models
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8037/api/v1/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    # GPU (needs the NVIDIA container toolkit): set WHISPER_DEVICE=cuda and uncomment.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  live_visit_scribe_models:

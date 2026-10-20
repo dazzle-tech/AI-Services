@@ -1,0 +1,388 @@
+{
+  "info": {
+    "name": "LiveVisitScribe",
+    "description": "LiveVisitScribe (port 8037): the live transcript for a clinical visit. It stores nothing; every message is provisional and is not the chart note. After Stop, the browser sends the same full recording to ConvoVoiceAgent `POST /api/v1/draft` (see the ConvoVoiceAgent collection).\n\n**HTTP endpoints (this collection)**\n- `GET /` and `GET /api/v1/health`\n\n**The live socket is a WebSocket, which a Postman collection file cannot store.** In Postman use **New > WebSocket**, URL `{{wsUrl}}`, then send the messages below. To stream real audio at real-time pace, use `python scripts/stream_wav.py <file.wav>` instead (Postman cannot pace a recording).\n\n**Client to server**\n1. Text, to begin:\n```json\n{\"type\":\"start\",\"sample_rate\":16000,\"channels\":1,\"patient_context\":{\"chronic_diseases\":[],\"active_medications\":[\"Lisinopril 10 mg\"],\"allergies\":[\"silk\",\"wool\",\"soya\"],\"known_diagnoses\":[\"G43.8 Other migraine\"]}}\n```\n2. Binary frames: raw little-endian int16 PCM (in Postman, a binary message from a file; the file must be headerless PCM, not a .wav). Audio before `start` returns an error.\n3. Text: `{\"type\":\"pause\"}`, `{\"type\":\"resume\"}`, and finally `{\"type\":\"stop\"}`.\n\n**Server to client** (examples are saved on the `Live socket` messages request below)\n`ready`, `segment` (partial `final:false`, then the same id with `final:true`), `picked_up`, `paused`, `resumed`, `final`, `error`.\n\n**Setup**\n1. Run `python main.py` in LiveVisitScribe (or `docker compose up`).\n2. Set `baseUrl` / `wsUrl` if not on localhost:8037.\n3. `USE_LLM_STUB=true` gives scripted lines and a deterministic picked-up list with no model or key.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8037"
+    },
+    {
+      "key": "wsUrl",
+      "value": "ws://localhost:8037/api/v1/live"
+    }
+  ],
+  "item": [
+    {
+      "name": "Service",
+      "item": [
+        {
+          "name": "Root",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            },
+            "description": "Service banner with the socket path."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": []
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"LiveVisitScribe is running!\",\n  \"version\": \"1.0.0\",\n  \"websocket\": \"/api/v1/live\",\n  \"docs\": \"/docs\",\n  \"health\": \"/api/v1/health\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "`asr` is `stub`, `whisper`, or `unavailable` (the Whisper model failed to load; the socket then answers with an error). `picked_up` is `stub`, `model`, or `unconfigured` (no OPENAI_API_KEY: live lines work, the picked-up list does not)."
+          },
+          "response": [
+            {
+              "name": "200 OK (stub)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"ok\",\n  \"asr\": \"stub\",\n  \"picked_up\": \"stub\"\n}"
+            },
+            {
+              "name": "200 OK (Whisper + model)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"ok\",\n  \"asr\": \"whisper\",\n  \"picked_up\": \"model\"\n}"
+            },
+            {
+              "name": "200 degraded (model not loaded)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "health"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"degraded\",\n  \"asr\": \"unavailable\",\n  \"picked_up\": \"unconfigured\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 and a status', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.be.oneOf(['ok', 'degraded']);",
+                  "  pm.expect(body).to.have.property('asr');",
+                  "  pm.expect(body).to.have.property('picked_up');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Live socket (WebSocket, use a Postman WebSocket request)",
+      "item": [
+        {
+          "name": "Live socket messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{wsUrl}}",
+              "host": [
+                "{{wsUrl}}"
+              ]
+            },
+            "description": "Reference only: this is not an HTTP endpoint. Open **New > WebSocket** in Postman, connect to `{{wsUrl}}`, and send the messages from the collection description. The saved examples show what comes back, in the order a visit produces it: `ready`, partial and final `segment` messages (the same id is sent again with `final:true`), `picked_up` (medications always have `confirm:true`: the UI shows \"confirm dose\"), and `final` after `stop`. `paused` / `resumed` acknowledge `pause` / `resume`."
+          },
+          "response": [
+            {
+              "name": "client: start",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message sent",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"start\",\n  \"sample_rate\": 16000,\n  \"channels\": 1,\n  \"patient_context\": {\n    \"chronic_diseases\": [],\n    \"active_medications\": [\n      \"Lisinopril 10 mg\"\n    ],\n    \"allergies\": [\n      \"silk\",\n      \"wool\",\n      \"soya\"\n    ],\n    \"known_diagnoses\": [\n      \"G43.8 Other migraine\"\n    ]\n  },\n  \"patient_id\": 101,\n  \"encounter_id\": 5001\n}"
+            },
+            {
+              "name": "server: ready",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"ready\",\n  \"sample_rate\": 16000,\n  \"channels\": 1\n}"
+            },
+            {
+              "name": "server: segment (partial)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"segment\",\n  \"id\": \"t1\",\n  \"speaker\": \"doctor\",\n  \"start_ms\": 0,\n  \"end_ms\": 4200,\n  \"text\": \"Good morning, what brings\",\n  \"lang\": \"en\",\n  \"final\": false\n}"
+            },
+            {
+              "name": "server: segment (final)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"segment\",\n  \"id\": \"t1\",\n  \"speaker\": \"doctor\",\n  \"start_ms\": 0,\n  \"end_ms\": 4800,\n  \"text\": \"Good morning, what brings you in today?\",\n  \"lang\": \"en\",\n  \"final\": true\n}"
+            },
+            {
+              "name": "server: segment (Arabic + English, mixed)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"segment\",\n  \"id\": \"t5\",\n  \"speaker\": \"doctor\",\n  \"start_ms\": 41000,\n  \"end_ms\": 44200,\n  \"text\": \"كم حبة Neurofen تاخذين باليوم؟\",\n  \"lang\": \"mixed\",\n  \"final\": true\n}"
+            },
+            {
+              "name": "server: picked_up",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"picked_up\",\n  \"complaint\": {\n    \"text\": \"I have had a daily headache for two weeks\",\n    \"segment_ids\": [\n      \"t2\"\n    ]\n  },\n  \"symptoms\": [\n    {\n      \"text\": \"Mild nausea in the mornings\",\n      \"segment_ids\": [\n        \"t4\"\n      ]\n    },\n    {\n      \"text\": \"No aura\",\n      \"segment_ids\": [\n        \"t4\"\n      ]\n    }\n  ],\n  \"medications\": [\n    {\n      \"name\": \"Neurofen\",\n      \"detail\": \"About three tablets a day\",\n      \"confirm\": true,\n      \"segment_ids\": [\n        \"t5\",\n        \"t6\"\n      ]\n    }\n  ],\n  \"exam\": [\n    {\n      \"text\": \"Blood pressure is 128 over 82\",\n      \"segment_ids\": [\n        \"t7\"\n      ]\n    },\n    {\n      \"text\": \"Neuro exam is normal\",\n      \"segment_ids\": [\n        \"t7\"\n      ]\n    }\n  ],\n  \"record\": {\n    \"vital_sign\": {\n      \"patientId\": 101,\n      \"encounterId\": 5001,\n      \"bloodPressureSystolic\": 128,\n      \"bloodPressureDiastolic\": 82,\n      \"measurementSite\": null,\n      \"heartRate\": null,\n      \"temperature\": null,\n      \"oxygenSaturation\": null,\n      \"respiratoryRate\": null,\n      \"fastingBloodGlucose\": null,\n      \"fluidStatus\": null,\n      \"edema\": null,\n      \"urineOutput\": null,\n      \"isTriage\": false,\n      \"isActive\": true,\n      \"notes\": null\n    },\n    \"body_measurements\": null,\n    \"pain_assessment\": null,\n    \"nursing_assessment\": {\n      \"patientId\": 101,\n      \"encounterId\": 5001,\n      \"reasonOfVisit\": \"I have had a daily headache for two weeks\",\n      \"modeOfArrival\": null,\n      \"byPatient\": true,\n      \"sourceOfInformation\": null,\n      \"functionalStatus\": null,\n      \"patientConditions\": null,\n      \"cognitiveCheck\": null,\n      \"bloodGroup\": null,\n      \"isActive\": true,\n      \"priorityLevel\": \"NORMAL\"\n    },\n    \"clinical_visit\": {\n      \"chiefComplaint\": \"I have had a daily headache for two weeks\",\n      \"historyOfPresentIllness\": \"Mild nausea in the mornings. No aura.\",\n      \"physicalExaminationSummery\": \"Blood pressure is 128 over 82. Neuro exam is normal.\"\n    },\n    \"assessment\": null,\n    \"plan_of_care\": null\n  },\n  \"record_evidence\": {\n    \"vital_sign.bloodPressureSystolic\": [\n      \"t7\"\n    ],\n    \"vital_sign.bloodPressureDiastolic\": [\n      \"t7\"\n    ],\n    \"nursing_assessment.reasonOfVisit\": [\n      \"t2\"\n    ],\n    \"clinical_visit.chiefComplaint\": [\n      \"t2\"\n    ],\n    \"clinical_visit.historyOfPresentIllness\": [\n      \"t4\"\n    ],\n    \"clinical_visit.physicalExaminationSummery\": [\n      \"t7\"\n    ]\n  },\n  \"record_status\": {\n    \"vital_sign\": \"partial\",\n    \"body_measurements\": \"empty\",\n    \"pain_assessment\": \"empty\",\n    \"nursing_assessment\": \"complete\",\n    \"clinical_visit\": \"complete\",\n    \"assessment\": \"empty\",\n    \"plan_of_care\": \"empty\"\n  },\n  \"missing_required\": {\n    \"vital_sign\": [\n      \"heartRate\",\n      \"temperature\",\n      \"oxygenSaturation\",\n      \"respiratoryRate\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "server: paused",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"paused\"\n}"
+            },
+            {
+              "name": "server: resumed",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"resumed\"\n}"
+            },
+            {
+              "name": "server: final",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"final\",\n  \"segments\": [\n    {\n      \"type\": \"segment\",\n      \"id\": \"t1\",\n      \"speaker\": \"doctor\",\n      \"start_ms\": 0,\n      \"end_ms\": 4800,\n      \"text\": \"Good morning, what brings you in today?\",\n      \"lang\": \"en\",\n      \"final\": true\n    },\n    {\n      \"type\": \"segment\",\n      \"id\": \"t2\",\n      \"speaker\": \"doctor\",\n      \"start_ms\": 41000,\n      \"end_ms\": 44200,\n      \"text\": \"كم حبة Neurofen تاخذين باليوم؟\",\n      \"lang\": \"mixed\",\n      \"final\": true\n    }\n  ],\n  \"audio_ms\": 272000\n}"
+            },
+            {
+              "name": "server: error (audio before start)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{wsUrl}}",
+                  "host": [
+                    "{{wsUrl}}"
+                  ]
+                }
+              },
+              "status": "Message received",
+              "code": 0,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "body": "{\n  \"type\": \"error\",\n  \"detail\": \"Send 'start' before audio.\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -2,120 +2,43 @@
 
 Loaded at startup (and in tests) via DecoderService.upsert — same store as POST /decoders.
 
-STAGE-1 GAP (do not invent mappings):
-- SOAP chart fields (ChiefComplaint, HPI, …) read ConvoScribe `subjective` / `objective` /
-  `assessment` / `plan`. Assessments is a direct copy; the rest summarize those sections.
-- ConvoScribe AnalyzeAudioResponse has no structured `vitals` or `measurements`.
-- ORScribe CaseResponse / AnalyzeAudioResponse has timeline, medications, instrument_counts,
-  checklist, and timeline event type `vitals_report` (free-text description), not a structured
-  `vitals` or `measurements` object with temperature_c / weight_kg / etc.
-Until those services extract structured vitals/measurements, those source_paths will miss and
-the Vital Signs / Measurement views will warn (optional fields) or fail required fields.
+The clinical summary is written once, upstream: ConvoScribe's soap_note output carries
+`chart` (one string per SOAP chart field), `vitals` and `measurements`. Every seeded field is a
+direct copy of those values, so reshaping a seeded view makes no LLM call and cannot reword a
+clinical term. `summarize` / `extract` transforms remain available for decoders registered
+through POST /decoders.
 """
 
 from app.models.schemas import DecoderField, ViewDecoder
 from app.services.decoder_service import DecoderService
+
+SOAP_CHART_FIELDS = (
+    "ChiefComplaint",
+    "HPI",
+    "MedicalHistory",
+    "SurgicalHistory",
+    "FamilyAndSocialHistory",
+    "OtherSubjective",
+    "Vitals",
+    "PhysicalExamination",
+    "Assessments",
+    "DiagnosticImagesAndTests",
+    "Procedures",
+    "TreatmentPlans",
+)
 
 SOAP_NOTE_DECODER = ViewDecoder(
     view_id="soap_note",
     view_name="SOAP Note",
     fields=[
         DecoderField(
-            field_name="ChiefComplaint",
+            field_name=name,
             field_type="string",
-            source_path="subjective",
-            transform="summarize",
-            transform_hint="the patient's main reason for the visit, in one short phrase as they described it",
-            required=False,
-        ),
-        DecoderField(
-            field_name="HPI",
-            field_type="string",
-            source_path="subjective",
-            transform="summarize",
-            transform_hint="history of present illness: onset, duration, character, severity and any aggravating or relieving factors mentioned",
-            required=False,
-        ),
-        DecoderField(
-            field_name="MedicalHistory",
-            field_type="string",
-            source_path="subjective",
-            transform="summarize",
-            transform_hint="any past medical conditions, chronic illnesses or current medications mentioned; leave empty if none discussed",
-            required=False,
-        ),
-        DecoderField(
-            field_name="SurgicalHistory",
-            field_type="string",
-            source_path="subjective",
-            transform="summarize",
-            transform_hint="any previous operations or procedures mentioned; leave empty if none discussed",
-            required=False,
-        ),
-        DecoderField(
-            field_name="FamilyAndSocialHistory",
-            field_type="string",
-            source_path="subjective",
-            transform="summarize",
-            transform_hint="family history, smoking, alcohol, occupation or living situation mentioned; leave empty if none discussed",
-            required=False,
-        ),
-        DecoderField(
-            field_name="OtherSubjective",
-            field_type="string",
-            source_path="subjective",
-            transform="summarize",
-            transform_hint="anything else the patient or companion reported that does not fit the other subjective fields",
-            required=False,
-        ),
-        DecoderField(
-            field_name="Vitals",
-            field_type="string",
-            source_path="objective",
-            transform="summarize",
-            transform_hint="vital sign findings stated aloud during the encounter, as a short readable line",
-            required=False,
-        ),
-        DecoderField(
-            field_name="PhysicalExamination",
-            field_type="string",
-            source_path="objective",
-            transform="summarize",
-            transform_hint="examination findings the clinician described, by system where possible",
-            required=False,
-        ),
-        DecoderField(
-            field_name="Assessments",
-            field_type="string",
-            source_path="assessment",
+            source_path=f"chart.{name}",
             transform="direct",
-            transform_hint=None,
             required=False,
-        ),
-        DecoderField(
-            field_name="DiagnosticImagesAndTests",
-            field_type="string",
-            source_path="plan",
-            transform="summarize",
-            transform_hint="imaging, labs or other investigations ordered; leave empty if none were ordered",
-            required=False,
-        ),
-        DecoderField(
-            field_name="Procedures",
-            field_type="string",
-            source_path="plan",
-            transform="summarize",
-            transform_hint="procedures performed or planned; leave empty if none were mentioned",
-            required=False,
-        ),
-        DecoderField(
-            field_name="TreatmentPlans",
-            field_type="string",
-            source_path="plan",
-            transform="summarize",
-            transform_hint="medications, advice, referrals and follow-up instructions given to the patient",
-            required=False,
-        ),
+        )
+        for name in SOAP_CHART_FIELDS
     ],
 )
 
@@ -157,8 +80,7 @@ MEASUREMENT_DECODER = ViewDecoder(
             field_name="Note",
             field_type="string",
             source_path="measurements.note",
-            transform="summarize",
-            transform_hint="condense any free-text note from the encounter into one short clinical remark",
+            transform="direct",
             required=False,
         ),
     ],

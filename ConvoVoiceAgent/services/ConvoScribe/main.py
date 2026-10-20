@@ -34,11 +34,22 @@ async def lifespan(app: FastAPI):
         settings.summary_model,
     )
     logger.info("Transcription backend: %s", settings.transcription_backend)
-    if settings.transcription_backend.lower() in {"whisper_pyannote"} and not settings.pyannote_hf_token:
+    backend = settings.transcription_backend.lower()
+    if backend in {"whisper_pyannote"} and not settings.pyannote_hf_token:
         logger.warning(
             "PYANNOTE_HF_TOKEN is not set — whisper_pyannote diarization will fail. "
-            "Use TRANSCRIPTION_BACKEND=whisper for real ASR without a Hugging Face token."
+            "Use TRANSCRIPTION_BACKEND=whisper for real ASR without a Hugging Face token, "
+            "or TRANSCRIPTION_BACKEND=gpt_transcribe for OpenAI cloud ASR."
         )
+    if backend in {"gpt_transcribe", "openai", "gpt-4o-transcribe"}:
+        logger.info("OpenAI transcribe model: %s", settings.openai_transcribe_model)
+        if not settings.openai_api_key:
+            logger.warning("OPENAI_API_KEY not set — gpt_transcribe backend will fail")
+        else:
+            logger.warning(
+                "gpt_transcribe sends visit audio to OpenAI (%s). Use only for testing if PHI policy allows it.",
+                settings.openai_transcribe_model,
+            )
     if settings.use_llm_stub:
         logger.warning("USE_LLM_STUB=true — role ID and summary use offline stubs, not OpenAI")
     elif settings.openai_api_key:

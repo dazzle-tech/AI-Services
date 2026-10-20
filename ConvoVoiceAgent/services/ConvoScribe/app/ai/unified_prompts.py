@@ -61,6 +61,7 @@ Purpose = Literal[
     "timeline",  # timestamped event log
     "checklist_verification",  # e.g. WHO Surgical Safety Checklist
     "full_transcript_review",  # cleaned, role-tagged transcript / role map
+    "transcript_only",  # transcript + speaker roles, no clinical output (caller writes the note)
 ]
 
 DetailLevel = Literal[
@@ -167,11 +168,32 @@ PURPOSE_FRAGMENTS: dict[str, str] = {
         "}"
     ),
     "soap_note": (
-        "TASK: Produce a structured SOAP note.\n"
+        "TASK: Produce a structured SOAP note and, in the same pass, the chart fields, vitals and "
+        "measurements a display system copies without rewriting.\n"
         "Rules: use ONLY information explicitly present in the transcript; do not "
-        'infer or fabricate; if a section has no content, write "Not discussed"; '
+        'infer or fabricate; if a SOAP section has no content, write "Not discussed"; '
         "flag any discrepancies (e.g. a reported symptom the clinician did not "
         "acknowledge).\n"
+        "Chart rules: each chart field holds only what belongs to it; use an empty string when "
+        "nothing was said for it (never \"Not discussed\"). ChiefComplaint is one short line in the "
+        "patient's words. HPI covers onset, duration, character, severity and modifiers. "
+        "A question that lists several symptoms is answered only for the ones the reply names: "
+        "for \"Any nausea, vision changes, or neck stiffness?\" answered \"No nausea\", write only "
+        "\"No nausea\"; vision changes and neck stiffness are left out, never written as negative. "
+        "MedicalHistory holds chronic conditions and regular medicines stated in the visit, each "
+        "medicine with its dose and timing as spoken, even when the drug name looks misheard "
+        "(keep the heard wording, e.g. \"less than a pearl 10 milligrams each morning\", and add a flag). "
+        "Keep the speaker's own words, never a clinical rewording: \"light bothers me a little\" stays "
+        "\"light bothers the patient a little\" (not \"light sensitivity\" or \"photophobia\"); "
+        "\"weakness on one side\" stays as said (not \"unilateral weakness\"). "
+        "Keep who reported each fact: a relative's report is written as theirs "
+        "(\"daughter reports poor eating since yesterday\"), never as the patient's. "
+        "Include the character of pain when stated (\"dull ache\"). "
+        "PhysicalExamination holds only findings the clinician stated. TreatmentPlans includes "
+        "medications, advice, follow-up and return precautions (safety-net advice). "
+        "Vitals and measurements are numbers as spoken (strings, no units); omit a key that was not said.\n"
+        "Speaker labels come from automatic diarization and may be wrong; decide who said a line "
+        "from its content (e.g. \"I will record your vitals\" is the clinician).\n"
         "Return JSON only:\n"
         "{\n"
         '  "subjective": "...",\n'
@@ -180,7 +202,13 @@ PURPOSE_FRAGMENTS: dict[str, str] = {
         '  "plan": "...",\n'
         '  "medications_mentioned": ["..."],\n'
         '  "follow_up": "...",\n'
-        '  "flags": ["..."]\n'
+        '  "flags": ["..."],\n'
+        '  "chart": {"ChiefComplaint": "", "HPI": "", "MedicalHistory": "", "SurgicalHistory": "", '
+        '"FamilyAndSocialHistory": "", "OtherSubjective": "", "Vitals": "", "PhysicalExamination": "", '
+        '"Assessments": "", "DiagnosticImagesAndTests": "", "Procedures": "", "TreatmentPlans": ""},\n'
+        '  "vitals": {"temperature_c": "", "spo2_pct": "", "bp_systolic": "", "bp_diastolic": "", '
+        '"pulse_rate": "", "pain_score": "", "resp_rate": ""},\n'
+        '  "measurements": {"weight_kg": "", "height_cm": "", "bmi": "", "head_circumference_cm": "", "note": ""}\n'
         "}"
     ),
     "clinical_document": (
@@ -255,6 +283,27 @@ PURPOSE_FRAGMENTS: dict[str, str] = {
     ),
 }
 
+MEDICAL_TERMINOLOGY_FRAGMENT = (
+    "MEDICAL TERMINOLOGY (mandatory)\n"
+    "1. Copy medical terms exactly as spoken: drug names, doses, units, frequencies, routes, diagnoses, "
+    "anatomy, test names, abbreviations (HbA1c, CBC, BP, PRN) and every number. Do not paraphrase them, "
+    "expand or shorten an abbreviation, convert a unit, round a number, swap a brand and a generic name, "
+    "or replace a lay term with a clinical one (\"high blood pressure\" stays \"high blood pressure\"; it is "
+    "not rewritten as \"hypertension\" in the patient's history).\n"
+    "2. Speech recognition errors: if a phrase is most likely a misheard drug or medical term (for example "
+    "\"less than a pearl 10 mg\" for \"lisinopril 10 mg\"), do NOT silently correct it. Keep the transcript "
+    "wording, and if the output schema has a flags list add: "
+    "\"Possible transcription error: heard '<heard>', likely '<likely>'\". Only the physician confirms a correction.\n"
+    "3. Arabic and mixed speech: keep drug names, doses and numbers in the form they were spoken, even when "
+    "the output is written in another language. Translate the surrounding words only.\n"
+    "4. Negatives and findings: record a negative only when the patient or clinician said it. A question with "
+    "no answer (\"Any vision changes?\" and no reply) is not a negative and is left out. Never write "
+    "\"denies X\" unless the patient denied X.\n"
+    "5. Hedges stay: \"possible\", \"maybe\", \"patient unsure\", \"ربما\" are kept in the text.\n"
+    "6. Attribution stays: if a relative or companion reported something, write it as their report "
+    "(\"daughter reports poor eating since yesterday\"), not as the patient's own statement."
+)
+
 DETAIL_LEVEL_FRAGMENTS: dict[str, str] = {
     "verbatim": (
         "DETAIL LEVEL: Verbatim. Preserve wording as closely as possible, "
@@ -320,6 +369,7 @@ def build_system_prompt(req: TranscriptionRequest) -> str:
         )
 
     parts.append(PURPOSE_FRAGMENTS.get(req.purpose, PURPOSE_FRAGMENTS["summary"]))
+    parts.append(MEDICAL_TERMINOLOGY_FRAGMENT)
     parts.append(DETAIL_LEVEL_FRAGMENTS.get(req.detail_level, DETAIL_LEVEL_FRAGMENTS["standard"]))
 
     parts.append("Do not include markdown or commentary outside the JSON object.")

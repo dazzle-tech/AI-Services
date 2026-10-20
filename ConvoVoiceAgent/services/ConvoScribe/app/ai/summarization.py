@@ -123,12 +123,23 @@ def _stub_summarize(segments: List[dict], role_map: Dict[str, str]) -> Dict[str,
     if "sore throat" in patient_text.lower() and "sore throat" not in doctor_text.lower():
         flags.append("Patient reported sore throat; doctor did not explicitly acknowledge it.")
 
+    objective = doctor_text if any(word in doctor_text.lower() for word in ("examine", "temperature")) else "Not discussed"
+
+    def stated(value: str) -> str:
+        return "" if value == "Not discussed" else value
+
     return {
         "subjective": patient_text or "Not discussed",
-        "objective": doctor_text if any(word in doctor_text.lower() for word in ("examine", "temperature")) else "Not discussed",
+        "objective": objective,
         "assessment": assessment,
         "plan": plan,
         "medications_mentioned": medications,
         "follow_up": follow_up,
         "flags": flags,
+        "chart": {
+            "HPI": patient_text,
+            "PhysicalExamination": stated(objective),
+            "Assessments": stated(assessment),
+            "TreatmentPlans": stated(plan),
+        },
     }

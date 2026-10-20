@@ -152,7 +152,7 @@ def test_display_failure_502(client):
 
 @respx.mock
 def test_health_pings_downstream(client):
-    respx.get(f"{settings.convoscribe_base_url}/api/v1/health").mock(
+    respx.get(f"{settings.convoscribe_base_url}/openapi.json").mock(
         return_value=httpx.Response(200, json={"status": "ok"})
     )
     respx.get(f"{settings.system_display_base_url}/api/v1/health").mock(

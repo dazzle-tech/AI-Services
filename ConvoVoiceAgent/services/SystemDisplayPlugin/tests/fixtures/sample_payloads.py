@@ -79,10 +79,27 @@ EHR_SOAP_CARD = {
     ],
 }
 
-# Flattened SOAP + assumed vitals/measurements objects. ConvoScribe/ORScribe do not
-# currently emit `vitals` or `measurements`; this is the contract we map onto.
+# ConvoScribe soap_note `chart`: one display string per SOAP chart field, written in the
+# same model call as the SOAP note. Seeded decoders copy these directly.
+CHART = {
+    "ChiefComplaint": "3-day frontal headache.",
+    "HPI": SOAP_NOTE["subjective"],
+    "MedicalHistory": "High blood pressure, takes lisinopril 10 mg each morning.",
+    "SurgicalHistory": "No previous operations mentioned by patient.",
+    "FamilyAndSocialHistory": "Lives with daughter.",
+    "OtherSubjective": "Daughter reports poor eating since yesterday.",
+    "Vitals": "Temperature 36.8 °C, SpO2 98%, BP 122/78, pulse 72, pain 2/10, RR 16.",
+    "PhysicalExamination": SOAP_NOTE["objective"],
+    "Assessments": SOAP_NOTE["assessment"],
+    "DiagnosticImagesAndTests": "No tests ordered.",
+    "Procedures": "No procedures performed.",
+    "TreatmentPlans": SOAP_NOTE["plan"],
+}
+
+# SOAP + chart + vitals/measurements: the ConvoScribe soap_note contract we map onto.
 ENCOUNTER_STAGE1 = {
     **SOAP_NOTE,
+    "chart": CHART,
     "vitals": {
         "temperature_c": "36.8",
         "spo2_pct": "98",
@@ -171,6 +188,7 @@ def full_chart_reshape_request() -> dict:
 
 ENCOUNTER_STAGE1_OPTIONALS_MISSING = {
     **SOAP_NOTE,
+    "chart": CHART,
     "vitals": {
         "temperature_c": "36.8",
         "spo2_pct": "98",

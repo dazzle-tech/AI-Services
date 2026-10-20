@@ -231,12 +231,8 @@ def test_optional_measurement_gaps_do_not_affect_other_views():
     assert any("HeadCircumferenceCm" in w for w in by_id["measurement"].warnings)
 
 
-def test_note_summarize_is_one_llm_call_batched_across_views():
+def test_seeded_views_copy_upstream_fields_without_llm():
     mock_client = MagicMock()
-    mock_client.complete_json.return_value = {
-        "soap_note::TreatmentPlans": "Ibuprofen PRN; two-week follow-up.",
-        "measurement::Note": "Weight after shoes off; reduced appetite.",
-    }
     result = reshape_many(
         ENCOUNTER_STAGE1,
         [SOAP_NOTE_DECODER, VITAL_SIGNS_DECODER, MEASUREMENT_DECODER],
@@ -244,14 +240,11 @@ def test_note_summarize_is_one_llm_call_batched_across_views():
         purpose="soap_note",
         client=mock_client,
     )
-    assert mock_client.complete_json.call_count == 1
-    user_prompt = mock_client.complete_json.call_args.kwargs["user_prompt"]
-    assert "soap_note::TreatmentPlans" in user_prompt
-    assert "soap_note::HPI" in user_prompt
-    assert "measurement::Note" in user_prompt
+    assert mock_client.complete_json.call_count == 0
     by_id = {item.view_id: item for item in result.results}
-    assert by_id["soap_note"].data["TreatmentPlans"] == "Ibuprofen PRN; two-week follow-up."
-    assert by_id["measurement"].data["Note"] == "Weight after shoes off; reduced appetite."
+    assert by_id["soap_note"].data == ENCOUNTER_STAGE1["chart"]
+    assert by_id["soap_note"].warnings == []
+    assert by_id["measurement"].data["Note"] == ENCOUNTER_STAGE1["measurements"]["note"]
 
 
 def test_one_view_required_failure_does_not_fail_batch():

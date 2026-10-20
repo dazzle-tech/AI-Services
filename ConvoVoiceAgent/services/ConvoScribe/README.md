@@ -10,8 +10,8 @@ ConvoScribe turns a clinical audio recording into a structured SOAP note through
 
 | Stage | What it does | Technology (production) |
 |-------|--------------|-------------------------|
-| **1. ASR** | Converts speech to raw text | faster-whisper (transformer-based, multi-accent) |
-| **2. Speaker diarization** | Segments audio and labels who spoke when (`SPEAKER_00`, `SPEAKER_01`, …) | pyannote |
+| **1. ASR** | Converts speech to raw text | `whisper` / `whisper_pyannote` (local faster-whisper) or `gpt_transcribe` (OpenAI cloud: `OPENAI_TRANSCRIBE_MODEL`, default `gpt-4o-transcribe-diarize`) |
+| **2. Speaker diarization** | Segments audio and labels who spoke when (`SPEAKER_00`, `SPEAKER_01`, …) | pyannote (local) or built into `gpt-4o-transcribe-diarize` |
 | **3. Role identification** | Maps speakers to clinician, patient, or other (e.g. family) | GPT (`ROLE_ID_MODEL`) |
 | **4. Clinical summarization** | Synthesizes a structured SOAP note from the labeled transcript | GPT (`SUMMARY_MODEL`) |
 

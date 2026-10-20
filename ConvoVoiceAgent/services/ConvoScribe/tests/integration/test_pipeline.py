@@ -24,9 +24,18 @@ def _make_silent_wav(duration_seconds: float = 1.0, sample_rate: int = 16000) ->
 
 @pytest.fixture
 def client(monkeypatch):
+    # Re-assert stub mode: other tests may have replaced app.core.config.settings in-process.
     monkeypatch.setenv("DATABASE_URL", "sqlite:///./convoscribe_integration_test.db")
+    monkeypatch.setenv("USE_LLM_STUB", "true")
+    monkeypatch.setenv("TRANSCRIPTION_BACKEND", "stub")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-key-for-testing-only")
     reload(config_module)
     reset_engine()
+    import app.services.pipeline_service as pipeline_module
+    import app.transcription as transcription_module
+
+    reload(transcription_module)
+    reload(pipeline_module)
     from app.db.models import Base
     from app.db.session import get_engine
 
@@ -92,6 +101,25 @@ def test_analyze_low_confidence_needs_review(client, auth_headers, monkeypatch):
     body = response.json()
     assert body["needs_review"] is True
     assert body["summary"] is None
+
+
+def test_analyze_transcript_only_skips_summary(client, auth_headers, monkeypatch):
+    def _no_summary(*args, **kwargs):
+        raise AssertionError("transcript_only must not run the summary model")
+
+    monkeypatch.setattr("app.services.pipeline_service.generate_clinical_summary", _no_summary)
+    files = {"audio": ("visit.wav", _make_silent_wav(), "audio/wav")}
+    response = client.post("/api/v1/analyze", files=files, data={"purpose": "transcript_only"}, headers=auth_headers)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["raw_transcript"]["segments"] and body["role_map"]
+    assert body["summary"] is None
+
+
+def test_analyze_soap_note_includes_chart_fields(client, auth_headers):
+    files = {"audio": ("visit.wav", _make_silent_wav(), "audio/wav")}
+    body = client.post("/api/v1/analyze", files=files, data={"purpose": "soap_note"}, headers=auth_headers).json()
+    assert isinstance(body["summary"]["chart"], dict)
 
 
 def test_analyze_does_not_require_headers(client):

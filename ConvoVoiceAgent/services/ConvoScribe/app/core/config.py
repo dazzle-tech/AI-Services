@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     # Transcription
     transcription_backend: str = "stub"
     whisper_model_size: str = "base"
+    # Cloud ASR when TRANSCRIPTION_BACKEND=gpt_transcribe (audio is sent to OpenAI).
+    # gpt-4o-transcribe-diarize returns speaker turns; gpt-4o-transcribe / gpt-transcribe are text-only.
+    openai_transcribe_model: str = "gpt-4o-transcribe-diarize"
     pyannote_hf_token: str = ""
     max_audio_duration_seconds: int = 3600
     allowed_audio_extensions: str = "wav,mp3,m4a"

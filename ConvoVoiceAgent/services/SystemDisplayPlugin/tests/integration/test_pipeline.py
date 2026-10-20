@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 from tests.fixtures.sample_payloads import (
+    CHART,
     EHR_SOAP_CARD,
     ENCOUNTER_STAGE1,
     ENCOUNTER_STAGE1_OPTIONALS_MISSING,
@@ -105,11 +106,6 @@ def test_reshape_three_seeded_views_in_one_call(client):
     with patch("app.services.mapping_service.settings.use_llm_stub", False), patch(
         "app.services.mapping_service.AIClient"
     ) as mock_cls:
-        mock_cls.return_value.complete_json.return_value = {
-            "soap_note::HPI": SOAP_NOTE["subjective"],
-            "measurement::Note": "Weight after shoes off; reduced appetite.",
-            "Note": "Weight after shoes off; reduced appetite.",
-        }
         response = client.post(
             "/api/v1/reshape",
             json={
@@ -126,7 +122,7 @@ def test_reshape_three_seeded_views_in_one_call(client):
     assert by_id["soap_note"]["data"]["HPI"] == SOAP_NOTE["subjective"]
     assert by_id["vital_signs"]["data"]["PulseRate"] == "72"
     assert by_id["measurement"]["data"]["HeightLengthCm"] == "168"
-    assert mock_cls.return_value.complete_json.call_count == 1
+    assert mock_cls.return_value.complete_json.call_count == 0
 
 
 def test_reshape_optional_gaps_isolated_to_measurement_view(client):
@@ -152,7 +148,7 @@ def test_reshape_one_failed_view_does_not_422_when_others_succeed(client):
     response = client.post(
         "/api/v1/reshape",
         json={
-            "stage1_output": SOAP_NOTE,
+            "stage1_output": {**SOAP_NOTE, "chart": CHART},
             "context": "appointment",
             "purpose": "soap_note",
             "view_ids": ["soap_note", "vital_signs"],
