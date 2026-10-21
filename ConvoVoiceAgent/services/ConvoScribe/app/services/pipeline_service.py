@@ -19,6 +19,7 @@ from app.models.schemas import (
 )
 from app.transcription import get_transcription_service
 from app.transcription.base import DiarizedSegment
+from app.transcription.numbers import spoken_numbers_to_digits
 
 
 @dataclass
@@ -39,7 +40,7 @@ def _segments_to_dicts(segments: List[DiarizedSegment]) -> List[Dict[str, Any]]:
             "speaker_label": segment.speaker_label,
             "start_time": segment.start_time,
             "end_time": segment.end_time,
-            "text": segment.text,
+            "text": spoken_numbers_to_digits(segment.text),
         }
         for segment in segments
     ]
