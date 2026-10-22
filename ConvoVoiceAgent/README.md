@@ -162,7 +162,7 @@ Checks in code (`app/clinical/asklepios.py`) on top of the prompt: a field must 
 
 ### Note model
 
-`AMBIENT_NOTE_MODEL` on any OpenAI-compatible endpoint (`OPENAI_BASE_URL`, `OPENAI_API_KEY`), so switching models is a config change. Speech stays on ConvoScribe’s `TRANSCRIPTION_BACKEND`. `USE_LLM_STUB=true` builds a deterministic draft from the transcript by keyword rules with no network. It copies segment text verbatim and does not translate. Without a key and with the stub off, `/draft` returns 503.
+`AMBIENT_NOTE_MODEL` on any OpenAI-compatible endpoint (`OPENAI_BASE_URL`, `OPENAI_API_KEY`), so switching models is a config change. Speech stays on ConvoScribe’s `TRANSCRIPTION_BACKEND`, which defaults to `gpt_transcribe` and transcribes the uploaded file. `TRANSCRIPTION_BACKEND=stub` is for tests: it ignores the audio and returns one sample visit for every file. `USE_LLM_STUB=true` builds a deterministic draft from the transcript by keyword rules with no network. It copies segment text verbatim and does not translate. Without a key and with the stub off, `/draft` returns 503.
 
 ## Environment variables
 

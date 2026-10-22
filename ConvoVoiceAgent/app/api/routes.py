@@ -208,6 +208,8 @@ async def draft(request: Request) -> DraftResponse:
             "event_type": "ambient_draft",
             "clinician_id": auth_headers.get("X-Clinician-Id"),
             "specialty": options.specialty,
+            "suggest_icd10": options.suggest_icd10,
+            "suggest_orders": options.suggest_orders,
         },
     )
     return await draft_visit(

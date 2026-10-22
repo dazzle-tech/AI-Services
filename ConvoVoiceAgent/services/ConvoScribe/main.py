@@ -35,6 +35,11 @@ async def lifespan(app: FastAPI):
     )
     logger.info("Transcription backend: %s", settings.transcription_backend)
     backend = settings.transcription_backend.lower()
+    if backend == "stub":
+        logger.warning(
+            "TRANSCRIPTION_BACKEND=stub ignores the audio. Every recording returns the same sample visit. "
+            "Set TRANSCRIPTION_BACKEND=gpt_transcribe (with OPENAI_API_KEY) or whisper to transcribe the file."
+        )
     if backend in {"whisper_pyannote"} and not settings.pyannote_hf_token:
         logger.warning(
             "PYANNOTE_HF_TOKEN is not set — whisper_pyannote diarization will fail. "

@@ -101,7 +101,7 @@ curl http://localhost:8026/api/v1/sessions/{session_id} \
   -H "X-Clinician-Id: dr-smith"
 ```
 
-Docker Compose defaults to `TRANSCRIPTION_BACKEND=stub` and `USE_LLM_STUB=true` for offline development.
+Docker Compose uses the `.env` transcription settings. `TRANSCRIPTION_BACKEND=stub` is for tests only: it ignores the audio and returns one sample visit for every file. Leave it as `gpt_transcribe` (or `whisper`) so each recording is transcribed.
 
 ## Postman collection
 

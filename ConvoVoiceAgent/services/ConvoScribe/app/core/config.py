@@ -57,8 +57,8 @@ class Settings(BaseSettings):
     s3_use_ssl: bool = False
     s3_server_side_encryption: str = ""  # AES256 for AWS S3; leave empty for MinIO
 
-    # Transcription
-    transcription_backend: str = "stub"
+    # Transcription. stub ignores the audio and returns one sample visit; it is for tests only.
+    transcription_backend: str = "gpt_transcribe"
     whisper_model_size: str = "base"
     # Cloud ASR when TRANSCRIPTION_BACKEND=gpt_transcribe (audio is sent to OpenAI).
     # gpt-4o-transcribe-diarize returns speaker turns; gpt-4o-transcribe / gpt-transcribe are text-only.

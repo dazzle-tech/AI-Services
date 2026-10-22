@@ -203,6 +203,16 @@ _ORDERS_OFF = (
 )
 
 
+_DIAGNOSES_SHAPE = (
+    '  "diagnoses": [{"icd10": "J06.9|null", "label": "...", "rank": "primary|secondary",\n'
+    '                 "suspected": false, "chronic": false, "segment_ids": ["s9"]}],'
+)
+_ORDERS_SHAPE = (
+    '  "orders": [{"kind": "medication|lab|imaging|referral|follow_up|sick_leave", '
+    '"payload": {}, "segment_ids": ["s10"]}],'
+)
+
+
 def build_system_prompt(
     *,
     specialty: str,
@@ -211,8 +221,13 @@ def build_system_prompt(
     suggest_icd10: bool = True,
     suggest_orders: bool = True,
 ) -> str:
+    system = AMBIENT_SYSTEM_PROMPT
+    if not suggest_icd10:
+        system = system.replace(_DIAGNOSES_SHAPE, '  "diagnoses": [],')
+    if not suggest_orders:
+        system = system.replace(_ORDERS_SHAPE, '  "orders": [],')
     parts = [
-        AMBIENT_SYSTEM_PROMPT,
+        system,
         SPECIALTY_ADDENDA.get(specialty, SPECIALTY_ADDENDA["general_practice"]),
         _LENGTH_GUIDE.get(note_length, _LENGTH_GUIDE["standard"]),
         _FORM_GUIDE.get(note_form, _FORM_GUIDE["prose"]),
