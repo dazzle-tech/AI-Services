@@ -1,6 +1,6 @@
 """Pydantic schemas for ConvoVoiceAgent."""
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -190,22 +190,3 @@ class RegenerateRequest(NoteOptions):
     transcript: List[TranscriptItem] = Field(min_length=1)
     section: SectionName
     instruction: str = Field(default="", max_length=2000)
-
-
-class RegenerateResponse(BaseModel):
-    """One section. diagnoses, orders, mentions and instructions are filled only for assessment_plan;
-    flags and possible_transcription_errors only cover segments this section cites."""
-
-    section: SectionName
-    sentences: List[Union[PlanSentence, Sentence]]
-    soap_note: Dict[str, Any]
-    diagnoses: List[Diagnosis] = Field(default_factory=list)
-    orders: List[Order] = Field(default_factory=list)
-    mentions: List[Mention] = Field(default_factory=list)
-    instructions: Optional[Instructions] = None
-    flags: List[Flag] = Field(default_factory=list)
-    possible_transcription_errors: List[TranscriptionErrorHint] = Field(default_factory=list)
-    patient_context_used: bool = False
-    # Only the keys this section decides (for example hpi -> clinical_visit.historyOfPresentIllness).
-    record: Dict[str, Any] = Field(default_factory=dict)
-    record_evidence: Dict[str, List[str]] = Field(default_factory=dict)

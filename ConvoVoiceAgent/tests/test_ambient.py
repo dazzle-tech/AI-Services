@@ -261,12 +261,47 @@ def test_regenerate_returns_only_requested_section(client, downstream, monkeypat
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["section"] == "hpi"
-    assert [s["text"] for s in body["sentences"]] == ["Sore throat and fever for three days."]
-    assert body["soap_note"] == {"HPI": "Sore throat and fever for three days.", "MedicalHistory": None}
-    assert body["diagnoses"] == [] and body["orders"] == [] and body["mentions"] == []
-    assert body["instructions"] is None
-    assert body["flags"] == []
+    assert set(body) == {
+        "transcript",
+        "sections",
+        "soap_note",
+        "diagnoses",
+        "orders",
+        "mentions",
+        "instructions",
+        "flags",
+        "possible_transcription_errors",
+        "patient_context_used",
+        "record",
+        "record_evidence",
+        "record_status",
+        "missing_required",
+        "elapsed_ms",
+    }
+    assert set(body["sections"]) == {
+        "chief_complaint",
+        "hpi",
+        "review_of_systems",
+        "physical_exam",
+        "assessment_plan",
+    }
+    assert [s["text"] for s in body["sections"]["hpi"]["sentences"]] == ["Sore throat and fever for three days."]
+    assert set(body["soap_note"]) == set(SOAP_NOTE_FIELDS)
+    assert body["soap_note"]["HPI"] == "Sore throat and fever for three days."
+    assert body["soap_note"]["ChiefComplaint"]
+    assert body["transcript"] == transcript
+    assert isinstance(body["instructions"], dict)
+    assert isinstance(body["elapsed_ms"], int)
+    assert set(body["record_status"]) == {
+        "vital_sign",
+        "body_measurements",
+        "pain_assessment",
+        "nursing_assessment",
+        "clinical_visit",
+        "patient_diagnosis",
+        "assessment",
+        "plan_of_care",
+    }
 
 
 def test_regenerate_assessment_plan_with_stub(client, downstream):
@@ -277,10 +312,11 @@ def test_regenerate_assessment_plan_with_stub(client, downstream):
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert set(body["soap_note"]) == {"Assessments", "TreatmentPlans"}
-    assert len(body["sentences"]) == 2
-    assert all(s["segment_ids"] and s["part"] in {"assessment", "plan"} for s in body["sentences"])
-    assert body["sentences"][1]["low_confidence"] is True
+    assert set(body["soap_note"]) == set(SOAP_NOTE_FIELDS)
+    sentences = body["sections"]["assessment_plan"]["sentences"]
+    assert len(sentences) == 2
+    assert all(s["segment_ids"] and s["part"] in {"assessment", "plan"} for s in sentences)
+    assert sentences[1]["low_confidence"] is True
 
     assert [(dx["icd10"], dx["rank"]) for dx in body["diagnoses"]] == [("J03.90", "primary")]
     assert {order["kind"] for order in body["orders"]} == {"medication", "follow_up"}
@@ -292,8 +328,8 @@ def test_regenerate_assessment_plan_with_stub(client, downstream):
 def test_regenerate_scopes_flags_to_the_section(client, downstream):
     transcript = _post_draft(client).json()["transcript"]
     body = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "physical_exam"}).json()
-    assert [s["segment_ids"] for s in body["sentences"]] == [["s4"]]
-    assert body["flags"] == []
+    assert [s["segment_ids"] for s in body["sections"]["physical_exam"]["sentences"]] == [["s4"]]
+    assert {(flag["kind"], flag["text"]) for flag in body["flags"]} == {("dose", "500 mg"), ("drug_name", "azithromycin")}
 
 
 def test_regenerate_drops_unknown_icd10_code(client, downstream, monkeypatch):
@@ -668,17 +704,29 @@ def test_regenerate_record_covers_only_its_section(client, downstream, monkeypat
 
     monkeypatch.setattr(ambient_stub, "stub_regenerate", fake_regenerate)
     body = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "hpi"}).json()
-    assert body["record"] == {"clinical_visit": {"historyOfPresentIllness": "Sore throat and fever for three days."}}
-    assert body["record_evidence"] == {"clinical_visit.historyOfPresentIllness": ["s2"]}
+    assert body["record"]["clinical_visit"]["historyOfPresentIllness"] == "Sore throat and fever for three days."
+    assert body["record"]["clinical_visit"]["chiefComplaint"]
+    assert "patient_diagnosis" in body["record"]
+    assert body["record_evidence"]["clinical_visit.historyOfPresentIllness"] == ["s2"]
+    assert "missing_required" in body
 
 
 
 def test_regenerate_assessment_plan_record(client, downstream):
     transcript = _post_draft(client).json()["transcript"]
     body = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "assessment_plan"}).json()
-    assert set(body["record"]) == {"assessment", "plan_of_care", "patient_diagnosis"}
+    assert set(body["record"]) == {
+        "vital_sign",
+        "body_measurements",
+        "pain_assessment",
+        "nursing_assessment",
+        "clinical_visit",
+        "patient_diagnosis",
+        "assessment",
+        "plan_of_care",
+    }
     assert body["record"]["patient_diagnosis"][0]["type"] == "PRIMARY"
-    assert set(body["record"]["plan_of_care"]) == {"patientId", "encounterId", "treatmentPlan"}
+    assert set(body["record"]["plan_of_care"]) >= {"patientId", "encounterId", "treatmentPlan"}
 
 
 def test_asklepios_enum_and_number_rules():

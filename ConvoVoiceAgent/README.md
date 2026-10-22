@@ -114,7 +114,7 @@ Response:
 
 JSON: `transcript` (the array from `/draft`), `section` (one of the five names), `instruction` (free text such as `"shorter"` or `"add smoking history"`), plus the same `note_language`, `specialty`, `note_length`, `note_form`, and optional `patient_context`.
 
-Response: `{section, sentences, soap_note, diagnoses, orders, mentions, instructions, flags, possible_transcription_errors, patient_context_used}`, with the same shapes and evidence rules as `/draft`. `diagnoses` (with ICD-10 suggestions), `orders`, `mentions` and `instructions` are filled only when `section` is `assessment_plan`; for other sections they are empty and `instructions` is `null`. `flags` and `possible_transcription_errors` only cover segments the regenerated section cites. `soap_note` contains only the fields that section fills. `review_of_systems` and `physical_exam` both fill `PhysicalExamination` and each returns only its own part, so the caller combines them. `physical_exam` also fills `Vitals`, and `hpi` also fills `MedicalHistory`. `assessment_plan` fills `Assessments` and `TreatmentPlans`.
+Response: the same object as `/draft` (`transcript`, every section, the full `soap_note`, `diagnoses`, `orders`, `mentions`, `instructions`, `flags`, `possible_transcription_errors`, `patient_context_used`, `record`, `record_evidence`, `record_status`, `missing_required`, `elapsed_ms`). `section` chooses which part the `instruction` rewrites. The other sections and the record are still filled from the transcript.
 
 ### Evidence rules
 
@@ -158,7 +158,7 @@ Also in the response:
 
 Checks in code (`app/clinical/asklepios.py`) on top of the prompt: a field must cite an existing, non-question segment; a number must be said in a cited segment (no conversion, except height in metres to centimetres) and be plausible (for example heart rate 20-300, SpO2 50-100, temperature 25-45 Celsius, so a Fahrenheit reading is dropped); systolic must be above diastolic or both are dropped; an enum or list-of-values field must be one Asklepios stores, and its cited segment must say it. List-of-values fields are the label word, never the numeric key: `measurementSite` is Finger, Forearm, Upper Arm, or Ankle; `painPattern` is Burning, Dull, Aching, Stabbing, Throbbing, Cramping, Radiating, Tingling, Shooting, Shock-like, Pressure-like, or Sharp. `painDegree` is NOTHING, MILD_MINOR, MODERATE, or SEVERE. `modeOfArrival` is AMBULATORY, WHEELCHAIR, STRETCHER, or OTHER. Free text may not contain a number that was not said.
 
-`/sections/regenerate` returns `record` and `record_evidence` too, with only the keys that section decides (for example `hpi` gives `clinical_visit.historyOfPresentIllness`, `assessment_plan` gives `assessment`, `plan_of_care.treatmentPlan` and `patient_diagnosis`), so the caller never overwrites a field the section does not cover. Vitals, measurements and pain come only from `/draft`.
+`/sections/regenerate` returns the same `record`, `record_evidence`, `record_status` and `missing_required` as `/draft`, including vitals, measurements and pain.
 
 ### Note model
 

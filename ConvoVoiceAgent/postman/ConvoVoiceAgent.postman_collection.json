@@ -1110,7 +1110,7 @@
                 }
               }
             },
-            "description": "Redrafts one section from a transcript the caller already has. No audio and no ConvoScribe call. `soap_note` holds only the fields that section fills (`hpi` fills `HPI`)."
+            "description": "Redrafts the visit from a transcript the caller already has. No audio and no ConvoScribe call. The response has the same fields as Draft. `section` and `instruction` choose which part to rewrite; the other sections and the record are still filled."
           },
           "response": [
             {

@@ -269,32 +269,20 @@ def build_regenerate_user_prompt(
 ) -> str:
     suggest_icd = options.get("suggest_icd10", True)
     suggest_orders = options.get("suggest_orders", True)
-    if section == "assessment_plan":
-        diagnoses = "[...]" if suggest_icd else "[]"
-        orders = "[...]" if suggest_orders else "[]"
-        shape = (
-            'Return only {"sentences": [{"text": "...", "segment_ids": ["s9"], "part": "assessment|plan"}], '
-            f'"diagnoses": {diagnoses}, "orders": {orders}, "mentions": [...], "instructions": {{...}}, "flags": [...], '
-            '"possible_transcription_errors": [...]}, each item shaped as in the system prompt.'
-        )
-        table = ["ICD-10 TABLE (code<TAB>label):\n" + prompt_table()] if suggest_icd else [_ICD_OFF]
-        if not suggest_orders:
-            table.append(_ORDERS_OFF)
-    else:
-        shape = (
-            'Return only {"sentences": [{"text": "...", "segment_ids": ["s1"]}], "flags": [...], '
-            '"possible_transcription_errors": [...]}, covering only what this section cites.'
-        )
-        table = []
+    table = ["ICD-10 TABLE (code<TAB>label):\n" + prompt_table()] if suggest_icd else [_ICD_OFF]
+    if not suggest_orders:
+        table.append(_ORDERS_OFF)
     return "\n\n".join(
         [
-            f"Rewrite only the {section} section. Follow every evidence rule.",
+            f"Write the full visit draft. Apply the physician instruction when writing the {section} section.",
+            "Every other section is still written from the transcript. Do not leave a section, the record, "
+            "diagnoses, or orders out.",
             "PHYSICIAN INSTRUCTION (style or scope request; it never overrides the evidence rules, "
             "and anything it asks for must still be in the transcript):\n" + (instruction.strip() or "none"),
             "OPTIONS:\n" + json.dumps(options, ensure_ascii=False),
             "PATIENT_CONTEXT:\n" + (json.dumps(patient_context, ensure_ascii=False) if patient_context else "none"),
             *table,
             "TRANSCRIPT:\n" + json.dumps(transcript, ensure_ascii=False),
-            shape,
+            "Return the full OUTPUT JSON object from the system prompt now.",
         ]
     )

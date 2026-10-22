@@ -216,8 +216,20 @@ async def generate_draft(transcript: list[TranscriptItem], options: NoteOptions)
     return enforce_evidence(raw, transcript, options)
 
 
-_PLAN_ONLY_KEYS = ("diagnoses", "orders", "mentions", "instructions")
-_SECTION_KEYS = ("flags", "possible_transcription_errors")
+def _merge_regenerate_overlay(raw: dict[str, Any], overlay: dict[str, Any], section: str) -> dict[str, Any]:
+    """Keep the full draft, and replace the section the physician asked to rewrite."""
+    sections = raw.get("sections")
+    if not isinstance(sections, dict):
+        sections = {}
+        raw["sections"] = sections
+    sentences = overlay.get("sentences")
+    if isinstance(sentences, list):
+        sections[section] = {"sentences": sentences}
+    if section == "assessment_plan":
+        for key in ("diagnoses", "orders", "mentions", "instructions", "flags", "possible_transcription_errors"):
+            if key in overlay:
+                raw[key] = overlay[key]
+    return raw
 
 
 async def regenerate_section(
@@ -226,11 +238,14 @@ async def regenerate_section(
     section: str,
     instruction: str,
 ) -> DraftParts:
-    """Same evidence rules as the full draft, scoped to one section."""
+    """Full draft, with the physician instruction applied to one section. Same evidence rules as /draft."""
     segments = model_transcript(transcript)
+    model_options = {**_model_options(options), "patient_context": _context_payload(options)}
     if settings.use_llm_stub:
-        raw = ambient_stub.stub_regenerate(
-            segments, {**_model_options(options), "patient_context": _context_payload(options)}, section, instruction
+        raw = _merge_regenerate_overlay(
+            ambient_stub.stub_draft(segments, model_options),
+            ambient_stub.stub_regenerate(segments, model_options, section, instruction),
+            section,
         )
     else:
         raw = await complete_json(
@@ -249,25 +264,8 @@ async def regenerate_section(
                 patient_context=_context_payload(options),
             ),
         )
-    raw = raw if isinstance(raw, dict) else {}
-    keys = _SECTION_KEYS + (_PLAN_ONLY_KEYS if section == "assessment_plan" else ())
-    scoped = {key: raw.get(key) for key in keys}
-    scoped["sections"] = {section: {"sentences": raw.get("sentences")}}
-    if not settings.use_llm_stub:
-        fill_omitted_findings(scoped, transcript, only_section=section)
-    parts = enforce_evidence(scoped, transcript, options)
-    parts.sections = {section: parts.sections[section]}
-
-    cited = {seg_id for sentence in parts.sections[section] for seg_id in sentence.segment_ids}
-    for item in (*parts.diagnoses, *parts.orders, *parts.mentions):
-        cited.update(item.segment_ids)
-    parts.flags = [flag for flag in parts.flags if cited.intersection(flag.segment_ids)]
-    parts.transcription_errors = [
-        hint for hint in parts.transcription_errors if cited.intersection(hint.segment_ids)
-    ]
-    if section != "assessment_plan":
-        parts.instructions = None
-    return parts
+        raw = fill_omitted_findings(raw if isinstance(raw, dict) else {}, transcript)
+    return enforce_evidence(raw if isinstance(raw, dict) else {}, transcript, options)
 
 
 # --- Evidence rules --------------------------------------------------------

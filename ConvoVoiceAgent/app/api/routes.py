@@ -21,7 +21,6 @@ from app.models.schemas import (
     HealthResponse,
     NoteOptions,
     RegenerateRequest,
-    RegenerateResponse,
 )
 from app.services.agent_service import analyze_visit, draft_visit, ping_downstream, regenerate_visit_section
 
@@ -222,8 +221,9 @@ async def draft(request: Request) -> DraftResponse:
     )
 
 
-@router.post("/sections/regenerate", response_model=RegenerateResponse)
-async def regenerate_section(body: RegenerateRequest, request: Request) -> RegenerateResponse:
+@router.post("/sections/regenerate", response_model=DraftResponse)
+async def regenerate_section(body: RegenerateRequest, request: Request) -> DraftResponse:
+    started = time.perf_counter()
     auth_headers = _auth_headers(request)
     logger.info(
         "Ambient section regenerate requested",
@@ -238,6 +238,7 @@ async def regenerate_section(body: RegenerateRequest, request: Request) -> Regen
         section=body.section,
         instruction=body.instruction,
         options=NoteOptions.model_validate(body.model_dump(include=set(NoteOptions.model_fields))),
+        started=started,
     )
 
 
