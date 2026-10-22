@@ -665,6 +665,19 @@ def test_asklepios_enum_and_number_rules():
         "pain_assessment": {"painDegree": cite("mild", "s1"), "painLevel": cite("LEVEL_5", "s1")},
     }
     values, evidence = asklepios.clean_record(raw, texts, {"s2"}, asklepios.DRAFT_MODEL_GROUPS)
-    assert values["vital_sign"] == {"measurementSite": "LEFT_ARM", "fastingBloodGlucose": "95"}
-    assert values["pain_assessment"] == {"painDegree": "MILD"}  # 5 was not said in s1
+    assert values["vital_sign"] == {"measurementSite": "Upper Arm", "fastingBloodGlucose": "95"}
+    assert values["pain_assessment"] == {"painDegree": "MILD_MINOR"}  # 5 was not said in s1
     assert "vital_sign.edema" not in evidence and "vital_sign.temperature" not in evidence
+
+    lov_texts = {"s1": "Aching pain in the forearm. She walked in."}
+    lov = {
+        "vital_sign": {"measurementSite": cite("6862999602450259", "s1")},
+        "pain_assessment": {"painPattern": cite("PAIN_PAT_ACH", "s1")},
+        "nursing_assessment": {"modeOfArrival": cite("WALK_IN", "s1")},
+    }
+    values, _ = asklepios.clean_record(lov, lov_texts, set(), asklepios.DRAFT_MODEL_GROUPS)
+    assert values["vital_sign"]["measurementSite"] == "Forearm"  # the word, not the numeric key
+    assert values["pain_assessment"] == {"painPattern": "Aching"}
+    assert values["nursing_assessment"] == {"modeOfArrival": "AMBULATORY"}
+    dropped = {"pain_assessment": {"painPattern": cite("INTERMITTENT", "s1")}}
+    assert "pain_assessment" not in asklepios.clean_record(dropped, lov_texts, set(), asklepios.DRAFT_MODEL_GROUPS)[0]

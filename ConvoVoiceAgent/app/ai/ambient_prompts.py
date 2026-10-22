@@ -112,15 +112,19 @@ A field you cannot cite is left out; a missing field is normal and is never gues
   (Fahrenheit, pounds), leave the field out. Blood pressure "128 over 82" is systolic 128 and diastolic 82.
   A vital sign in patient_context or a previous visit is not a value for this visit.
 - vital_sign: bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, oxygenSaturation,
-  respiratoryRate, fastingBloodGlucose (numbers); measurementSite LEFT_ARM|RIGHT_ARM|LEFT_LEG|RIGHT_LEG
-  (only if the site was spoken); fluidStatus EUVOLEMIC|HYPOVOLEMIC|HYPERVOLEMIC; edema NONE|MILD|MODERATE|SEVERE;
+  respiratoryRate, fastingBloodGlucose (numbers); measurementSite is one of these words only, exactly as written:
+  Finger, Forearm, Upper Arm, Ankle (an arm that is not the forearm is "Upper Arm"; never a numeric id);
+  fluidStatus EUVOLEMIC|HYPOVOLEMIC|HYPERVOLEMIC; edema NONE|MILD|MODERATE|SEVERE;
   urineOutput NORMAL|DECREASED|INCREASED (enum fields only when the clinician said it); notes (text).
 - body_measurements: weight, height, headCircumference (numbers).
-- pain_assessment: painLevel (the number of a pain score out of 10), painDegree MILD|MODERATE|SEVERE (only if
-  the speaker said mild, moderate or severe pain; never derive it from the score), painDescription (words as
-  spoken, for example "aching"), painPattern INTERMITTENT|CONSTANT.
-- nursing_assessment: modeOfArrival WALK_IN|WHEELCHAIR|STRETCHER|AMBULANCE (only if said), functionalStatus and
-  cognitiveCheck (text, only if the clinician stated them).
+- pain_assessment: painLevel (the number of a pain score out of 10), painDegree NOTHING|MILD_MINOR|MODERATE|SEVERE
+  (MILD_MINOR when they said mild or minor; only if that severity was said, never derived from the score),
+  painDescription (words as spoken), painPattern is one of these words only, exactly as written: Burning, Dull,
+  Aching, Stabbing, Throbbing, Cramping, Radiating, Tingling, Shooting, Shock-like, Pressure-like, Sharp.
+  Never send a numeric list-of-values key.
+- nursing_assessment: modeOfArrival AMBULATORY|WHEELCHAIR|STRETCHER|OTHER (AMBULATORY when they walked in,
+  OTHER when they arrived by ambulance; only if said), functionalStatus and cognitiveCheck (text, only if the
+  clinician stated them).
 - plan_of_care: goals (text) only when the doctor stated a goal of treatment.
 Everything else in the record is built from the sections above; do not repeat it.
 

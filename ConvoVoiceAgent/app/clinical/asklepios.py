@@ -22,17 +22,57 @@ from typing import Any, Iterable, Mapping
 _NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
 _EPS = 1e-9
 
-# Enum values. Confirmed = appears in the backend's sample payloads; the rest are assumed siblings.
-# Keep this table in step with the backend: a value that is not listed here is dropped, never sent.
+# Values Asklepios stores. A LOV field is sent as the label word (Upper Arm, Aching), never the numeric key.
+# Enum fields are sent as the enum word (MILD_MINOR, AMBULATORY). Anything else is dropped.
 ENUMS: dict[str, frozenset[str]] = {
-    "measurementSite": frozenset({"LEFT_ARM", "RIGHT_ARM", "LEFT_LEG", "RIGHT_LEG"}),  # confirmed: LEFT_ARM
-    "fluidStatus": frozenset({"EUVOLEMIC", "HYPOVOLEMIC", "HYPERVOLEMIC"}),  # confirmed: EUVOLEMIC
-    "edema": frozenset({"NONE", "MILD", "MODERATE", "SEVERE"}),  # confirmed: NONE
-    "urineOutput": frozenset({"NORMAL", "DECREASED", "INCREASED"}),  # confirmed: NORMAL
-    "painDegree": frozenset({"MILD", "MODERATE", "SEVERE"}),  # confirmed: MODERATE
-    "painPattern": frozenset({"INTERMITTENT", "CONSTANT"}),  # confirmed: INTERMITTENT
-    "painAssessmentType": frozenset({"NUMERIC", "FACES"}),  # confirmed: NUMERIC
-    "modeOfArrival": frozenset({"WALK_IN", "WHEELCHAIR", "STRETCHER", "AMBULANCE"}),  # confirmed: WALK_IN
+    "measurementSite": frozenset({"Finger", "Forearm", "Upper Arm", "Ankle"}),
+    "fluidStatus": frozenset({"EUVOLEMIC", "HYPOVOLEMIC", "HYPERVOLEMIC"}),
+    "edema": frozenset({"NONE", "MILD", "MODERATE", "SEVERE"}),
+    "urineOutput": frozenset({"NORMAL", "DECREASED", "INCREASED"}),
+    "painDegree": frozenset({"NOTHING", "MILD_MINOR", "MODERATE", "SEVERE"}),
+    "painPattern": frozenset({
+        "Burning", "Dull", "Aching", "Stabbing", "Throbbing", "Cramping", "Radiating",
+        "Tingling", "Shooting", "Shock-like", "Pressure-like", "Sharp",
+    }),
+    "painAssessmentType": frozenset({"NUMERIC", "FACES"}),
+    "modeOfArrival": frozenset({"AMBULATORY", "WHEELCHAIR", "STRETCHER", "OTHER"}),
+}
+
+# Spoken or model wording -> the value to send. Keys are letters and digits only, uppercased.
+_ALIASES: dict[str, dict[str, str]] = {
+    "measurementSite": {
+        "FINGER": "Finger", "BPFINGER": "Finger",
+        "FOREARM": "Forearm", "BPFOREARM": "Forearm",
+        "UPPERARM": "Upper Arm", "ARM": "Upper Arm", "LEFTARM": "Upper Arm", "RIGHTARM": "Upper Arm",
+        "BPUPPERARM": "Upper Arm",
+        "ANKLE": "Ankle", "BPANKLE": "Ankle",
+    },
+    "painDegree": {
+        "NOTHING": "NOTHING", "NOPAIN": "NOTHING", "NONE": "NOTHING",
+        "MILD": "MILD_MINOR", "MINOR": "MILD_MINOR", "MILDMINOR": "MILD_MINOR",
+        "MODERATE": "MODERATE", "SEVERE": "SEVERE",
+    },
+    "painPattern": {
+        "BURNING": "Burning", "BURN": "Burning", "PAINPATBURN": "Burning",
+        "DULL": "Dull", "PAINPATDULL": "Dull",
+        "ACHING": "Aching", "ACHE": "Aching", "PAINPATACH": "Aching",
+        "STABBING": "Stabbing", "STAB": "Stabbing", "PAINPATSTABB": "Stabbing",
+        "THROBBING": "Throbbing", "THROB": "Throbbing", "PAINPATTHROB": "Throbbing",
+        "CRAMPING": "Cramping", "CRAMP": "Cramping", "PAINPATCRAMP": "Cramping",
+        "RADIATING": "Radiating", "RADIATE": "Radiating", "PAINPATRADI": "Radiating",
+        "TINGLING": "Tingling", "TINGLE": "Tingling", "PAINPATTING": "Tingling",
+        "SHOOTING": "Shooting", "SHOOT": "Shooting", "PAINPATSHOOT": "Shooting",
+        "SHOCKLIKE": "Shock-like", "SHOCK": "Shock-like", "PAINPATSHOCK": "Shock-like",
+        "PRESSURELIKE": "Pressure-like", "PRESSURE": "Pressure-like", "PRESSING": "Pressure-like",
+        "PAINPATPRESS": "Pressure-like",
+        "SHARP": "Sharp", "PAINPATSHARP": "Sharp",
+    },
+    "modeOfArrival": {
+        "AMBULATORY": "AMBULATORY", "WALKIN": "AMBULATORY", "WALKING": "AMBULATORY", "WALKED": "AMBULATORY",
+        "WHEELCHAIR": "WHEELCHAIR",
+        "STRETCHER": "STRETCHER",
+        "OTHER": "OTHER", "AMBULANCE": "OTHER",
+    },
 }
 
 
@@ -41,14 +81,18 @@ ENUMS: dict[str, frozenset[str]] = {
 _ENUM_CUES: dict[str, re.Pattern[str]] = {
     name: re.compile(pattern, re.IGNORECASE)
     for name, pattern in {
-        "measurementSite": r"\b(?:arm|leg|left|right)\b|ذراع|يد|رجل|يمين|يسار",
+        "measurementSite": r"\b(?:finger|forearm|upper\s+arm|arms?|ankle)s?\b|اصبع|إصبع|ساعد|ذراع|كاحل",
         "fluidStatus": r"fluid|volume|hydrat|euvol|hypovol|hypervol|سوائل|جفاف",
         "edema": r"edema|oedema|swell|swollen|puff|وذمة|تورم|انتفاخ",
         "urineOutput": r"urin|output|pee|void|بول|تبول",
-        "painDegree": r"\b(?:mild|moderate|severe|slight|bad|terrible|unbearable)\b|خفيف|متوسط|شديد|قوي",
-        "painPattern": r"intermittent|constant|continuous|comes and goes|on and off|all the time|متقطع|مستمر|دائم",
+        "painDegree": r"\b(?:no\s+pain|nothing|mild|minor|moderate|severe)\b|خفيف|متوسط|شديد|بدون ألم",
+        "painPattern": (
+            r"\b(?:burn(?:ing|s)?|dull|ach(?:e|ing|es)?|stabb(?:ing)?|throb(?:bing)?|cramp(?:ing)?|"
+            r"radiat(?:e|ing)|tingl(?:e|ing)|shoot(?:ing)?|shock(?:-|\s)?like|pressure(?:-|\s)?like|sharp)\b"
+            r"|حرق|خافت|مؤلم|طعن|نابض|تشنج|منتشر|وخز|حاد"
+        ),
         "painAssessmentType": r"out of|/\s*10|scale|score|face|مقياس|من 10",
-        "modeOfArrival": r"walk|wheelchair|stretcher|ambulance|carried|brought|came|إسعاف|كرسي|نقالة|مشي",
+        "modeOfArrival": r"\b(?:walk(?:ed|ing)?|ambulatory|wheelchair|stretcher|ambulance|other)\b|مشي|إسعاف|كرسي|نقالة",
     }.items()
 }
 
@@ -184,6 +228,65 @@ def _plain(number: float) -> int | float:
     return int(round(number)) if abs(number - round(number)) < _EPS else round(number, 2)
 
 
+def _compact(value: Any) -> str:
+    return re.sub(r"[^A-Za-z0-9]", "", str(value or "")).upper()
+
+
+# For a LOV word, the cited line must actually say that thing. "Finger" cannot rest on a line about the arm.
+_VALUE_CUES: dict[str, re.Pattern[str]] = {
+    word: re.compile(pattern, re.IGNORECASE)
+    for word, pattern in {
+        "Finger": r"\bfingers?\b|اصبع|إصبع",
+        "Forearm": r"\bforearms?\b|ساعد",
+        "Upper Arm": r"\b(?:upper\s+arm|arms?)\b|ذراع",
+        "Ankle": r"\bankles?\b|كاحل",
+        "Burning": r"\bburn(?:ing|s)?\b|حرق",
+        "Dull": r"\bdull\b",
+        "Aching": r"\bach(?:e|ing|es)?\b",
+        "Stabbing": r"\bstabb(?:ing|ed)?\b",
+        "Throbbing": r"\bthrob(?:bing|s)?\b",
+        "Cramping": r"\bcramp(?:ing|s)?\b",
+        "Radiating": r"\bradiat(?:e|ing|es)?\b",
+        "Tingling": r"\btingl(?:e|ing)\b",
+        "Shooting": r"\bshoot(?:ing|s)?\b",
+        "Shock-like": r"\bshock(?:-|\s)?like\b",
+        "Pressure-like": r"\bpressure(?:-|\s)?like\b|\bpress(?:ing|ure)\b",
+        "Sharp": r"\bsharp\b",
+    }.items()
+}
+
+
+def _enum_value(name: str, value: Any, heard: str) -> str | None:
+    """Map model wording onto the Asklepios value. LOV fields return the label, never the numeric key."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return _single_spoken_word(name, heard)
+    text = str(value or "").strip()
+    if _compact(text).isdigit():
+        return _single_spoken_word(name, heard)
+    allowed = ENUMS.get(name, frozenset())
+    if text in allowed:
+        return text
+    aliases = _ALIASES.get(name, {})
+    compact = _compact(text)
+    if compact in aliases:
+        return aliases[compact]
+    folded = text.casefold()
+    for word in allowed:
+        if word.casefold() == folded:
+            return word
+    return None
+
+
+def _single_spoken_word(name: str, heard: str) -> str | None:
+    """When the model sends only a numeric key, use the one label the cited line actually says."""
+    matched = [
+        word
+        for word in ENUMS.get(name, ())
+        if (cue := _VALUE_CUES.get(word)) is not None and cue.search(heard)
+    ]
+    return matched[0] if len(matched) == 1 else None
+
+
 def _coerce(spec: Spec, name: str, value: Any, spoken: set[float], heard: str) -> Any:
     if spec.kind == "text":
         text = str(value or "").strip()
@@ -191,11 +294,14 @@ def _coerce(spec: Spec, name: str, value: Any, spoken: set[float], heard: str) -
             return None
         return text if _numbers(text) <= spoken else None  # a number in free text must have been said
     if spec.kind == "enum":
-        key = re.sub(r"[\s\-]+", "_", str(value or "").strip().upper())
-        if key not in ENUMS.get(name, frozenset()):
+        sent = _enum_value(name, value, heard)
+        if sent is None:
             return None
+        value_cue = _VALUE_CUES.get(sent)
+        if value_cue is not None:
+            return sent if value_cue.search(heard) else None
         cue = _ENUM_CUES.get(name)
-        return key if cue is None or cue.search(heard) else None
+        return sent if cue is None or cue.search(heard) else None
 
     number = _to_float(value)
     if number is None or not _spoken(number, spoken):

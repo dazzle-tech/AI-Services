@@ -44,15 +44,17 @@ cite is left out; a missing field is normal and is never guessed, defaulted or c
   kilograms, height in centimetres: if a value was said in another unit (Fahrenheit, pounds), leave it out.
   Blood pressure "128 over 82" is systolic 128 and diastolic 82. Chart values are not values for this visit.
 - vital_sign: bloodPressureSystolic, bloodPressureDiastolic, heartRate, temperature, oxygenSaturation,
-  respiratoryRate, fastingBloodGlucose (numbers); measurementSite LEFT_ARM|RIGHT_ARM|LEFT_LEG|RIGHT_LEG;
+  respiratoryRate, fastingBloodGlucose (numbers); measurementSite is one of these words only: Finger, Forearm,
+  Upper Arm, Ankle (an arm that is not the forearm is "Upper Arm"; never a numeric id);
   fluidStatus EUVOLEMIC|HYPOVOLEMIC|HYPERVOLEMIC; edema NONE|MILD|MODERATE|SEVERE;
   urineOutput NORMAL|DECREASED|INCREASED (enum fields only when the clinician said it); notes (text).
 - body_measurements: weight, height, headCircumference (numbers).
-- pain_assessment: painLevel (the number of a pain score out of 10), painDegree MILD|MODERATE|SEVERE (only if
-  mild, moderate or severe pain was said; never derived from the score), painDescription (words as spoken),
-  painPattern INTERMITTENT|CONSTANT.
-- nursing_assessment: modeOfArrival WALK_IN|WHEELCHAIR|STRETCHER|AMBULANCE, functionalStatus, cognitiveCheck
-  (only if said).
+- pain_assessment: painLevel (the number of a pain score out of 10), painDegree NOTHING|MILD_MINOR|MODERATE|SEVERE
+  (MILD_MINOR when they said mild or minor; never derived from the score), painDescription (words as spoken),
+  painPattern is one of these words only: Burning, Dull, Aching, Stabbing, Throbbing, Cramping, Radiating,
+  Tingling, Shooting, Shock-like, Pressure-like, Sharp. Never send a numeric list-of-values key.
+- nursing_assessment: modeOfArrival AMBULATORY|WHEELCHAIR|STRETCHER|OTHER (AMBULATORY when they walked in,
+  OTHER for an ambulance), functionalStatus, cognitiveCheck (only if said).
 - assessment: the field "assessment" (text) only if the doctor stated an impression. plan_of_care: the fields
   goals and treatmentPlan (text) only if the doctor stated them, in the doctor's words.
 
