@@ -729,7 +729,7 @@ def test_omitted_exam_findings_and_dictated_history_are_added():
         line("s4", "patient", "No nausea. Light bothers me a little. My daughter says I have not been eating well since yesterday."),
         line(
             "s7",
-            "doctor",
+            "patient",
             "Let me examine you. You are alert and neurologically normal. No fever on my touch. "
             "I will record your vitals now. Temperature 36.8 Celsius. Blood pressure 122 over 78. Pulse 72.",
         ),
@@ -886,3 +886,79 @@ def test_unspoken_negatives_are_removed_and_pain_words_stay():
     )
     assert named.sections["physical_exam"] == []
     assert named.sections["review_of_systems"][0].text == "Neurological: No nausea."
+
+
+def test_chart_only_words_and_pasted_transcript_lines_are_dropped():
+    from app.models.schemas import NoteOptions, PatientContext, TranscriptItem
+    from app.services.ambient_draft import enforce_evidence
+
+    def line(seg_id, speaker, text):
+        return TranscriptItem(id=seg_id, speaker=speaker, start_ms=0, end_ms=1, text=text)
+
+    transcript = [
+        line("s2", "patient", "Good morning, my name is Sarah Johnson, I have been having a headache for 3 days."),
+        line(
+            "s10",
+            "patient",
+            "I can find blood pressure, I take him a bit on 5 million every morning, I have no medication allergies.",
+        ),
+        line(
+            "s13",
+            "doctor",
+            "I will check your vital signs. Your temperature is 36.7 degrees Celsius, blood pressure is 128 over 82, pulse is 76.",
+        ),
+    ]
+    raw = {
+        "sections": {
+            "chief_complaint": {"sentences": [{"text": "Headache for 3 days.", "segment_ids": ["s2"]}]},
+            "hpi": {
+                "sentences": [
+                    {
+                        "text": "Good morning, my name is Sarah Johnson, I have been having a headache for 3 days.",
+                        "segment_ids": ["s2"],
+                    },
+                    {
+                        "text": "History: Essential (primary) hypertension; takes lisinopril 10 mg once daily.",
+                        "segment_ids": ["s10"],
+                    },
+                    {
+                        "text": "I can find blood pressure, I take him a bit on 5 million every morning, I have no medication allergies.",
+                        "segment_ids": ["s10"],
+                    },
+                ]
+            },
+            "physical_exam": {
+                "sentences": [
+                    {
+                        "text": "Vitals: temperature 36.7 degrees Celsius, blood pressure 128 over 82, pulse 76.",
+                        "segment_ids": ["s13"],
+                    },
+                    {
+                        "text": "I will check your vital signs. Your temperature is 36.7 degrees Celsius, blood pressure is 128 over 82, pulse is 76.",
+                        "segment_ids": ["s13"],
+                    },
+                ]
+            },
+        },
+        "mentions": [{"kind": "allergy", "text": "penicillin", "segment_ids": ["s10"]}],
+        "orders": [{"kind": "medication", "payload": {"name": "lisinopril", "dose": "10 mg"}, "segment_ids": ["s10"]}],
+    }
+    parts = enforce_evidence(
+        raw,
+        transcript,
+        NoteOptions(
+            patient_context=PatientContext(
+                chronic_diseases=["Essential (primary) hypertension"],
+                active_medications=["lisinopril 10 mg once daily"],
+                allergies=["penicillin"],
+            )
+        ),
+    )
+    hpi = [sentence.text for sentence in parts.sections["hpi"]]
+    exam = [sentence.text for sentence in parts.sections["physical_exam"]]
+    assert hpi == [
+        "I can find blood pressure, I take him a bit on 5 million every morning, I have no medication allergies."
+    ]
+    assert exam == ["Vitals: temperature 36.7 degrees Celsius, blood pressure 128 over 82, pulse 76."]
+    assert parts.mentions == []
+    assert parts.orders == []

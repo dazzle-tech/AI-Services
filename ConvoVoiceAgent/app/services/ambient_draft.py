@@ -285,7 +285,8 @@ _CLAUSE_SPLIT = re.compile(
 _SKIP_CLAUSE = re.compile(
     r"^(?:good (?:morning|afternoon|evening)|hello|hi\b|thank(?:s| you)|i am (?:dr|doctor)\b|"
     r"let me\b|i will\b|i'll\b|i am going to\b|for measurements\b|the nurse will\b|"
-    r"what brings you\b|should i worry\b|not (?:to )?day\b|summary for your chart\b|note\b)",
+    r"what brings you\b|should i worry\b|not (?:to )?day\b|summary for your chart\b|note\b|"
+    r"(?:dr|doctor)\.?$)",
     re.IGNORECASE,
 )
 _NUMBER_WORDS = {
@@ -311,6 +312,11 @@ _STOP = frozenset(
 _PATIENT_REPORT = re.compile(r"\bpatient reports\b", re.IGNORECASE)
 _PLAN_CLAUSE = re.compile(r"\b(?:plan is|follow[- ]?up|return sooner|as needed)\b", re.IGNORECASE)
 _ASSESSMENT_CLAUSE = re.compile(r"\b(?:impression|diagnosis|without red flags)\b", re.IGNORECASE)
+_CLINICIAN_CLAUSE = re.compile(
+    r"\b(?:temperature|blood pressure|pulse|oxygen saturation|respiratory rate|weight|height|"
+    r"head circumference|alert|neurologically|on my touch)\b",
+    re.IGNORECASE,
+)
 
 
 def _clauses(text: str) -> list[str]:
@@ -350,7 +356,10 @@ def _covered(clause: str, corpus: str) -> bool:
 
 
 def _place(clause: str, speaker: str) -> tuple[str, str | None]:
-    if _PATIENT_REPORT.search(clause) or speaker != "doctor":
+    """Speaker labels from plain Whisper alternate and are often wrong, so exam wording wins."""
+    if _PATIENT_REPORT.search(clause):
+        return "hpi", None
+    if speaker != "doctor" and not _CLINICIAN_CLAUSE.search(clause):
         return "hpi", None
     if _PLAN_CLAUSE.search(clause):
         return "assessment_plan", "plan"
@@ -532,6 +541,85 @@ def _without_unspoken_negatives(text: str, source: str) -> str:
     return result
 
 
+_CHART_GENERIC = frozenset(
+    """once daily every morning evening night tablet tablets capsule capsules milligram milligrams
+    oral dose doses primary essential chronic active continued review blood pressure""".split()
+)
+
+
+def _chart_words_not_spoken(context: PatientContext | None, transcript: list[TranscriptItem]) -> set[str]:
+    """Drug, allergy and disease words that are only on the chart, not in this visit's transcript."""
+    if context is None:
+        return set()
+    spoken = set(_content_words(" ".join(item.text for item in transcript)))
+    absent: set[str] = set()
+    for phrase in (*context.chronic_diseases, *context.active_medications, *context.allergies):
+        for word in _content_words(str(phrase)):
+            if word in _CHART_GENERIC or any(char.isdigit() for char in word) or len(word) < 5:
+                continue
+            if word not in spoken:
+                absent.add(word)
+    return absent
+
+
+def _drop_unspoken_chart_words(parts: DraftParts, absent: set[str]) -> None:
+    """A chart allergy or medicine that nobody said is not a finding, a mention or an order."""
+    if not absent:
+        return
+
+    def uses_chart(text: str) -> bool:
+        return bool(absent.intersection(_content_words(text)))
+
+    for name, sentences in parts.sections.items():
+        parts.sections[name] = [sentence for sentence in sentences if not uses_chart(sentence.text)]
+    parts.mentions = [mention for mention in parts.mentions if not uses_chart(mention.text)]
+    parts.orders = [
+        order
+        for order in parts.orders
+        if not uses_chart(" ".join(str(value) for value in order.payload.values()))
+    ]
+    instructions = parts.instructions
+    if instructions is not None and instructions.text and uses_chart(instructions.text):
+        kept = [clause for clause in _clauses(instructions.text) if not uses_chart(clause)]
+        instructions.text = " ".join(kept)
+        if not instructions.text:
+            instructions.segment_ids = []
+
+
+def _is_segment_paste(text: str, source: str) -> bool:
+    """True when a sentence repeats the transcript line, not when it only summarizes it."""
+    words = set(_content_words(text))
+    source_words = _content_words(source)
+    if len(source_words) < 6 or len(words) < 6:
+        return False
+    return sum(word in words for word in source_words) / len(source_words) >= 0.85
+
+
+def _drop_pasted_transcript_lines(
+    sections: dict[str, list[Sentence]],
+    by_id: dict[str, TranscriptItem],
+    questions: set[str],
+) -> None:
+    """Drop a raw transcript paste when another sentence already cites that segment."""
+    for name, sentences in list(sections.items()):
+        if name == "chief_complaint":
+            continue
+        kept: list[Sentence] = []
+        for sentence in sentences:
+            source = _answer_text(sentence.segment_ids, by_id, questions)
+            pasted = _is_segment_paste(sentence.text, source)
+            cited = set(sentence.segment_ids)
+            used_elsewhere = any(
+                other is not sentence and cited.intersection(other.segment_ids)
+                for group in sections.values()
+                for other in group
+            )
+            if pasted and used_elsewhere:
+                continue
+            kept.append(sentence)
+        sections[name] = kept
+
+
 def _drop_unspoken_negatives(
     sections: dict[str, list[Sentence]],
     by_id: dict[str, TranscriptItem],
@@ -682,6 +770,8 @@ def enforce_evidence(raw: dict[str, Any], transcript: list[TranscriptItem], opti
     _fill_spoken_pain_description(parts, transcript, questions)
     _fill_spoken_numbers(parts, transcript, questions)
     _restore_heard_wording(parts)
+    _drop_unspoken_chart_words(parts, _chart_words_not_spoken(options.patient_context, transcript))
+    _drop_pasted_transcript_lines(parts.sections, by_id, questions)
     if not options.suggest_icd10:
         parts.diagnoses = []
     if not options.suggest_orders:

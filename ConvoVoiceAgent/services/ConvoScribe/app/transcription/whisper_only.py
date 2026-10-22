@@ -10,16 +10,29 @@ from app.core.config import settings
 from app.transcription.base import DiarizedSegment, TranscriptionService
 
 
+def _whisper_runtime() -> tuple[str, str]:
+    """Use the GPU when this machine has one. CPU stays on int8."""
+    try:
+        import ctranslate2
+
+        if ctranslate2.get_cuda_device_count() > 0:
+            return "cuda", "float16"
+    except Exception:
+        pass
+    return "cpu", "int8"
+
+
 class WhisperOnlyTranscriptionService(TranscriptionService):
     """Transcribe real audio with faster-whisper; alternate speakers per segment."""
 
     def __init__(self) -> None:
         from faster_whisper import WhisperModel
 
+        device, compute_type = _whisper_runtime()
         self._whisper = WhisperModel(
             settings.whisper_model_size,
-            device="cpu",
-            compute_type="int8",
+            device=device,
+            compute_type=compute_type,
         )
 
     def transcribe_and_diarize(self, audio_bytes: bytes, filename: str) -> List[DiarizedSegment]:
@@ -29,7 +42,14 @@ class WhisperOnlyTranscriptionService(TranscriptionService):
             audio_path = tmp.name
 
         try:
-            whisper_segments, _ = self._whisper.transcribe(audio_path, word_timestamps=False)
+            whisper_segments, _ = self._whisper.transcribe(
+                audio_path,
+                word_timestamps=False,
+                vad_filter=True,
+                beam_size=5,
+                temperature=0.0,
+                condition_on_previous_text=False,
+            )
             raw_segments: List[DiarizedSegment] = []
             for index, segment in enumerate(whisper_segments):
                 text = segment.text.strip()
