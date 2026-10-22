@@ -67,9 +67,10 @@ class NoteOptions(BaseModel):
     note_length: NoteLength = "standard"
     note_form: NoteForm = "prose"
     patient_context: Optional[PatientContext] = None
-    # Echoed into the record payloads. This service never looks them up or checks them.
-    patient_id: Optional[int] = None
-    encounter_id: Optional[int] = None
+    # When true, diagnoses carry an ICD-10 code from the local table. When false, diagnoses is empty.
+    suggest_icd10: bool = True
+    # When true, orders lists suggested orders. When false, orders is empty. The plan text is written either way.
+    suggest_orders: bool = True
 
     @property
     def resolved_instruction_language(self) -> str:

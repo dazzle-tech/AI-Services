@@ -184,6 +184,8 @@ def _model_options(options: NoteOptions) -> dict[str, Any]:
         "specialty": options.specialty,
         "note_length": options.note_length,
         "note_form": options.note_form,
+        "suggest_icd10": options.suggest_icd10,
+        "suggest_orders": options.suggest_orders,
     }
 
 
@@ -200,12 +202,17 @@ async def generate_draft(transcript: list[TranscriptItem], options: NoteOptions)
     else:
         raw = await complete_json(
             system_prompt=build_system_prompt(
-                specialty=options.specialty, note_length=options.note_length, note_form=options.note_form
+                specialty=options.specialty,
+                note_length=options.note_length,
+                note_form=options.note_form,
+                suggest_icd10=options.suggest_icd10,
+                suggest_orders=options.suggest_orders,
             ),
             user_prompt=build_draft_user_prompt(
                 transcript=segments, options=_model_options(options), patient_context=_context_payload(options)
             ),
         )
+        raw = fill_omitted_findings(raw if isinstance(raw, dict) else {}, transcript)
     return enforce_evidence(raw, transcript, options)
 
 
@@ -228,7 +235,11 @@ async def regenerate_section(
     else:
         raw = await complete_json(
             system_prompt=build_system_prompt(
-                specialty=options.specialty, note_length=options.note_length, note_form=options.note_form
+                specialty=options.specialty,
+                note_length=options.note_length,
+                note_form=options.note_form,
+                suggest_icd10=options.suggest_icd10,
+                suggest_orders=options.suggest_orders,
             ),
             user_prompt=build_regenerate_user_prompt(
                 section=section,
@@ -242,6 +253,8 @@ async def regenerate_section(
     keys = _SECTION_KEYS + (_PLAN_ONLY_KEYS if section == "assessment_plan" else ())
     scoped = {key: raw.get(key) for key in keys}
     scoped["sections"] = {section: {"sentences": raw.get("sentences")}}
+    if not settings.use_llm_stub:
+        fill_omitted_findings(scoped, transcript, only_section=section)
     parts = enforce_evidence(scoped, transcript, options)
     parts.sections = {section: parts.sections[section]}
 
@@ -263,6 +276,148 @@ async def regenerate_section(
 def _is_question_only(text: str) -> bool:
     parts = [part.strip() for part in _UTTERANCE_RE.findall(text) if part.strip()]
     return bool(parts) and all(part.endswith(("?", "؟")) for part in parts)
+
+
+_CLAUSE_SPLIT = re.compile(
+    r"\s*;\s*|(?<=[.!?؟])\s+|\s*--\s*|\bNote\.?-?\s*|\bSummary for your chart[:.]?\s*",
+    re.IGNORECASE,
+)
+_SKIP_CLAUSE = re.compile(
+    r"^(?:good (?:morning|afternoon|evening)|hello|hi\b|thank(?:s| you)|i am (?:dr|doctor)\b|"
+    r"let me\b|i will\b|i'll\b|i am going to\b|for measurements\b|the nurse will\b|"
+    r"what brings you\b|should i worry\b|not (?:to )?day\b|summary for your chart\b|note\b)",
+    re.IGNORECASE,
+)
+_NUMBER_WORDS = {
+    "zero": "0",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+}
+_NUMBER_WORD = re.compile(r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten)\b", re.IGNORECASE)
+_TOKEN = re.compile(r"[^\W_]+(?:\.[^\W_]+)?", re.UNICODE)
+_STOP = frozenset(
+    """a an the and or of to for with on in at by from you your i me my we our is are was were be been
+    being it this that these those as not no but if so just about into over after before when while have
+    has had he she they them his her their do did does will would can am mostly""".split()
+)
+_PATIENT_REPORT = re.compile(r"\bpatient reports\b", re.IGNORECASE)
+_PLAN_CLAUSE = re.compile(r"\b(?:plan is|follow[- ]?up|return sooner|as needed)\b", re.IGNORECASE)
+_ASSESSMENT_CLAUSE = re.compile(r"\b(?:impression|diagnosis|without red flags)\b", re.IGNORECASE)
+
+
+def _clauses(text: str) -> list[str]:
+    clauses = []
+    for part in _CLAUSE_SPLIT.split(text):
+        clause = part.strip(" \t-;:")
+        if clause:
+            clauses.append(clause if clause[-1] in ".!?؟" else clause + ".")
+    return clauses
+
+
+def _normalize_numbers(text: str) -> str:
+    return _NUMBER_WORD.sub(lambda match: _NUMBER_WORDS[match.group(0).lower()], text)
+
+
+def _content_words(text: str) -> list[str]:
+    return [
+        word
+        for word in _TOKEN.findall(_normalize_numbers(text).lower())
+        if word not in _STOP and (len(word) >= 3 or any(char.isdigit() for char in word))
+    ]
+
+
+def _covered(clause: str, corpus: str) -> bool:
+    """True when the note already carries this clause's words and every number in it."""
+    words = _content_words(clause)
+    if not words:
+        return True
+    present = set(_content_words(corpus))
+    numbers = [word for word in words if any(char.isdigit() for char in word)]
+    if any(number not in present for number in numbers):
+        return False
+    rest = [word for word in words if word not in numbers]
+    if not rest:
+        return True
+    return sum(word in present for word in rest) / len(rest) >= 0.75
+
+
+def _place(clause: str, speaker: str) -> tuple[str, str | None]:
+    if _PATIENT_REPORT.search(clause) or speaker != "doctor":
+        return "hpi", None
+    if _PLAN_CLAUSE.search(clause):
+        return "assessment_plan", "plan"
+    if _ASSESSMENT_CLAUSE.search(clause):
+        return "assessment_plan", "assessment"
+    return "physical_exam", None
+
+
+def _note_corpus(raw: dict[str, Any], *, instructions: bool = True) -> str:
+    """Sentences, and the instructions unless a plan line is being checked."""
+    chunks: list[str] = []
+    sections = raw.get("sections") if isinstance(raw.get("sections"), dict) else {}
+    for section in sections.values():
+        items = section.get("sentences") if isinstance(section, dict) else section
+        if isinstance(items, list):
+            chunks.extend(str(item.get("text") or "") for item in items if isinstance(item, dict))
+    if instructions:
+        block = raw.get("instructions")
+        if isinstance(block, dict):
+            chunks.append(str(block.get("text") or ""))
+    return " ".join(chunks)
+
+
+def fill_omitted_findings(
+    raw: dict[str, Any],
+    transcript: list[TranscriptItem],
+    *,
+    only_section: str | None = None,
+) -> dict[str, Any]:
+    """Add spoken findings the note model left out, in the words that were said.
+
+    A clause already written in the note is left alone. Instructions do not hide a return precaution from the plan.
+    Greetings, questions, and talk about what the clinician is about to do are not findings.
+    """
+    sections = raw.get("sections")
+    if not isinstance(sections, dict):
+        sections = {}
+        raw["sections"] = sections
+    corpus = _note_corpus(raw)
+    plan_corpus = _note_corpus(raw, instructions=False)
+    for item in transcript:
+        if _is_question_only(item.text):
+            continue
+        for clause in _clauses(item.text):
+            if clause.endswith(("?", "؟")):
+                continue
+            section, part = _place(clause, item.speaker)
+            covered_by = plan_corpus if section == "assessment_plan" else corpus
+            if (_SKIP_CLAUSE.match(clause) and not any(char.isdigit() for char in clause)) or _covered(clause, covered_by):
+                continue
+            if only_section is not None and section != only_section:
+                continue
+            bucket = sections.get(section)
+            if not isinstance(bucket, dict):
+                bucket = {"sentences": []}
+                sections[section] = bucket
+            sentences = bucket.get("sentences")
+            if not isinstance(sentences, list):
+                sentences = []
+                bucket["sentences"] = sentences
+            sentence: dict[str, Any] = {"text": clause, "segment_ids": [item.id]}
+            if part:
+                sentence["part"] = part
+            sentences.append(sentence)
+            corpus = f"{corpus} {clause}"
+            plan_corpus = f"{plan_corpus} {clause}"
+    return raw
 
 
 def question_only_ids(transcript: list[TranscriptItem]) -> set[str]:
@@ -288,6 +443,177 @@ def _items(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+_CHUNK_SPLIT = re.compile(r"\s*[,;]\s*")
+_NEGATION_MARK = re.compile(r"\b(?:no|denies|denied|without|negative for)\b", re.IGNORECASE)
+_NEGATION_BODY = re.compile(r"\b(?:no|denies|denied|without|negative for)\s+(?P<body>.+)$", re.IGNORECASE)
+_PAIN_PHRASE = re.compile(
+    r"\b((?:burning|dull|aching|stabbing|throbbing|cramping|radiating|tingling|shooting|sharp)\s+ache)\b",
+    re.IGNORECASE,
+)
+_BP_FILL = re.compile(r"\b(?:blood pressure|bp)\D{0,12}(\d+)\s*(?:over|/)\s*(\d+)", re.IGNORECASE)
+_NUMBER_FILL: tuple[tuple[str, str, re.Pattern[str]], ...] = (
+    ("vital_sign", "heartRate", re.compile(r"\b(?:pulse|heart rate)\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("vital_sign", "temperature", re.compile(r"\btemperature\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("vital_sign", "oxygenSaturation", re.compile(r"\b(?:oxygen saturation|spo2)\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("vital_sign", "respiratoryRate", re.compile(r"\brespiratory rate\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("body_measurements", "weight", re.compile(r"\bweight\D{0,12}(\d+(?:\.\d+)?)\s*(?:kg|kilo)", re.IGNORECASE)),
+    ("body_measurements", "height", re.compile(r"\bheight\D{0,12}(\d+(?:\.\d+)?)\s*(?:cm|centimet)", re.IGNORECASE)),
+    ("body_measurements", "headCircumference", re.compile(r"\bhead circumference\D{0,16}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("pain_assessment", "painLevel", re.compile(r"\bpain(?: score| level)?\D{0,12}(\d+)\s*(?:out of|/)\s*10", re.IGNORECASE)),
+)
+
+
+def _answer_text(ids: list[str], by_id: dict[str, TranscriptItem], questions: set[str]) -> str:
+    """Cited lines that answer something. A question cannot make a negative true."""
+    return " ".join(by_id[seg_id].text for seg_id in ids if seg_id not in questions and seg_id in by_id)
+
+
+_SYSTEM_LABEL = re.compile(
+    r"^(?:neurological|respiratory|cardiovascular|gastrointestinal|constitutional|skin|"
+    r"musculoskeletal|psychiatric|genitourinary)\s*:\s*",
+    re.IGNORECASE,
+)
+_NARRATIVE = frozenset("patient patients doctor clinician reports reported reporting says said".split())
+
+
+def _is_aside(text: str) -> bool:
+    """A greeting or a self-introduction is not an exam finding."""
+    return bool(_SKIP_CLAUSE.match(text.strip())) and not any(char.isdigit() for char in text)
+
+
+def _without_unspoken_ros(text: str, source: str) -> str:
+    """Keep a review clause only when its words were spoken. 'light sensitivity' is not 'light bothers me'."""
+    chunks = [chunk.strip() for chunk in _CHUNK_SPLIT.split(text) if chunk.strip()]
+    source_words = set(_content_words(source))
+    kept: list[str] = []
+    changed = False
+    for chunk in chunks:
+        words = [word for word in _content_words(_SYSTEM_LABEL.sub("", chunk)) if word not in _NARRATIVE]
+        if words and any(word not in source_words for word in words):
+            changed = True
+            continue
+        kept.append(chunk)
+    if not changed:
+        return text
+    if not kept:
+        return ""
+    result = "; ".join(kept)
+    if text.endswith(".") and not result.endswith("."):
+        result += "."
+    return result
+
+
+def _without_unspoken_negatives(text: str, source: str) -> str:
+    """Drop 'no vision changes' when the cited answer never denied vision changes."""
+    chunks = [chunk.strip() for chunk in _CHUNK_SPLIT.split(text) if chunk.strip()]
+    if not any(_NEGATION_MARK.search(chunk) for chunk in chunks):
+        return text
+    source_words = set(_content_words(source))
+    source_negated = bool(_NEGATION_MARK.search(source))
+    kept: list[str] = []
+    changed = False
+    for chunk in chunks:
+        body = _NEGATION_BODY.search(chunk)
+        if body:
+            words = _content_words(body.group("body"))
+            if not words or not source_negated or any(word not in source_words for word in words):
+                changed = True
+                continue
+        kept.append(chunk)
+    if not changed:
+        return text
+    if not kept:
+        return ""
+    result = "; ".join(kept)
+    if text.endswith(".") and not result.endswith("."):
+        result += "."
+    return result
+
+
+def _drop_unspoken_negatives(
+    sections: dict[str, list[Sentence]],
+    by_id: dict[str, TranscriptItem],
+    questions: set[str],
+) -> None:
+    for name, sentences in sections.items():
+        revised: list[Sentence] = []
+        for sentence in sentences:
+            if _is_aside(sentence.text):
+                continue
+            source = _answer_text(sentence.segment_ids, by_id, questions)
+            text = _without_unspoken_ros(sentence.text, source) if name == "review_of_systems" else sentence.text
+            text = _without_unspoken_negatives(text, source)
+            if not text:
+                continue
+            revised.append(sentence if text == sentence.text else sentence.model_copy(update={"text": text}))
+        sections[name] = revised
+
+
+def _fill_spoken_pain_description(
+    parts: DraftParts,
+    transcript: list[TranscriptItem],
+    questions: set[str],
+) -> None:
+    """The words 'dull ache' are the description. The list word Dull does not replace them."""
+    group = parts.measured.setdefault("pain_assessment", {})
+    if group.get("painDescription"):
+        return
+    for item in transcript:
+        if item.id in questions:
+            continue
+        match = _PAIN_PHRASE.search(item.text)
+        if not match:
+            continue
+        group["painDescription"] = match.group(1).lower()
+        parts.measured_evidence["pain_assessment.painDescription"] = [item.id]
+        return
+
+
+def _store_spoken_number(parts: DraftParts, group: str, name: str, raw: str, seg_id: str) -> None:
+    spec = asklepios.FIELDS[group][name]
+    try:
+        number = float(raw)
+    except ValueError:
+        return
+    bucket = parts.measured.setdefault(group, {})
+    if bucket.get(name) not in (None, ""):
+        return
+    if name == "height" and 0.4 <= number <= 2.6:
+        number = round(number * 100, 1)
+    if not spec.low <= number <= spec.high:
+        return
+    if spec.kind in ("int", "pain_level") and abs(number - round(number)) > 0.001:
+        return
+    if spec.kind == "pain_level":
+        value: Any = f"LEVEL_{int(round(number))}"
+    elif spec.kind == "int":
+        value = int(round(number))
+    else:
+        value = int(number) if abs(number - round(number)) < 0.001 else round(number, 1)
+    bucket[name] = value
+    parts.measured_evidence[f"{group}.{name}"] = [seg_id]
+    if name == "painLevel" and not bucket.get("painAssessmentType"):
+        bucket["painAssessmentType"] = "NUMERIC"
+        parts.measured_evidence["pain_assessment.painAssessmentType"] = [seg_id]
+
+
+def _fill_spoken_numbers(parts: DraftParts, transcript: list[TranscriptItem], questions: set[str]) -> None:
+    """A measurement said aloud still counts when the model left that record field empty."""
+    for item in transcript:
+        if item.id in questions:
+            continue
+        bp = _BP_FILL.search(item.text)
+        if bp:
+            systolic, diastolic = float(bp.group(1)), float(bp.group(2))
+            if systolic > diastolic:
+                _store_spoken_number(parts, "vital_sign", "bloodPressureSystolic", bp.group(1), item.id)
+                _store_spoken_number(parts, "vital_sign", "bloodPressureDiastolic", bp.group(2), item.id)
+        for group, name, pattern in _NUMBER_FILL:
+            match = pattern.search(item.text)
+            if match:
+                _store_spoken_number(parts, group, name, match.group(1), item.id)
 
 
 def clean_sentences(
@@ -336,6 +662,7 @@ def enforce_evidence(raw: dict[str, Any], transcript: list[TranscriptItem], opti
     sections = {
         name: clean_sentences(name, raw_sections.get(name), known, low, questions) for name in SECTION_NAMES
     }
+    _drop_unspoken_negatives(sections, by_id, questions)
     orders = _clean_orders(raw.get("orders"), known, questions)
     parts = DraftParts(
         sections=sections,
@@ -352,7 +679,13 @@ def enforce_evidence(raw: dict[str, Any], transcript: list[TranscriptItem], opti
     parts.measured, parts.measured_evidence = asklepios.clean_record(
         raw.get("record"), texts, questions, asklepios.DRAFT_MODEL_GROUPS
     )
+    _fill_spoken_pain_description(parts, transcript, questions)
+    _fill_spoken_numbers(parts, transcript, questions)
     _restore_heard_wording(parts)
+    if not options.suggest_icd10:
+        parts.diagnoses = []
+    if not options.suggest_orders:
+        parts.orders = []
     return parts
 
 
@@ -722,8 +1055,6 @@ def record_for_draft(parts: DraftParts, options: NoteOptions) -> asklepios.Recor
     return asklepios.assemble(
         values,
         evidence,
-        patient_id=options.patient_id,
-        encounter_id=options.encounter_id,
         patient_conditions=_conditions(options),
         diagnoses=_diagnosis_rows(parts.diagnoses),
     )
@@ -737,8 +1068,6 @@ def record_for_section(parts: DraftParts, options: NoteOptions, section: str) ->
     return asklepios.assemble(
         values,
         evidence,
-        patient_id=options.patient_id,
-        encounter_id=options.encounter_id,
         groups=groups,
         diagnoses=diagnoses,
         sparse=True,

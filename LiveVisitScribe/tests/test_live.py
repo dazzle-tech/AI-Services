@@ -279,11 +279,11 @@ def test_speaker_and_language_guesses():
 
 
 def test_stub_visit_builds_record_payloads_with_evidence_and_missing_required(client):
-    picked = last_picked_up(run_visit(client, turns=7, patient_id=101, encounter_id=5001))
+    picked = last_picked_up(run_visit(client, turns=7))
     record = picked["record"]
 
     vital = record["vital_sign"]
-    assert vital["patientId"] == 101 and vital["encounterId"] == 5001
+    assert vital["patientId"] is None and vital["encounterId"] is None
     assert (vital["bloodPressureSystolic"], vital["bloodPressureDiastolic"]) == (128, 82)
     assert vital["heartRate"] is None and vital["isActive"] is True and vital["isTriage"] is False
     assert picked["record_status"]["vital_sign"] == "partial"
@@ -325,8 +325,28 @@ def test_record_fields_must_be_said_plausible_and_not_questions():
         }
     }
     result = enforce_picked_up(raw, segments, None)
-    # every vital_sign field above fails a rule, so nothing is left to post for that group
-    assert result.record["vital_sign"] is None and result.record_status["vital_sign"] == "empty"
-    assert "vital_sign" not in result.missing_required
+    vital = result.record["vital_sign"]
+    assert vital["heartRate"] == 78 and vital["temperature"] == 36.8  # said aloud; the model's other numbers were not
+    assert vital["bloodPressureSystolic"] is None and vital["bloodPressureDiastolic"] is None
+    assert vital["respiratoryRate"] is None
+    assert result.record_status["vital_sign"] == "partial"
     assert result.record["body_measurements"]["weight"] == 70
     assert result.missing_required["body_measurements"] == ["height"]
+
+
+def test_picked_up_record_fills_the_same_spoken_fields_as_the_draft():
+    segments = [
+        _seg("t1", "Head circumference 55 centimeters. Weight is 71.4 kg."),
+        _seg("t2", "The pain is mostly a dull ache, about a 2 when I am resting."),
+        _seg("t3", "Pain score 2 out of 10."),
+    ]
+    result = enforce_picked_up({"record": {}}, segments, None)
+    assert result.record["body_measurements"]["headCircumference"] == 55
+    assert result.record["body_measurements"]["weight"] == 71.4
+    pain = result.record["pain_assessment"]
+    assert pain["painDescription"] == "dull ache"
+    assert pain["painPattern"] is None and pain["painDegree"] is None
+    assert pain["painLevel"] == "LEVEL_2" and pain["painAssessmentType"] == "NUMERIC"
+    assert result.record_evidence["body_measurements.headCircumference"] == ["t1"]
+    assert result.record_evidence["pain_assessment.painDescription"] == ["t2"]
+    assert result.missing_required["pain_assessment"] == ["painDegree"]

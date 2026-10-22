@@ -216,7 +216,7 @@
               "code": 0,
               "_postman_previewlanguage": "json",
               "header": [],
-              "body": "{\n  \"type\": \"start\",\n  \"sample_rate\": 16000,\n  \"channels\": 1,\n  \"patient_context\": {\n    \"chronic_diseases\": [],\n    \"active_medications\": [\n      \"Lisinopril 10 mg\"\n    ],\n    \"allergies\": [\n      \"silk\",\n      \"wool\",\n      \"soya\"\n    ],\n    \"known_diagnoses\": [\n      \"G43.8 Other migraine\"\n    ]\n  },\n  \"patient_id\": 101,\n  \"encounter_id\": 5001\n}"
+              "body": "{\n  \"type\": \"start\",\n  \"sample_rate\": 16000,\n  \"channels\": 1,\n  \"patient_context\": {\n    \"chronic_diseases\": [],\n    \"active_medications\": [\n      \"Lisinopril 10 mg\"\n    ],\n    \"allergies\": [\n      \"silk\",\n      \"wool\",\n      \"soya\"\n    ],\n    \"known_diagnoses\": [\n      \"G43.8 Other migraine\"\n    ]\n  }\n}"
             },
             {
               "name": "server: ready",

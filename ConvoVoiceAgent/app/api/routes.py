@@ -30,7 +30,15 @@ logger = get_logger(__name__)
 
 # Same headers ConvoScribe accepts. Optional; nothing here authorizes against a visit.
 _AUTH_HEADERS = ("X-API-Key", "X-Clinician-Id")
-_NOTE_OPTION_FIELDS = ("note_language", "instruction_language", "specialty", "note_length", "note_form", "patient_id", "encounter_id")
+_NOTE_OPTION_FIELDS = (
+    "note_language",
+    "instruction_language",
+    "specialty",
+    "note_length",
+    "note_form",
+    "suggest_icd10",
+    "suggest_orders",
+)
 
 
 def _form_str(value) -> str | None:

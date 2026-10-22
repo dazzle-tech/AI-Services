@@ -28,9 +28,6 @@ class StartMessage(BaseModel):
     sample_rate: int = Field(default=16000, ge=8000, le=48000)
     channels: int = Field(default=1, ge=1, le=2)
     patient_context: Optional[PatientContext] = None
-    # Echoed into the record payloads. Never looked up or checked here.
-    patient_id: Optional[int] = None
-    encounter_id: Optional[int] = None
 
 
 class Segment(BaseModel):

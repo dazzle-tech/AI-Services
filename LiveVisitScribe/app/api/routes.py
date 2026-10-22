@@ -166,8 +166,6 @@ async def live(ws: WebSocket) -> None:
                     sample_rate=start.sample_rate,
                     channels=start.channels,
                     patient_context=start.patient_context,
-                    patient_id=start.patient_id,
-                    encounter_id=start.encounter_id,
                 )
                 backlog = _Backlog(start.sample_rate, start.channels)
                 worker = asyncio.create_task(_work(session, queue, backlog, emit))

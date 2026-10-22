@@ -509,8 +509,6 @@ def test_record_has_the_backend_payload_shapes(client, downstream):
     )
     response = _post_draft(
         client,
-        patient_id="101",
-        encounter_id="5001",
         patient_context=json.dumps({"chronic_diseases": ["Hypertension"]}),
     )
     assert response.status_code == 200, response.text
@@ -518,8 +516,8 @@ def test_record_has_the_backend_payload_shapes(client, downstream):
     record = body["record"]
 
     assert record["vital_sign"] == {
-        "patientId": 101,
-        "encounterId": 5001,
+        "patientId": None,
+        "encounterId": None,
         "bloodPressureSystolic": 128,
         "bloodPressureDiastolic": 82,
         "measurementSite": None,
@@ -536,8 +534,8 @@ def test_record_has_the_backend_payload_shapes(client, downstream):
         "notes": None,
     }
     assert record["body_measurements"] == {
-        "patientId": 101,
-        "encounterId": 5001,
+        "patientId": None,
+        "encounterId": None,
         "weight": 70,
         "height": 175,
         "headCircumference": None,
@@ -555,8 +553,8 @@ def test_record_has_the_backend_payload_shapes(client, downstream):
 
     diagnosis = record["patient_diagnosis"][0]
     assert diagnosis == {
-        "patientId": 101,
-        "encounterId": 5001,
+        "patientId": None,
+        "encounterId": None,
         "diagnosisId": None,
         "type": "PRIMARY",
         "suspected": False,
@@ -573,6 +571,37 @@ def test_record_has_the_backend_payload_shapes(client, downstream):
     assert body["record_evidence"]["vital_sign.respiratoryRate"] == ["s3"]
     assert body["record_evidence"]["nursing_assessment.reasonOfVisit"] == ["s1"]
     assert body["record_evidence"]["patient_diagnosis.0"] == ["s6"]
+
+
+def test_suggest_icd10_false_returns_no_diagnosis_codes(client, downstream):
+    body = _post_draft(client, suggest_icd10="false").json()
+    assert body["diagnoses"] == []
+    assert body["record"]["patient_diagnosis"] == []
+    assert body["record_status"]["patient_diagnosis"] == "empty"
+    assert "tonsillitis" in body["soap_note"]["Assessments"]
+
+    transcript = _post_draft(client).json()["transcript"]
+    regenerated = client.post(
+        REGENERATE_PATH,
+        json={"transcript": transcript, "section": "assessment_plan", "suggest_icd10": False},
+    ).json()
+    assert regenerated["diagnoses"] == []
+    assert regenerated["record"]["patient_diagnosis"] == []
+
+
+def test_suggest_orders_false_returns_no_order_suggestions(client, downstream):
+    body = _post_draft(client, suggest_orders="false").json()
+    assert body["orders"] == []
+    assert "azithromycin 500 mg" in body["soap_note"]["TreatmentPlans"]
+
+    transcript = _post_draft(client).json()["transcript"]
+    regenerated = client.post(
+        REGENERATE_PATH,
+        json={"transcript": transcript, "section": "assessment_plan", "suggest_orders": False},
+    ).json()
+    assert regenerated["orders"] == []
+    assert "azithromycin" in regenerated["soap_note"]["TreatmentPlans"]
+
 
 
 def test_record_ids_are_null_when_not_sent(client, downstream):
@@ -618,12 +647,17 @@ def test_record_drops_values_that_were_not_said_or_are_implausible(client, downs
 
     monkeypatch.setattr(ambient_stub, "stub_draft", fake_draft)
     body = _post_draft(client).json()
-    assert body["record"]["vital_sign"] is None and body["record_status"]["vital_sign"] == "empty"
+    vital = body["record"]["vital_sign"]
+    assert vital["heartRate"] == 78  # "Pulse is 78" was said; the model's 80 was not
+    assert vital["bloodPressureSystolic"] is None and vital["bloodPressureDiastolic"] is None  # 80 over 120 is reversed
+    assert vital["respiratoryRate"] is None and vital["temperature"] is None and vital["oxygenSaturation"] is None
+    assert body["record_status"]["vital_sign"] == "partial"
     assert body["record"]["pain_assessment"] is None
     assert body["record"]["body_measurements"]["height"] == 175  # metres to centimetres, exactly
     assert body["record"]["body_measurements"]["weight"] is None
-    assert body["missing_required"] == {"body_measurements": ["weight"]}
-    assert set(body["record_evidence"]) == {"body_measurements.height"}
+    assert body["missing_required"]["body_measurements"] == ["weight"]
+    assert body["record_evidence"]["vital_sign.heartRate"] == ["s2"]
+    assert body["record_evidence"]["body_measurements.height"] == ["s3"]
 
 
 def test_regenerate_record_covers_only_its_section(client, downstream, monkeypatch):
@@ -681,3 +715,174 @@ def test_asklepios_enum_and_number_rules():
     assert values["nursing_assessment"] == {"modeOfArrival": "AMBULATORY"}
     dropped = {"pain_assessment": {"painPattern": cite("INTERMITTENT", "s1")}}
     assert "pain_assessment" not in asklepios.clean_record(dropped, lov_texts, set(), asklepios.DRAFT_MODEL_GROUPS)[0]
+
+
+def test_omitted_exam_findings_and_dictated_history_are_added():
+    from app.models.schemas import NoteOptions, TranscriptItem
+    from app.services.ambient_draft import enforce_evidence, fill_omitted_findings, soap_source
+
+    def line(seg_id, speaker, text):
+        return TranscriptItem(id=seg_id, speaker=speaker, start_ms=0, end_ms=1, text=text)
+
+    transcript = [
+        line("s2", "patient", "I have had a 3 day frontal headache; no fever, but it is worse in the afternoon."),
+        line("s4", "patient", "No nausea. Light bothers me a little. My daughter says I have not been eating well since yesterday."),
+        line(
+            "s7",
+            "doctor",
+            "Let me examine you. You are alert and neurologically normal. No fever on my touch. "
+            "I will record your vitals now. Temperature 36.8 Celsius. Blood pressure 122 over 78. Pulse 72.",
+        ),
+        line("s8", "patient", "The pain is mostly a dull ache, about a 2 when I am resting."),
+        line(
+            "s9",
+            "doctor",
+            "For measurements: Weight 71.4 kilograms. Head circumference 55 centimeters. Note.--Weight taken after shoes removed. "
+            "Patient reports recent appetite loss. Summary for your chart.--3 day tension type headache without red flags. "
+            "Plan is ibuprofen as needed, rest, and fluids.",
+        ),
+        line("s11", "doctor", "Not to day; return sooner if you develop fever, the worst headache of your life, or weakness on 1 side. The nurse will give you written instructions."),
+        line("s12", "patient", "Thank you, doctor."),
+    ]
+    raw = {
+        "sections": {
+            "chief_complaint": {
+                "sentences": [
+                    {
+                        "text": "I have had a 3 day frontal headache; no fever, but it is worse in the afternoon.",
+                        "segment_ids": ["s2"],
+                    }
+                ]
+            },
+            "hpi": {
+                "sentences": [
+                    {"text": "Light bothers the patient a little.", "segment_ids": ["s4"]},
+                    {
+                        "text": "Daughter reports the patient has not been eating well since yesterday.",
+                        "segment_ids": ["s4"],
+                    },
+                ]
+            },
+            "review_of_systems": {
+                "sentences": [
+                    {"text": "Neurological: No nausea, but light bothers the patient a little.", "segment_ids": ["s4"]}
+                ]
+            },
+            "physical_exam": {
+                "sentences": [
+                    {
+                        "text": "Vitals: Temperature 36.8 Celsius, blood pressure 122 over 78, pulse 72, pain score 2 out of 10.",
+                        "segment_ids": ["s7"],
+                    },
+                    {
+                        "text": "Measurements: Weight 71.4 kilograms. Weight taken after shoes removed.",
+                        "segment_ids": ["s9"],
+                    },
+                ]
+            },
+            "assessment_plan": {
+                "sentences": [
+                    {
+                        "text": "Tension-type headache: 3 day tension type headache without red flags.",
+                        "segment_ids": ["s9"],
+                        "part": "assessment",
+                    },
+                    {
+                        "text": "Tension-type headache: Plan is ibuprofen as needed, rest, and fluids.",
+                        "segment_ids": ["s9"],
+                        "part": "plan",
+                    },
+                ]
+            },
+        },
+        "instructions": {
+            "text": "Return sooner if you develop fever, the worst headache of your life, or weakness on one side.",
+            "segment_ids": ["s11"],
+        },
+        "record": {"pain_assessment": {"painDescription": {"value": "dull ache", "segment_ids": ["s8"]}}},
+    }
+    parts = enforce_evidence(fill_omitted_findings(raw, transcript), transcript, NoteOptions())
+    exam = " ".join(sentence.text for sentence in parts.sections["physical_exam"])
+    hpi = " ".join(sentence.text for sentence in parts.sections["hpi"])
+    everything = " ".join(sentence.text for section in parts.sections.values() for sentence in section)
+    assert "alert and neurologically normal" in exam
+    assert "No fever on my touch" in exam
+    assert "appetite loss" in hpi
+    assert "Let me examine" not in everything
+    assert "I will record" not in everything
+    assert "Thank you" not in everything
+    assert "Not today" not in everything
+    assert "Not to day" not in everything
+    returns = [sentence.text for sentence in parts.sections["assessment_plan"] if "return sooner" in sentence.text.lower()]
+    assert returns == ["return sooner if you develop fever, the worst headache of your life, or weakness on 1 side."]
+    assert parts.measured["body_measurements"]["headCircumference"] == 55
+    assert everything.count("122") == 1
+    soap = soap_source(parts.sections, note_form="prose", note_language="english")
+    assert "alert and neurologically normal" in soap["PhysicalExamination"]
+    assert "No fever on my touch" in soap["PhysicalExamination"]
+    assert "appetite loss" in soap["HPI"]
+    assert "122" not in soap["PhysicalExamination"]
+
+
+def test_unspoken_negatives_are_removed_and_pain_words_stay():
+    from app.models.schemas import NoteOptions, TranscriptItem
+    from app.services.ambient_draft import enforce_evidence
+
+    def line(seg_id, speaker, text):
+        return TranscriptItem(id=seg_id, speaker=speaker, start_ms=0, end_ms=1, text=text)
+
+    transcript = [
+        line("s3", "doctor", "Any nausea, vision changes or neck stiffness?"),
+        line("s4", "patient", "No nausea; light bothers me a little."),
+        line("s8", "patient", "The pain is mostly a dull ache, about a 2 when I am resting."),
+        line("s9", "doctor", "3 day tension type headache without red flags."),
+    ]
+    raw = {
+        "sections": {
+            "review_of_systems": {
+                "sentences": [
+                    {
+                        "text": "Neurological: No nausea, no vision changes, no neck stiffness.",
+                        "segment_ids": ["s3", "s4"],
+                    }
+                ]
+            },
+            "assessment_plan": {
+                "sentences": [
+                    {
+                        "text": "Tension-type headache: 3 day tension type headache without red flags.",
+                        "segment_ids": ["s9"],
+                        "part": "assessment",
+                    }
+                ]
+            },
+        },
+        "record": {"pain_assessment": {"painPattern": {"value": "Dull", "segment_ids": ["s8"]}}},
+    }
+    parts = enforce_evidence(raw, transcript, NoteOptions())
+    ros = parts.sections["review_of_systems"][0].text
+    assert ros == "Neurological: No nausea."
+    assert "vision" not in ros and "neck" not in ros
+    assert "without red flags" in parts.sections["assessment_plan"][0].text
+    assert parts.measured["pain_assessment"]["painDescription"] == "dull ache"
+    assert parts.measured_evidence["pain_assessment.painDescription"] == ["s8"]
+
+    named = enforce_evidence(
+        {
+            "sections": {
+                "physical_exam": {"sentences": [{"text": "I am dr Patel.", "segment_ids": ["s1"]}]},
+                "review_of_systems": {
+                    "sentences": [
+                        {"text": "Neurological: No nausea, light sensitivity.", "segment_ids": ["s4"]}
+                    ]
+                },
+            }
+        },
+        [
+            TranscriptItem(id="s1", speaker="doctor", start_ms=0, end_ms=1, text="Good morning. I am dr Patel. What brings you in today?"),
+            TranscriptItem(id="s4", speaker="patient", start_ms=0, end_ms=1, text="No nausea. Light bothers me a little."),
+        ],
+        NoteOptions(),
+    )
+    assert named.sections["physical_exam"] == []
+    assert named.sections["review_of_systems"][0].text == "Neurological: No nausea."

@@ -82,7 +82,8 @@ Multipart `audio` file, or JSON with `audio_base64` and optional `filename`. Opt
 | `note_length` | `brief`, `standard`, `detailed` | `standard` |
 | `note_form` | `bullets`, `prose` | `prose` |
 | `patient_context` | `{chronic_diseases, active_medications, allergies, last_visit}` (multipart: JSON string) | none |
-| `patient_id`, `encounter_id` | integers, echoed into `record` | `null` |
+| `suggest_icd10` | `true`, `false` | `true` |
+| `suggest_orders` | `true`, `false` | `true` |
 
 ```bash
 curl -X POST http://localhost:8036/api/v1/draft ^
@@ -100,8 +101,8 @@ Response:
 - `transcript`: `[{id, speaker, lang, start_ms, end_ms, text, confidence}]`. Ids `s1..sN` are assigned here from ConvoScribe segments, and `speaker` comes from the role map. `lang` is `en`, `ar`, `mixed`, or `unknown`.
 - `sections`: `chief_complaint`, `hpi`, `review_of_systems`, `physical_exam`, `assessment_plan`, each `{sentences: [{sentence_id, text, segment_ids, low_confidence}]}`. `assessment_plan` sentences also carry `part` (`assessment` or `plan`) and start with the diagnosis they belong to.
 - `soap_note`: SystemDisplayPlugin field names (`ChiefComplaint`, `HPI`, `MedicalHistory`, `SurgicalHistory`, `FamilyAndSocialHistory`, `OtherSubjective`, `Vitals`, `PhysicalExamination`, `Assessments`, `DiagnosticImagesAndTests`, `Procedures`, `TreatmentPlans`). Review of systems is a labelled block inside `PhysicalExamination`, spoken vitals and measurements go to `Vitals`, assessment sentences go to `Assessments`, and plan sentences go to `TreatmentPlans`. Fields no section fills are `null`.
-- `diagnoses`: `[{id, icd10, label, rank, suspected, chronic, segment_ids}]`.
-- `orders`: `[{id, kind, payload, segment_ids}]`, suggestions only. `follow_up` has `payload.date` and `booked: false`. `sick_leave` has `start_date`, `end_date`, and `confirm_required: true`. Validation (Medication & Test Order Validation, port 8006) happens in Asklepios on accept.
+- `diagnoses`: `[{id, icd10, label, rank, suspected, chronic, segment_ids}]`. Empty when `suggest_icd10` is `false`. The assessment text is still written either way.
+- `orders`: `[{id, kind, payload, segment_ids}]`, suggestions only. Empty when `suggest_orders` is `false`. The plan text is still written either way. `follow_up` has `payload.date` and `booked: false`. `sick_leave` has `start_date`, `end_date`, and `confirm_required: true`. Validation (Medication & Test Order Validation, port 8006) happens in Asklepios on accept.
 - `mentions`: `[{kind: allergy|warning|sick_leave, text, segment_ids, confirm_required: true}]`.
 - `instructions`: `{language, text, segment_ids}` in `instruction_language`.
 - `flags`: `[{kind: drug_name|dose, text, segment_ids}]` for drug names and doses spoken in low-confidence segments.
@@ -120,6 +121,9 @@ Response: `{section, sentences, soap_note, diagnoses, orders, mentions, instruct
 The system prompt is in `app/ai/ambient_prompts.py`, with specialty addenda for the four specialties (same JSON schema for all). Whatever the model returns, `app/services/ambient_draft.py` applies these before anything is returned:
 
 - A sentence, diagnosis, order, mention, flag, or instructions block that cites no segment id in this transcript is dropped. So is one whose cited segments are all questions ("Any vision changes?"): a question is not evidence for a finding or a negative.
+- A spoken finding the model left out is added back in the words that were said: an exam finding such as "alert and neurologically normal" or "no fever on my touch", and a dictated "patient reports ..." line. A greeting, a question, or "I will record your vitals" is not added. A line already in the note or the instructions is not added again. "one side" and "1 side" are the same line, so it is not written twice.
+- A spoken measurement the model left out of `record` is filled from the transcript when the number is in range. Head circumference 55 centimetres stays 55.
+- A negative, or a review-of-systems word, the speaker did not say is removed. "Any vision changes?" with no answer is not "no vision changes", and "light bothers me" is not rewritten as "light sensitivity". "No nausea" stays when the patient said it.
 - A medication `route` that is really a frequency ("as needed", "twice daily") is moved to `frequency`.
 - If the note text contains the `likely` wording of a `possible_transcription_errors` hint for the same segment, it is put back to the `heard` wording. Only the physician applies the correction.
 - In `soap_note`, `Assessments` and `TreatmentPlans` print each diagnosis heading once, with its sentences under it. Exam sentences starting `Vitals:` or `Measurements:` go to `Vitals` instead of `PhysicalExamination`, and HPI sentences starting `History:` go to `MedicalHistory`.
@@ -133,7 +137,7 @@ Segment confidence is read from ConvoScribe segment `confidence` (0–1) or `avg
 
 ### Asklepios record (`record` in `/draft`)
 
-`/draft` also returns the visit in the shapes Asklepios posts. Pass `patient_id` and `encounter_id` (optional integers, also multipart fields) and they are echoed into each payload; they are never looked up or checked, and are `null` when not sent.
+`/draft` also returns the visit in the shapes Asklepios posts. `patientId` and `encounterId` are always `null`: this service does not take them.
 
 | `record` key | Payload | Where the values come from |
 |---|---|---|

@@ -72,6 +72,8 @@ SECTIONS
   merged into what the patient said. Chronic conditions and regular medicines spoken in this visit go in
   one sentence starting "History: " (Arabic "التاريخ المرضي: "), for example
   "History: high blood pressure; takes <medicine and dose exactly as heard> each morning."
+  A dictated note that the patient reported something ("patient reports recent appetite loss") is its
+  own hpi sentence, even when it was spoken in the same breath as the measurements.
   A drug name you think is misheard stays exactly as heard; the correction goes only in
   possible_transcription_errors.
 - review_of_systems: only symptoms the patient or a relative reported, for systems that were actually
@@ -82,7 +84,9 @@ SECTIONS
   pain score, go in one sentence starting "Vitals: " (for example "Vitals: temperature 36.8 Celsius,
   pulse 72, pain score 2 out of 10."), and spoken measurements (weight, height, BMI, head circumference)
   with any measurement note ("weight taken after shoes removed") in one sentence starting
-  "Measurements: ". In Arabic notes use "العلامات الحيوية: " and "القياسات: ". Never leave a spoken
+  "Measurements: ". In Arabic notes use "العلامات الحيوية: " and "القياسات: ". A finding in the same
+  segment as the numbers is its own sentence, not dropped: "You are alert and neurologically normal."
+  and "No fever on my touch." stay even when that segment also lists the vitals. Never leave a spoken
   vital sign, measurement or exam finding out.
 - assessment_plan: each sentence names the diagnosis it belongs to, as "<diagnosis label>: <text>".
   Set part="assessment" for the impression and part="plan" for treatment, tests, referral, follow-up,
@@ -188,15 +192,36 @@ _FORM_GUIDE = {
 }
 
 
-def build_system_prompt(*, specialty: str, note_length: str, note_form: str) -> str:
-    return "\n\n".join(
-        [
-            AMBIENT_SYSTEM_PROMPT,
-            SPECIALTY_ADDENDA.get(specialty, SPECIALTY_ADDENDA["general_practice"]),
-            _LENGTH_GUIDE.get(note_length, _LENGTH_GUIDE["standard"]),
-            _FORM_GUIDE.get(note_form, _FORM_GUIDE["prose"]),
-        ]
-    )
+_ICD_OFF = (
+    "ICD-10 SUGGESTIONS: off. Return \"diagnoses\": []. Do not write an ICD-10 code anywhere. "
+    "Assessment sentences may still name the condition the doctor said."
+)
+
+_ORDERS_OFF = (
+    "ORDER SUGGESTIONS: off. Return \"orders\": []. "
+    "Plan sentences may still record the treatment the doctor said."
+)
+
+
+def build_system_prompt(
+    *,
+    specialty: str,
+    note_length: str,
+    note_form: str,
+    suggest_icd10: bool = True,
+    suggest_orders: bool = True,
+) -> str:
+    parts = [
+        AMBIENT_SYSTEM_PROMPT,
+        SPECIALTY_ADDENDA.get(specialty, SPECIALTY_ADDENDA["general_practice"]),
+        _LENGTH_GUIDE.get(note_length, _LENGTH_GUIDE["standard"]),
+        _FORM_GUIDE.get(note_form, _FORM_GUIDE["prose"]),
+    ]
+    if not suggest_icd10:
+        parts.append(_ICD_OFF)
+    if not suggest_orders:
+        parts.append(_ORDERS_OFF)
+    return "\n\n".join(parts)
 
 
 def build_draft_user_prompt(
@@ -205,11 +230,14 @@ def build_draft_user_prompt(
     options: dict[str, Any],
     patient_context: dict[str, Any] | None,
 ) -> str:
+    notes = ["ICD-10 TABLE (code<TAB>label):\n" + prompt_table()] if options.get("suggest_icd10", True) else [_ICD_OFF]
+    if not options.get("suggest_orders", True):
+        notes.append(_ORDERS_OFF)
     return "\n\n".join(
         [
             "OPTIONS:\n" + json.dumps(options, ensure_ascii=False),
             "PATIENT_CONTEXT:\n" + (json.dumps(patient_context, ensure_ascii=False) if patient_context else "none"),
-            "ICD-10 TABLE (code<TAB>label):\n" + prompt_table(),
+            *notes,
             "TRANSCRIPT:\n" + json.dumps(transcript, ensure_ascii=False),
             "Return the JSON object now.",
         ]
@@ -224,13 +252,19 @@ def build_regenerate_user_prompt(
     options: dict[str, Any],
     patient_context: dict[str, Any] | None,
 ) -> str:
+    suggest_icd = options.get("suggest_icd10", True)
+    suggest_orders = options.get("suggest_orders", True)
     if section == "assessment_plan":
+        diagnoses = "[...]" if suggest_icd else "[]"
+        orders = "[...]" if suggest_orders else "[]"
         shape = (
             'Return only {"sentences": [{"text": "...", "segment_ids": ["s9"], "part": "assessment|plan"}], '
-            '"diagnoses": [...], "orders": [...], "mentions": [...], "instructions": {...}, "flags": [...], '
+            f'"diagnoses": {diagnoses}, "orders": {orders}, "mentions": [...], "instructions": {{...}}, "flags": [...], '
             '"possible_transcription_errors": [...]}, each item shaped as in the system prompt.'
         )
-        table = ["ICD-10 TABLE (code<TAB>label):\n" + prompt_table()]
+        table = ["ICD-10 TABLE (code<TAB>label):\n" + prompt_table()] if suggest_icd else [_ICD_OFF]
+        if not suggest_orders:
+            table.append(_ORDERS_OFF)
     else:
         shape = (
             'Return only {"sentences": [{"text": "...", "segment_ids": ["s1"]}], "flags": [...], '

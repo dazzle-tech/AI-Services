@@ -61,7 +61,7 @@ Client to server:
 
 | Frame | Meaning |
 |---|---|
-| text `{"type":"start","sample_rate":16000,"channels":1,"patient_context":{...},"patient_id":101,"encounter_id":5001}` | Begin. `sample_rate` 8000-48000, `channels` 1 or 2. `patient_context` is optional: `{chronic_diseases, active_medications, allergies, known_diagnoses}`. `patient_id` and `encounter_id` are optional integers echoed into the `record` payloads (never looked up) |
+| text `{"type":"start","sample_rate":16000,"channels":1,"patient_context":{...}}` | Begin. `sample_rate` 8000-48000, `channels` 1 or 2. `patient_context` is optional: `{chronic_diseases, active_medications, allergies, known_diagnoses}` |
 | **binary** | Raw little-endian **int16 PCM**, interleaved if 2 channels. Any frame size (100-250 ms is typical). Audio before `start` returns an error |
 | text `{"type":"pause"}` / `{"type":"resume"}` | Pause: the open line is closed and audio is ignored until resume |
 | text `{"type":"stop"}` | End: the open line is closed, the list is flushed, `final` is sent, the socket closes |

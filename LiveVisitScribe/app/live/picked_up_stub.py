@@ -42,6 +42,7 @@ _RECORD_RULES: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("vital_sign", "respiratoryRate", re.compile(rf"\brespiratory rate{_LEAD}(\d+)", re.IGNORECASE)),
     ("body_measurements", "weight", re.compile(rf"\bweight{_LEAD}(\d+(?:\.\d+)?)\s*(?:kg|kilo)", re.IGNORECASE)),
     ("body_measurements", "height", re.compile(rf"\bheight{_LEAD}(\d+(?:\.\d+)?)\s*(?:cm|centimet)", re.IGNORECASE)),
+    ("body_measurements", "headCircumference", re.compile(rf"\bhead circumference{_LEAD}(\d+(?:\.\d+)?)", re.IGNORECASE)),
     (
         "pain_assessment",
         "painLevel",

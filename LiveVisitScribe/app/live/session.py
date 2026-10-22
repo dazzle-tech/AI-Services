@@ -80,11 +80,7 @@ class LiveSession:
         sample_rate: int = TARGET_SR,
         channels: int = 1,
         patient_context: Optional[PatientContext] = None,
-        patient_id: Optional[int] = None,
-        encounter_id: Optional[int] = None,
     ) -> None:
-        self._patient_id = patient_id
-        self._encounter_id = encounter_id
         self._asr = transcriber
         self._emit = emit
         self._settings = settings
@@ -284,9 +280,7 @@ class LiveSession:
         self._dirty = False
         self._last_extract = time.monotonic()
         try:
-            picked = await picked_up.extract(
-                self.final_segments, self._context, patient_id=self._patient_id, encounter_id=self._encounter_id
-            )
+            picked = await picked_up.extract(self.final_segments, self._context)
         except asyncio.CancelledError:
             self._dirty = True
             raise

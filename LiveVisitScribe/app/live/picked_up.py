@@ -35,15 +35,9 @@ async def raw_extract(segments: list[Segment], context: Optional[PatientContext]
     )
 
 
-async def extract(
-    segments: list[Segment],
-    context: Optional[PatientContext],
-    *,
-    patient_id: Optional[int] = None,
-    encounter_id: Optional[int] = None,
-) -> PickedUp:
+async def extract(segments: list[Segment], context: Optional[PatientContext]) -> PickedUp:
     raw = await raw_extract(segments, context)
-    return enforce_picked_up(raw, segments, context, patient_id=patient_id, encounter_id=encounter_id)
+    return enforce_picked_up(raw, segments, context)
 
 
 def _context_forms(context: Optional[PatientContext]) -> set[str]:
@@ -73,6 +67,100 @@ def _joined(items: list[Evidence]) -> str:
     return ". ".join(item.text.rstrip(". ") for item in items) + "."
 
 
+_PAIN_PHRASE = re.compile(
+    r"\b((?:burning|dull|aching|stabbing|throbbing|cramping|radiating|tingling|shooting|sharp)\s+ache)\b",
+    re.IGNORECASE,
+)
+_BP_FILL = re.compile(r"\b(?:blood pressure|bp)\D{0,12}(\d+)\s*(?:over|/)\s*(\d+)", re.IGNORECASE)
+_NUMBER_FILL: tuple[tuple[str, str, re.Pattern[str]], ...] = (
+    ("vital_sign", "heartRate", re.compile(r"\b(?:pulse|heart rate)\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("vital_sign", "temperature", re.compile(r"\btemperature\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("vital_sign", "oxygenSaturation", re.compile(r"\b(?:oxygen saturation|spo2)\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("vital_sign", "respiratoryRate", re.compile(r"\brespiratory rate\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("body_measurements", "weight", re.compile(r"\bweight\D{0,12}(\d+(?:\.\d+)?)\s*(?:kg|kilo)", re.IGNORECASE)),
+    ("body_measurements", "height", re.compile(r"\bheight\D{0,12}(\d+(?:\.\d+)?)\s*(?:cm|centimet)", re.IGNORECASE)),
+    ("body_measurements", "headCircumference", re.compile(r"\bhead circumference\D{0,16}(\d+(?:\.\d+)?)", re.IGNORECASE)),
+    ("pain_assessment", "painLevel", re.compile(r"\bpain(?: score| level)?\D{0,12}(\d+)\s*(?:out of|/)\s*10", re.IGNORECASE)),
+)
+
+
+def _store_spoken_number(
+    values: dict[str, dict[str, Any]],
+    evidence: dict[str, list[str]],
+    group: str,
+    name: str,
+    raw: str,
+    seg_id: str,
+) -> None:
+    """Same ranges as the draft: a spoken number fills a record field the model left empty."""
+    spec = asklepios.FIELDS[group][name]
+    try:
+        number = float(raw)
+    except ValueError:
+        return
+    bucket = values.setdefault(group, {})
+    if bucket.get(name) not in (None, ""):
+        return
+    if name == "height" and 0.4 <= number <= 2.6:
+        number = round(number * 100, 1)
+    if not spec.low <= number <= spec.high:
+        return
+    if spec.kind in ("int", "pain_level") and abs(number - round(number)) > 0.001:
+        return
+    if spec.kind == "pain_level":
+        value: Any = f"LEVEL_{int(round(number))}"
+    elif spec.kind == "int":
+        value = int(round(number))
+    else:
+        value = int(number) if abs(number - round(number)) < 0.001 else round(number, 1)
+    bucket[name] = value
+    evidence[f"{group}.{name}"] = [seg_id]
+    if name == "painLevel" and not bucket.get("painAssessmentType"):
+        bucket["painAssessmentType"] = "NUMERIC"
+        evidence["pain_assessment.painAssessmentType"] = [seg_id]
+
+
+def _fill_spoken_numbers(
+    values: dict[str, dict[str, Any]],
+    evidence: dict[str, list[str]],
+    texts: dict[str, str],
+    questions: set[str],
+) -> None:
+    for seg_id, text in texts.items():
+        if seg_id in questions:
+            continue
+        bp = _BP_FILL.search(text)
+        if bp:
+            systolic, diastolic = float(bp.group(1)), float(bp.group(2))
+            if systolic > diastolic:
+                _store_spoken_number(values, evidence, "vital_sign", "bloodPressureSystolic", bp.group(1), seg_id)
+                _store_spoken_number(values, evidence, "vital_sign", "bloodPressureDiastolic", bp.group(2), seg_id)
+        for group, name, pattern in _NUMBER_FILL:
+            match = pattern.search(text)
+            if match:
+                _store_spoken_number(values, evidence, group, name, match.group(1), seg_id)
+
+
+def _fill_spoken_pain_description(
+    values: dict[str, dict[str, Any]],
+    evidence: dict[str, list[str]],
+    texts: dict[str, str],
+    questions: set[str],
+) -> None:
+    group = values.setdefault("pain_assessment", {})
+    if group.get("painDescription"):
+        return
+    for seg_id, text in texts.items():
+        if seg_id in questions:
+            continue
+        match = _PAIN_PHRASE.search(text)
+        if not match:
+            continue
+        group["painDescription"] = match.group(1).lower()
+        evidence["pain_assessment.painDescription"] = [seg_id]
+        return
+
+
 def _build_record(
     raw: dict[str, Any],
     texts: dict[str, str],
@@ -81,11 +169,11 @@ def _build_record(
     symptoms: list[Evidence],
     exam: list[Evidence],
     context: Optional[PatientContext],
-    patient_id: Optional[int],
-    encounter_id: Optional[int],
 ) -> asklepios.Record:
     """Measured fields come from the model (checked); text fields come from the lists already checked above."""
     values, evidence = asklepios.clean_record(raw.get("record"), texts, questions, asklepios.LIVE_MODEL_GROUPS)
+    _fill_spoken_numbers(values, evidence, texts, questions)
+    _fill_spoken_pain_description(values, evidence, texts, questions)
 
     def put(group: str, name: str, text: str, ids: list[str]) -> None:
         values.setdefault(group, {})[name] = text
@@ -105,8 +193,6 @@ def _build_record(
     return asklepios.assemble(
         values,
         evidence,
-        patient_id=patient_id,
-        encounter_id=encounter_id,
         patient_conditions=conditions or None,
         groups=[group for group in asklepios.GROUP_ORDER if group != "patient_diagnosis"],
     )
@@ -116,9 +202,6 @@ def enforce_picked_up(
     raw: Any,
     segments: list[Segment],
     context: Optional[PatientContext],
-    *,
-    patient_id: Optional[int] = None,
-    encounter_id: Optional[int] = None,
 ) -> PickedUp:
     raw = raw if isinstance(raw, dict) else {}
     by_id = {segment.id: segment for segment in segments if segment.final}
@@ -193,7 +276,7 @@ def enforce_picked_up(
     symptoms = items(raw.get("symptoms"))
     exam = items(raw.get("exam"), check_numbers=True)
     texts = {seg_id: segment.text for seg_id, segment in by_id.items()}
-    record = _build_record(raw, texts, questions, complaint, symptoms, exam, context, patient_id, encounter_id)
+    record = _build_record(raw, texts, questions, complaint, symptoms, exam, context)
     return PickedUp(
         complaint=complaint,
         symptoms=symptoms,
