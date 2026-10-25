@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiveVisitScribe — try the live socket</title>
+  <style>
+    :root {
+      --bg: #f3efe6;
+      --paper: #fffdf8;
+      --ink: #1c1915;
+      --muted: #6b645a;
+      --line: #e3dccf;
+      --green: #0f6e56;
+      --green-soft: #e5f4ee;
+      --doctor: #1d4e89;
+      --patient: #8a4b08;
+      --unknown: #5c574e;
+      --danger: #9b2c2c;
+      --danger-soft: #fdecec;
+      --shadow: 0 1px 2px rgba(28, 25, 21, 0.06);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font: 15px/1.45 "Segoe UI", system-ui, sans-serif;
+    }
+    header, main, .wrap { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 28px 0 8px; display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; }
+    h1 { font-size: 28px; line-height: 1.15; margin: 4px 0 0; font-weight: 650; letter-spacing: -0.03em; }
+    h2 { font-size: 16px; margin: 0 0 10px; }
+    h3 { font-size: 13px; margin: 16px 0 8px; color: var(--muted); font-weight: 650; text-transform: uppercase; letter-spacing: 0.04em; }
+    .kicker { margin: 0; color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+    .banner {
+      margin: 0;
+      max-width: 280px;
+      padding: 10px 12px;
+      background: #fff6df;
+      border: 1px solid #ead7a2;
+      border-radius: 10px;
+      color: #6a5314;
+      font-size: 13px;
+    }
+    .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 16px 18px;
+    }
+    .connect { margin: 16px auto 18px; }
+    ol.steps { margin: 0; padding-left: 20px; color: var(--ink); }
+    ol.steps li { margin: 4px 0; }
+    code, pre { font-family: Consolas, "Cascadia Mono", ui-monospace, monospace; }
+    code { font-size: 0.92em; background: #f6f1e7; padding: 1px 5px; border-radius: 5px; }
+    pre {
+      margin: 0;
+      padding: 10px 12px;
+      background: #1c1915;
+      color: #f4efe6;
+      border-radius: 10px;
+      overflow: auto;
+      font-size: 12.5px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    .row { display: flex; gap: 10px; align-items: end; flex-wrap: wrap; margin-top: 14px; }
+    label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); flex: 1; min-width: 240px; }
+    input, textarea {
+      font: inherit;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid #d9d0c2;
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+    textarea { min-height: 64px; resize: vertical; }
+    .context { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+    button {
+      font: inherit;
+      font-weight: 650;
+      border: 0;
+      border-radius: 9px;
+      padding: 9px 14px;
+      background: var(--green);
+      color: white;
+      cursor: pointer;
+    }
+    button.secondary { background: #efeae0; color: var(--ink); }
+    button.danger { background: var(--danger); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 14px; }
+    .pill {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: #efeae0;
+      color: var(--muted);
+    }
+    .pill[data-state="live"] { background: var(--green-soft); color: var(--green); }
+    .pill[data-state="paused"] { background: #fff6df; color: #6a5314; }
+    .pill[data-state="error"] { background: var(--danger-soft); color: var(--danger); }
+    .meter { flex: 1; min-width: 120px; height: 8px; background: #e6e1d6; border-radius: 99px; overflow: hidden; }
+    .meter span { display: block; height: 100%; width: 0%; background: var(--green); transition: width 80ms linear; }
+    .error { color: var(--danger); min-height: 1.2em; margin: 8px 0 0; }
+    .stats { display: flex; gap: 16px; flex-wrap: wrap; margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .stats b { color: var(--ink); font-weight: 650; }
+    main { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 14px; padding-bottom: 18px; }
+    #transcript, #picked { display: flex; flex-direction: column; gap: 8px; min-height: 220px; }
+    .empty { color: var(--muted); margin: 0; }
+    .line { border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px; padding: 8px 10px; background: #fff; }
+    .line[data-speaker="doctor"] { border-left-color: var(--doctor); }
+    .line[data-speaker="patient"] { border-left-color: var(--patient); }
+    .line[data-speaker="unknown"] { border-left-color: #c4bbae; }
+    .line.partial { opacity: 0.72; }
+    .line .meta { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+    .who { font-weight: 750; text-transform: uppercase; letter-spacing: 0.04em; }
+    .line[data-speaker="doctor"] .who { color: var(--doctor); }
+    .line[data-speaker="patient"] .who { color: var(--patient); }
+    .tag { border-radius: 999px; padding: 1px 6px; background: #f6f1e7; }
+    .item { padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .item:last-child { border-bottom: 0; }
+    .item .ids { color: var(--muted); font-size: 12px; }
+    .group { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-top: 8px; }
+    .group header { width: auto; padding: 0; display: flex; justify-content: space-between; align-items: center; }
+    .badge { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .badge.partial, .badge.complete { color: var(--green); }
+    .confirm { color: var(--patient); font-size: 12px; font-weight: 700; }
+    details.log { width: min(1180px, calc(100% - 32px)); margin: 0 auto 28px; }
+    #log { max-height: 280px; overflow: auto; margin: 8px 0 0; padding-left: 18px; }
+    #log li { margin: 4px 0; font-family: Consolas, ui-monospace, monospace; font-size: 12px; word-break: break-word; }
+    @media (max-width: 860px) {
+      header { flex-direction: column; align-items: stretch; }
+      .banner { max-width: none; }
+      main, .context { grid-template-columns: 1fr; }
+      .pill { margin-left: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <p class="kicker">LiveVisitScribe</p>
+      <h1>Test the live visit socket</h1>
+    </div>
+    <p class="banner">Every line here is provisional. It is not the chart note. Stopping does not create a draft.</p>
+  </header>
+
+  <section class="card connect wrap">
+    <h2>How this page connects</h2>
+    <ol class="steps">
+      <li>The service must already be running (<code>python main.py</code> in <code>LiveVisitScribe</code>). It listens on port <b>8037</b>.</li>
+      <li>Open this page at <code>http://localhost:8037/try</code>. Check health hits <code>GET /api/v1/health</code>.</li>
+      <li><b>Start visit</b> asks for the microphone, opens <code id="wsLabel">ws://localhost:8037/api/v1/live</code>, and sends the text frame below.</li>
+      <li>After <code>{"type":"ready"}</code>, each ~100 ms block of mic audio is converted from float samples to little-endian <b>int16 PCM</b> and sent as a binary frame. The service resamples to 16 kHz.</li>
+      <li><b>Pause</b> / <b>Resume</b> / <b>Stop</b> are text frames. Stop flushes the open line, sends <code>final</code>, and the server closes the socket.</li>
+    </ol>
+
+    <div class="row">
+      <label>WebSocket URL
+        <input id="wsUrl" spellcheck="false" value="ws://localhost:8037/api/v1/live">
+      </label>
+      <button type="button" class="secondary" id="healthBtn">Check health</button>
+    </div>
+    <pre id="healthOut">Health has not been checked yet.</pre>
+
+    <h3>Text frame sent on Start</h3>
+    <pre id="startPreview"></pre>
+
+    <details>
+      <summary>Optional patient context (one item per line). Sent inside <code>start</code> so chart facts are not repeated as new findings.</summary>
+      <div class="context">
+        <label>Chronic diseases<textarea id="chronic" placeholder="Type 2 diabetes"></textarea></label>
+        <label>Active medications<textarea id="meds" placeholder="Lisinopril 10 mg"></textarea></label>
+        <label>Allergies<textarea id="allergies" placeholder="Penicillin"></textarea></label>
+        <label>Known diagnoses<textarea id="diagnoses" placeholder="I10 Essential hypertension"></textarea></label>
+      </div>
+    </details>
+
+    <div class="controls">
+      <button type="button" id="startBtn">Start visit</button>
+      <button type="button" class="secondary" id="pauseBtn" disabled>Pause</button>
+      <button type="button" class="secondary" id="resumeBtn" disabled>Resume</button>
+      <button type="button" class="danger" id="stopBtn" disabled>Stop</button>
+      <div class="meter" title="Microphone level"><span id="level"></span></div>
+      <span class="pill" id="status" data-state="idle">Idle</span>
+    </div>
+    <p class="error" id="error" role="alert"></p>
+    <div class="stats">
+      <span>Sample rate <b id="rateStat">—</b></span>
+      <span>Frames sent <b id="frameStat">0</b></span>
+      <span>PCM bytes <b id="byteStat">0</b></span>
+    </div>
+  </section>
+
+  <main>
+    <section class="card">
+      <h2>Transcript</h2>
+      <div id="transcript"><p class="empty">Lines appear here as they are spoken. A line stays faint until about 800 ms of silence makes it final.</p></div>
+    </section>
+    <section class="card">
+      <h2>Picked up so far</h2>
+      <div id="picked"><p class="empty">Updated after a final line, at most every 8 seconds. Medicines always say “confirm dose”.</p></div>
+    </section>
+  </main>
+
+  <details class="card log">
+    <summary>Raw socket messages</summary>
+    <ol id="log"></ol>
+  </details>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const wsInput = $("wsUrl");
+    const defaultUrl = (location.protocol === "https:" ? "wss://" : "ws://") + (location.host || "localhost:8037") + "/api/v1/live";
+    if (location.protocol.startsWith("http")) wsInput.value = defaultUrl;
+
+    let ws = null;
+    let audioCtx = null;
+    let mic = null;
+    let nodes = [];
+    let armed = false;
+    let gotReady = false;
+    let frames = 0;
+    let bytes = 0;
+    const segments = new Map();
+
+    const WORKLET = `
+      class PcmCapture extends AudioWorkletProcessor {
+        constructor() {
+          super();
+          this.buf = new Float32Array(0);
+          this.target = Math.round(sampleRate * 0.1);
+        }
+        process(inputs) {
+          const channel = inputs[0] && inputs[0][0];
+          if (!channel) return true;
+          const next = new Float32Array(this.buf.length + channel.length);
+          next.set(this.buf);
+          next.set(channel, this.buf.length);
+          if (next.length >= this.target) {
+            this.port.postMessage(next);
+            this.buf = new Float32Array(0);
+          } else {
+            this.buf = next;
+          }
+          return true;
+        }
+      }
+      registerProcessor("pcm-capture", PcmCapture);
+    `;
+
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+      }[ch]));
+    }
+
+    function lines(id) {
+      return $(id).value.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
+    }
+
+    function startPayload(sampleRate) {
+      const payload = { type: "start", sample_rate: sampleRate, channels: 1 };
+      const patient_context = {
+        chronic_diseases: lines("chronic"),
+        active_medications: lines("meds"),
+        allergies: lines("allergies"),
+        known_diagnoses: lines("diagnoses"),
+      };
+      if (Object.values(patient_context).some((items) => items.length)) payload.patient_context = patient_context;
+      return payload;
+    }
+
+    function refreshPreview() {
+      const preview = startPayload("<AudioContext.sampleRate>");
+      $("startPreview").textContent = JSON.stringify(preview, null, 2);
+      $("wsLabel").textContent = wsInput.value.trim() || defaultUrl;
+    }
+
+    function setStatus(text, state) {
+      const pill = $("status");
+      pill.textContent = text;
+      pill.dataset.state = state;
+    }
+
+    function setError(text) {
+      $("error").textContent = text || "";
+    }
+
+    function setButtons({ start, pause, resume, stop }) {
+      $("startBtn").disabled = !start;
+      $("pauseBtn").disabled = !pause;
+      $("resumeBtn").disabled = !resume;
+      $("stopBtn").disabled = !stop;
+    }
+
+    function httpUrl() {
+      const url = new URL(wsInput.value.trim());
+      url.protocol = url.protocol === "wss:" ? "https:" : "http:";
+      url.pathname = "/api/v1/health";
+      url.search = "";
+      url.hash = "";
+      return url.toString();
+    }
+
+    function logMessage(direction, message) {
+      const item = document.createElement("li");
+      const body = typeof message === "string" ? message : JSON.stringify(message);
+      item.textContent = direction + " " + body;
+      const list = $("log");
+      list.appendChild(item);
+      while (list.children.length > 80) list.removeChild(list.firstChild);
+      list.scrollTop = list.scrollHeight;
+    }
+
+    function clock(ms) {
+      const total = Math.max(0, Math.round(ms / 1000));
+      return Math.floor(total / 60) + ":" + String(total % 60).padStart(2, "0");
+    }
+
+    function renderTranscript() {
+      const host = $("transcript");
+      if (!segments.size) {
+        host.innerHTML = '<p class="empty">Lines appear here as they are spoken. A line stays faint until about 800 ms of silence makes it final.</p>';
+        return;
+      }
+      host.innerHTML = [...segments.values()].map((segment) => `
+        <article class="line ${segment.final ? "final" : "partial"}" data-speaker="${esc(segment.speaker)}">
+          <div class="meta">
+            <span class="who">${esc(segment.speaker)}</span>
+            <span>${esc(segment.id)}</span>
+            <span class="tag">${esc(segment.lang)}</span>
+            <span>${clock(segment.start_ms)}–${clock(segment.end_ms)}</span>
+            <span>${segment.final ? "final" : "partial"}</span>
+          </div>
+          <div>${esc(segment.text)}</div>
+        </article>
+      `).join("");
+    }
+
+    function evidenceList(title, items) {
+      if (!items || !items.length) return "";
+      return `<h3>${title}</h3>` + items.map((item) => `
+        <div class="item">
+          <div>${esc(item.text)}</div>
+          <div class="ids">${esc((item.segment_ids || []).join(", "))}</div>
+        </div>
+      `).join("");
+    }
+
+    function renderPicked(message) {
+      const meds = (message.medications || []).map((item) => `
+        <div class="item">
+          <div><b>${esc(item.name)}</b>${item.detail ? " — " + esc(item.detail) : ""} <span class="confirm">confirm dose</span></div>
+          <div class="ids">${esc((item.segment_ids || []).join(", "))}</div>
+        </div>
+      `).join("");
+      const groups = Object.entries(message.record || {}).filter(([, value]) => value);
+      const recordHtml = groups.map(([name, value]) => {
+        const status = (message.record_status || {})[name] || "";
+        const missing = (message.missing_required || {})[name] || [];
+        const fields = Object.entries(value).filter(([, field]) => field !== null && field !== undefined);
+        return `
+          <section class="group">
+            <header><b>${esc(name)}</b><span class="badge ${esc(status)}">${esc(status)}</span></header>
+            ${fields.map(([key, field]) => `<div class="item"><b>${esc(key)}</b> ${esc(typeof field === "object" ? JSON.stringify(field) : field)}</div>`).join("")}
+            ${missing.length ? `<div class="ids">Still needed: ${esc(missing.join(", "))}</div>` : ""}
+          </section>
+        `;
+      }).join("");
+      const complaint = message.complaint
+        ? `<h3>Complaint</h3><div class="item"><div>${esc(message.complaint.text)}</div><div class="ids">${esc((message.complaint.segment_ids || []).join(", "))}</div></div>`
+        : "";
+      $("picked").innerHTML = complaint
+        + evidenceList("Symptoms", message.symptoms)
+        + (meds ? `<h3>Medications</h3>${meds}` : "")
+        + evidenceList("Exam", message.exam)
+        + recordHtml
+        || '<p class="empty">The list came back empty.</p>';
+    }
+
+    function floatToInt16(samples) {
+      const out = new Int16Array(samples.length);
+      for (let i = 0; i < samples.length; i++) {
+        const clamped = Math.max(-1, Math.min(1, samples[i]));
+        out[i] = clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff;
+      }
+      return out;
+    }
+
+    function onSamples(samples) {
+      let sum = 0;
+      for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+      const rms = Math.sqrt(sum / samples.length);
+      $("level").style.width = Math.min(100, Math.round(rms * 400)) + "%";
+      if (!armed || !ws || ws.readyState !== WebSocket.OPEN) return;
+      const pcm = floatToInt16(samples);
+      ws.send(pcm.buffer);
+      frames += 1;
+      bytes += pcm.byteLength;
+      $("frameStat").textContent = String(frames);
+      $("byteStat").textContent = String(bytes);
+    }
+
+    async function attachMic(stream) {
+      audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const mute = audioCtx.createGain();
+      mute.gain.value = 0;
+      try {
+        const blob = new Blob([WORKLET], { type: "application/javascript" });
+        const url = URL.createObjectURL(blob);
+        await audioCtx.audioWorklet.addModule(url);
+        URL.revokeObjectURL(url);
+        const worklet = new AudioWorkletNode(audioCtx, "pcm-capture");
+        worklet.port.onmessage = (event) => onSamples(event.data);
+        source.connect(worklet);
+        worklet.connect(mute);
+        nodes = [source, worklet, mute];
+      } catch (err) {
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        processor.onaudioprocess = (event) => onSamples(event.inputBuffer.getChannelData(0));
+        source.connect(processor);
+        processor.connect(mute);
+        nodes = [source, processor, mute];
+        console.warn("AudioWorklet unavailable, using ScriptProcessor", err);
+      }
+      mute.connect(audioCtx.destination);
+      if (audioCtx.state === "suspended") await audioCtx.resume();
+      $("rateStat").textContent = audioCtx.sampleRate + " Hz";
+    }
+
+    function stopMic() {
+      armed = false;
+      nodes.forEach((node) => { try { node.disconnect(); } catch (err) { /* already disconnected */ } });
+      nodes = [];
+      if (mic) mic.getTracks().forEach((track) => track.stop());
+      mic = null;
+      if (audioCtx) audioCtx.close();
+      audioCtx = null;
+      $("level").style.width = "0%";
+    }
+
+    function resetVisit() {
+      segments.clear();
+      frames = 0;
+      bytes = 0;
+      $("frameStat").textContent = "0";
+      $("byteStat").textContent = "0";
+      $("log").innerHTML = "";
+      renderTranscript();
+      $("picked").innerHTML = '<p class="empty">Updated after a final line, at most every 8 seconds. Medicines always say “confirm dose”.</p>';
+    }
+
+    function handleMessage(message) {
+      logMessage("←", message);
+      if (message.type === "ready") {
+        gotReady = true;
+        armed = true;
+        setStatus("Live", "live");
+        setButtons({ start: false, pause: true, resume: false, stop: true });
+        $("rateStat").textContent = message.sample_rate + " Hz · " + message.channels + " ch";
+      } else if (message.type === "segment") {
+        segments.set(message.id, message);
+        renderTranscript();
+      } else if (message.type === "picked_up") {
+        renderPicked(message);
+      } else if (message.type === "paused") {
+        setStatus("Paused", "paused");
+        setButtons({ start: false, pause: false, resume: true, stop: true });
+      } else if (message.type === "resumed") {
+        armed = true;
+        setStatus("Live", "live");
+        setButtons({ start: false, pause: true, resume: false, stop: true });
+      } else if (message.type === "final") {
+        (message.segments || []).forEach((segment) => segments.set(segment.id, segment));
+        renderTranscript();
+        setStatus("Closed", "idle");
+        const foot = document.createElement("p");
+        foot.className = "empty";
+        foot.textContent = `Socket closed. ${message.segments.length} final lines, ${(message.audio_ms / 1000).toFixed(1)} s of audio.`;
+        $("transcript").appendChild(foot);
+      } else if (message.type === "error") {
+        setError(message.detail || "The service reported an error.");
+        if (!gotReady && ws) ws.close();
+      }
+    }
+
+    async function checkHealth() {
+      setError("");
+      try {
+        const response = await fetch(httpUrl());
+        const body = await response.json();
+        $("healthOut").textContent = response.status + " " + httpUrl() + "\n" + JSON.stringify(body, null, 2);
+      } catch (err) {
+        $("healthOut").textContent = "Could not reach " + httpUrl() + "\n" + err.message + "\nStart the service, then try again.";
+      }
+    }
+
+    async function startVisit() {
+      setError("");
+      gotReady = false;
+      resetVisit();
+      setButtons({ start: false, pause: false, resume: false, stop: false });
+      setStatus("Connecting", "idle");
+      try {
+        mic = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+        });
+        await attachMic(mic);
+        const payload = startPayload(audioCtx.sampleRate);
+        if (payload.sample_rate < 8000 || payload.sample_rate > 48000) {
+          throw new Error("This browser's sample rate is outside 8000–48000 Hz, which the socket accepts.");
+        }
+        $("startPreview").textContent = JSON.stringify(payload, null, 2);
+        ws = new WebSocket(wsInput.value.trim());
+        ws.binaryType = "arraybuffer";
+        ws.onopen = () => {
+          logMessage("→", payload);
+          ws.send(JSON.stringify(payload));
+        };
+        ws.onmessage = (event) => {
+          if (typeof event.data !== "string") return;
+          handleMessage(JSON.parse(event.data));
+        };
+        ws.onerror = () => setError("WebSocket error. Is LiveVisitScribe running at that URL?");
+        ws.onclose = () => {
+          armed = false;
+          stopMic();
+          ws = null;
+          setButtons({ start: true, pause: false, resume: false, stop: false });
+          if ($("status").dataset.state === "live" || $("status").dataset.state === "paused") setStatus("Disconnected", "error");
+        };
+      } catch (err) {
+        stopMic();
+        if (ws) ws.close();
+        ws = null;
+        setButtons({ start: true, pause: false, resume: false, stop: false });
+        setError(err.message || String(err));
+      }
+    }
+
+    function sendControl(type) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      armed = false;
+      const payload = { type };
+      logMessage("→", payload);
+      ws.send(JSON.stringify(payload));
+      if (type === "pause") {
+        setStatus("Pausing", "paused");
+        setButtons({ start: false, pause: false, resume: false, stop: true });
+      } else if (type === "resume") {
+        setButtons({ start: false, pause: false, resume: false, stop: true });
+      } else if (type === "stop") {
+        setStatus("Stopping", "idle");
+        setButtons({ start: false, pause: false, resume: false, stop: false });
+      }
+    }
+
+    ["chronic", "meds", "allergies", "diagnoses"].forEach((id) => $(id).addEventListener("input", refreshPreview));
+    wsInput.addEventListener("input", refreshPreview);
+    $("healthBtn").addEventListener("click", checkHealth);
+    $("startBtn").addEventListener("click", startVisit);
+    $("pauseBtn").addEventListener("click", () => sendControl("pause"));
+    $("resumeBtn").addEventListener("click", () => sendControl("resume"));
+    $("stopBtn").addEventListener("click", () => sendControl("stop"));
+    refreshPreview();
+    setButtons({ start: true, pause: false, resume: false, stop: false });
+    checkHealth();
+  </script>
+</body>
+</html>

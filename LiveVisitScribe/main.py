@@ -2,9 +2,11 @@
 
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.api.routes import router
 from app.asr import build_transcriber
@@ -42,15 +44,25 @@ app.add_middleware(
 app.include_router(router)
 
 
+_TRY_PAGE = Path(__file__).resolve().parent / "app" / "static" / "try.html"
+
+
 @app.get("/")
 async def root():
     return {
         "message": "LiveVisitScribe is running!",
         "version": settings.api_version,
         "websocket": "/api/v1/live",
+        "try": "/try",
         "docs": "/docs",
         "health": "/api/v1/health",
     }
+
+
+@app.get("/try")
+async def try_page():
+    """Browser page that opens the live socket and shows lines plus the picked-up list."""
+    return FileResponse(_TRY_PAGE)
 
 
 if __name__ == "__main__":
