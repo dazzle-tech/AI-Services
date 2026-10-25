@@ -190,3 +190,4 @@ Checks in code (`app/clinical/asklepios.py`) on top of the prompt: a field must 
 ```bash
 pytest
 ```
+convo-voice-agent
