@@ -216,20 +216,8 @@ async def generate_draft(transcript: list[TranscriptItem], options: NoteOptions)
     return enforce_evidence(raw, transcript, options)
 
 
-def _merge_regenerate_overlay(raw: dict[str, Any], overlay: dict[str, Any], section: str) -> dict[str, Any]:
-    """Keep the full draft, and replace the section the physician asked to rewrite."""
-    sections = raw.get("sections")
-    if not isinstance(sections, dict):
-        sections = {}
-        raw["sections"] = sections
-    sentences = overlay.get("sentences")
-    if isinstance(sentences, list):
-        sections[section] = {"sentences": sentences}
-    if section == "assessment_plan":
-        for key in ("diagnoses", "orders", "mentions", "instructions", "flags", "possible_transcription_errors"):
-            if key in overlay:
-                raw[key] = overlay[key]
-    return raw
+_PLAN_ONLY_KEYS = ("diagnoses", "orders", "mentions", "instructions")
+_SECTION_KEYS = ("flags", "possible_transcription_errors")
 
 
 async def regenerate_section(
@@ -238,14 +226,11 @@ async def regenerate_section(
     section: str,
     instruction: str,
 ) -> DraftParts:
-    """Full draft, with the physician instruction applied to one section. Same evidence rules as /draft."""
+    """Same evidence rules as the full draft, scoped to one section."""
     segments = model_transcript(transcript)
-    model_options = {**_model_options(options), "patient_context": _context_payload(options)}
     if settings.use_llm_stub:
-        raw = _merge_regenerate_overlay(
-            ambient_stub.stub_draft(segments, model_options),
-            ambient_stub.stub_regenerate(segments, model_options, section, instruction),
-            section,
+        raw = ambient_stub.stub_regenerate(
+            segments, {**_model_options(options), "patient_context": _context_payload(options)}, section, instruction
         )
     else:
         raw = await complete_json(
@@ -264,8 +249,53 @@ async def regenerate_section(
                 patient_context=_context_payload(options),
             ),
         )
-        raw = fill_omitted_findings(raw if isinstance(raw, dict) else {}, transcript)
-    return enforce_evidence(raw if isinstance(raw, dict) else {}, transcript, options)
+    raw = raw if isinstance(raw, dict) else {}
+    keys = _SECTION_KEYS + (_PLAN_ONLY_KEYS if section == "assessment_plan" else ())
+    scoped = {key: raw.get(key) for key in keys}
+    scoped["sections"] = {section: {"sentences": _requested_sentences(raw, section)}}
+    if not settings.use_llm_stub:
+        fill_omitted_findings(scoped, transcript, only_section=section)
+    parts = enforce_evidence(scoped, transcript, options)
+    parts.sections = {section: parts.sections[section]}
+
+    cited = {seg_id for sentence in parts.sections[section] for seg_id in sentence.segment_ids}
+    for item in (*parts.diagnoses, *parts.orders, *parts.mentions):
+        cited.update(item.segment_ids)
+    parts.flags = [flag for flag in parts.flags if cited.intersection(flag.segment_ids)]
+    parts.transcription_errors = [
+        hint for hint in parts.transcription_errors if cited.intersection(hint.segment_ids)
+    ]
+    if section != "assessment_plan":
+        parts.instructions = None
+    return parts
+
+
+def _requested_sentences(raw: dict[str, Any], section: str) -> list[Any]:
+    """The section rewrite. The model returns either a bare sentences list or the draft OUTPUT shape."""
+    sentences = raw.get("sentences")
+    if isinstance(sentences, list) and sentences:
+        return sentences
+    sections = raw.get("sections")
+    block = sections.get(section) if isinstance(sections, dict) else None
+    nested = block.get("sentences") if isinstance(block, dict) else None
+    return nested if isinstance(nested, list) else []
+
+
+def _ros_denial(clause: str) -> str | None:
+    """System name when the clause only denies a review item, such as 'No nausea.'"""
+    body = _NEGATION_BODY.search(clause)
+    if not body:
+        return None
+    words = _content_words(body.group("body"))
+    if not words:
+        return None
+    lowered = body.group("body").lower()
+    for name, terms in ambient_stub._ROS_SYSTEMS:
+        if any(term in lowered for term in terms) and all(
+            any(word in term or term in word for term in terms) for word in words
+        ):
+            return name
+    return None
 
 
 # --- Evidence rules --------------------------------------------------------
@@ -405,6 +435,11 @@ def fill_omitted_findings(
             if clause.endswith(("?", "؟")):
                 continue
             section, part = _place(clause, item.speaker)
+            text = clause
+            system = _ros_denial(clause)
+            if system:
+                section, part = "review_of_systems", None
+                text = f"{system}: {clause}"
             covered_by = plan_corpus if section == "assessment_plan" else corpus
             if (_SKIP_CLAUSE.match(clause) and not any(char.isdigit() for char in clause)) or _covered(clause, covered_by):
                 continue
@@ -418,7 +453,7 @@ def fill_omitted_findings(
             if not isinstance(sentences, list):
                 sentences = []
                 bucket["sentences"] = sentences
-            sentence: dict[str, Any] = {"text": clause, "segment_ids": [item.id]}
+            sentence: dict[str, Any] = {"text": text, "segment_ids": [item.id]}
             if part:
                 sentence["part"] = part
             sentences.append(sentence)

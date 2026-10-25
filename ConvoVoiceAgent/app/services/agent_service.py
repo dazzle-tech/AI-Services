@@ -20,6 +20,7 @@ from app.models.schemas import (
     DraftResponse,
     DraftSections,
     NoteOptions,
+    RegenerateResponse,
     TranscriptItem,
 )
 from app.services import ambient_draft
@@ -116,15 +117,17 @@ async def regenerate_visit_section(
     instruction: str,
     options: NoteOptions,
     started: float,
-) -> DraftResponse:
+) -> RegenerateResponse:
     parts = await ambient_draft.regenerate_section(transcript, options, section, instruction)
     timeout = httpx.Timeout(settings.http_timeout_seconds)
     async with httpx.AsyncClient(timeout=timeout) as client:
-        soap_note = await _reshape_soap_note(client, parts.sections, ambient_draft.SOAP_NOTE_FIELDS, options)
-    record = ambient_draft.record_for_draft(parts, options)
-    return DraftResponse(
-        transcript=transcript,
-        sections=DraftSections(**{name: {"sentences": items} for name, items in parts.sections.items()}),
+        soap_note = await _reshape_soap_note(
+            client, parts.sections, ambient_draft.SECTION_SOAP_FIELDS[section], options
+        )
+    record = ambient_draft.record_for_section(parts, options, section)
+    return RegenerateResponse(
+        section=section,
+        sentences=parts.sections[section],
         soap_note=soap_note,
         diagnoses=parts.diagnoses,
         orders=parts.orders,
@@ -135,8 +138,6 @@ async def regenerate_visit_section(
         patient_context_used=ambient_draft.patient_context_used(options.patient_context),
         record=record.record,
         record_evidence=record.evidence,
-        record_status=record.status,
-        missing_required=record.missing_required,
         elapsed_ms=int((time.perf_counter() - started) * 1000),
     )
 

@@ -114,7 +114,7 @@ Response:
 
 JSON: `transcript` (the array from `/draft`), `section` (one of the five names), `instruction` (free text such as `"shorter"` or `"add smoking history"`), plus the same `note_language`, `specialty`, `note_length`, `note_form`, and optional `patient_context`.
 
-Response: the same object as `/draft` (`transcript`, every section, the full `soap_note`, `diagnoses`, `orders`, `mentions`, `instructions`, `flags`, `possible_transcription_errors`, `patient_context_used`, `record`, `record_evidence`, `record_status`, `missing_required`, `elapsed_ms`). `section` chooses which part the `instruction` rewrites. The other sections and the record are still filled from the transcript.
+Response: only the requested section, in the same shape that section has inside `/draft`. `sentences` use the draft sentence fields (`sentence_id`, `text`, `segment_ids`, `low_confidence`, and `part` on `assessment_plan`). `soap_note` has only the SOAP fields that section fills (`hpi` is `HPI` and `MedicalHistory`; `review_of_systems` is the review-of-systems block of `PhysicalExamination`; `physical_exam` is `Vitals` and `PhysicalExamination`; `assessment_plan` is `Assessments` and `TreatmentPlans`). `diagnoses`, `orders`, `mentions` and `instructions` are filled only for `assessment_plan`. `record` and `record_evidence` contain only the keys that section decides.
 
 ### Evidence rules
 
@@ -158,7 +158,7 @@ Also in the response:
 
 Checks in code (`app/clinical/asklepios.py`) on top of the prompt: a field must cite an existing, non-question segment; a number must be said in a cited segment (no conversion, except height in metres to centimetres) and be plausible (for example heart rate 20-300, SpO2 50-100, temperature 25-45 Celsius, so a Fahrenheit reading is dropped); systolic must be above diastolic or both are dropped; an enum or list-of-values field must be one Asklepios stores, and its cited segment must say it. List-of-values fields are the label word, never the numeric key: `measurementSite` is Finger, Forearm, Upper Arm, or Ankle; `painPattern` is Burning, Dull, Aching, Stabbing, Throbbing, Cramping, Radiating, Tingling, Shooting, Shock-like, Pressure-like, or Sharp. `painDegree` is NOTHING, MILD_MINOR, MODERATE, or SEVERE. `modeOfArrival` is AMBULATORY, WHEELCHAIR, STRETCHER, or OTHER. Free text may not contain a number that was not said.
 
-`/sections/regenerate` returns the same `record`, `record_evidence`, `record_status` and `missing_required` as `/draft`, including vitals, measurements and pain.
+`/sections/regenerate` returns `record` and `record_evidence` only for the keys that section decides (for example `hpi` returns `clinical_visit.historyOfPresentIllness`, and `assessment_plan` returns `assessment`, `plan_of_care` and `patient_diagnosis`).
 
 ### Note model
 

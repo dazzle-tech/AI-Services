@@ -1110,7 +1110,7 @@
                 }
               }
             },
-            "description": "Redrafts the visit from a transcript the caller already has. No audio and no ConvoScribe call. The response has the same fields as Draft. `section` and `instruction` choose which part to rewrite; the other sections and the record are still filled."
+            "description": "Redrafts one section from a transcript the caller already has. No audio and no ConvoScribe call. The response is only that section: sentences in the same shape as `/draft`, the SOAP fields that section fills, and record keys that section decides. `diagnoses`, `orders`, `mentions` and `instructions` are filled only for `assessment_plan`."
           },
           "response": [
             {

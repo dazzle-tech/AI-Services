@@ -190,3 +190,27 @@ class RegenerateRequest(NoteOptions):
     transcript: List[TranscriptItem] = Field(min_length=1)
     section: SectionName
     instruction: str = Field(default="", max_length=2000)
+
+
+class RegenerateResponse(BaseModel):
+    """The one requested section, in the same shape that section has inside a draft.
+
+    Sentences use the draft sentence fields. soap_note has only the SOAP fields this section fills.
+    diagnoses, orders, mentions and instructions are filled only for assessment_plan.
+    flags and possible_transcription_errors only cover segments this section cites.
+    record has only the keys this section decides.
+    """
+
+    section: SectionName
+    sentences: List[PlanSentence | Sentence]
+    soap_note: Dict[str, Any]
+    diagnoses: List[Diagnosis] = Field(default_factory=list)
+    orders: List[Order] = Field(default_factory=list)
+    mentions: List[Mention] = Field(default_factory=list)
+    instructions: Optional[Instructions] = None
+    flags: List[Flag] = Field(default_factory=list)
+    possible_transcription_errors: List[TranscriptionErrorHint] = Field(default_factory=list)
+    patient_context_used: bool = False
+    record: Dict[str, Any] = Field(default_factory=dict)
+    record_evidence: Dict[str, List[str]] = Field(default_factory=dict)
+    elapsed_ms: int

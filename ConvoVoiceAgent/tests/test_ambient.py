@@ -8,6 +8,7 @@ import wave
 import httpx
 import pytest
 import respx
+from fastapi import HTTPException
 
 from app.ai import ambient_stub
 from app.core.config import reload_settings, settings
@@ -261,47 +262,15 @@ def test_regenerate_returns_only_requested_section(client, downstream, monkeypat
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert set(body) == {
-        "transcript",
-        "sections",
-        "soap_note",
-        "diagnoses",
-        "orders",
-        "mentions",
-        "instructions",
-        "flags",
-        "possible_transcription_errors",
-        "patient_context_used",
-        "record",
-        "record_evidence",
-        "record_status",
-        "missing_required",
-        "elapsed_ms",
-    }
-    assert set(body["sections"]) == {
-        "chief_complaint",
-        "hpi",
-        "review_of_systems",
-        "physical_exam",
-        "assessment_plan",
-    }
-    assert [s["text"] for s in body["sections"]["hpi"]["sentences"]] == ["Sore throat and fever for three days."]
-    assert set(body["soap_note"]) == set(SOAP_NOTE_FIELDS)
-    assert body["soap_note"]["HPI"] == "Sore throat and fever for three days."
-    assert body["soap_note"]["ChiefComplaint"]
-    assert body["transcript"] == transcript
-    assert isinstance(body["instructions"], dict)
+    assert body["section"] == "hpi"
+    assert [s["text"] for s in body["sentences"]] == ["Sore throat and fever for three days."]
+    assert set(body["sentences"][0]) == {"sentence_id", "text", "segment_ids", "low_confidence"}
+    assert body["soap_note"] == {"HPI": "Sore throat and fever for three days.", "MedicalHistory": None}
+    assert body["diagnoses"] == [] and body["orders"] == [] and body["mentions"] == []
+    assert body["instructions"] is None
+    assert body["flags"] == []
+    assert "transcript" not in body and "sections" not in body
     assert isinstance(body["elapsed_ms"], int)
-    assert set(body["record_status"]) == {
-        "vital_sign",
-        "body_measurements",
-        "pain_assessment",
-        "nursing_assessment",
-        "clinical_visit",
-        "patient_diagnosis",
-        "assessment",
-        "plan_of_care",
-    }
 
 
 def test_regenerate_assessment_plan_with_stub(client, downstream):
@@ -312,8 +281,8 @@ def test_regenerate_assessment_plan_with_stub(client, downstream):
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert set(body["soap_note"]) == set(SOAP_NOTE_FIELDS)
-    sentences = body["sections"]["assessment_plan"]["sentences"]
+    assert set(body["soap_note"]) == {"Assessments", "TreatmentPlans"}
+    sentences = body["sentences"]
     assert len(sentences) == 2
     assert all(s["segment_ids"] and s["part"] in {"assessment", "plan"} for s in sentences)
     assert sentences[1]["low_confidence"] is True
@@ -325,11 +294,115 @@ def test_regenerate_assessment_plan_with_stub(client, downstream):
     assert {(f["kind"], f["text"]) for f in body["flags"]} == {("dose", "500 mg"), ("drug_name", "azithromycin")}
 
 
+def test_regenerate_review_of_systems_keeps_a_spoken_denial(client, downstream, monkeypatch):
+    transcript = [
+        {
+            "id": "s3",
+            "speaker": "doctor",
+            "lang": "en",
+            "start_ms": 0,
+            "end_ms": 1000,
+            "text": "Any nausea, vision changes, or neck stiffness?",
+            "confidence": None,
+        },
+        {
+            "id": "s4",
+            "speaker": "patient",
+            "lang": "en",
+            "start_ms": 1000,
+            "end_ms": 3000,
+            "text": "No nausea. Light bothers me a little.",
+            "confidence": None,
+        },
+    ]
+    monkeypatch.setenv("USE_LLM_STUB", "false")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    reload_settings()
+
+    async def nested(**kwargs):
+        return {
+            "sections": {
+                "review_of_systems": {
+                    "sentences": [
+                        {"text": "Neurological: No vision changes or neck stiffness.", "segment_ids": ["s3"]},
+                        {"text": "Gastrointestinal: No nausea.", "segment_ids": ["s4"]},
+                    ]
+                }
+            }
+        }
+
+    monkeypatch.setattr("app.services.ambient_draft.complete_json", nested)
+    kept = client.post(
+        REGENERATE_PATH,
+        json={"transcript": transcript, "section": "review_of_systems", "instruction": "add vision changes and neck stiffness"},
+    )
+    assert kept.status_code == 200, kept.text
+    body = kept.json()
+    assert [sentence["text"] for sentence in body["sentences"]] == ["Gastrointestinal: No nausea."]
+    assert body["sentences"][0]["segment_ids"] == ["s4"]
+    assert "No nausea" in body["soap_note"]["PhysicalExamination"]
+    assert body["record"]["clinical_visit"]["physicalExaminationSummery"]
+
+    async def empty(**kwargs):
+        return {"sections": {"review_of_systems": {"sentences": []}}}
+
+    monkeypatch.setattr("app.services.ambient_draft.complete_json", empty)
+    filled = client.post(
+        REGENERATE_PATH,
+        json={"transcript": transcript, "section": "review_of_systems"},
+    ).json()
+    assert [sentence["text"] for sentence in filled["sentences"]] == ["Gastrointestinal: No nausea."]
+
+
+def test_regenerate_hpi_does_not_take_a_review_denial(client, downstream, monkeypatch):
+    transcript = [
+        {
+            "id": "s2",
+            "speaker": "patient",
+            "lang": "en",
+            "start_ms": 0,
+            "end_ms": 1000,
+            "text": "I have had a three-day frontal headache. No fever, but it is worse in the afternoon.",
+            "confidence": None,
+        },
+        {
+            "id": "s4",
+            "speaker": "patient",
+            "lang": "en",
+            "start_ms": 1000,
+            "end_ms": 2000,
+            "text": "No nausea. Light bothers me a little.",
+            "confidence": None,
+        },
+    ]
+    monkeypatch.setenv("USE_LLM_STUB", "false")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    reload_settings()
+
+    async def model(**kwargs):
+        return {
+            "sentences": [
+                {
+                    "text": "The patient reports a three-day frontal headache, worse in the afternoon, with no fever.",
+                    "segment_ids": ["s2"],
+                },
+                {"text": "Light bothers the patient a little.", "segment_ids": ["s4"]},
+            ]
+        }
+
+    monkeypatch.setattr("app.services.ambient_draft.complete_json", model)
+    body = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "hpi"}).json()
+    texts = [sentence["text"] for sentence in body["sentences"]]
+    assert "No nausea." not in texts
+    assert any("frontal headache" in text for text in texts)
+    assert any("Light bothers" in text for text in texts)
+
+
 def test_regenerate_scopes_flags_to_the_section(client, downstream):
     transcript = _post_draft(client).json()["transcript"]
     body = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "physical_exam"}).json()
-    assert [s["segment_ids"] for s in body["sections"]["physical_exam"]["sentences"]] == [["s4"]]
-    assert {(flag["kind"], flag["text"]) for flag in body["flags"]} == {("dose", "500 mg"), ("drug_name", "azithromycin")}
+    assert [s["segment_ids"] for s in body["sentences"]] == [["s4"]]
+    assert body["flags"] == []
 
 
 def test_regenerate_drops_unknown_icd10_code(client, downstream, monkeypatch):
@@ -370,6 +443,41 @@ def test_unconfigured_note_model_fails_before_convoscribe(client, downstream, mo
     assert response.status_code == 503
     assert "OPENAI_API_KEY" in response.json()["detail"]
     assert not downstream["analyze"].called
+
+
+def test_regenerate_returns_error_when_openai_call_fails(client, downstream, monkeypatch):
+    transcript = _post_draft(client).json()["transcript"]
+    monkeypatch.setenv("USE_LLM_STUB", "false")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    reload_settings()
+
+    missing = client.post(
+        REGENERATE_PATH,
+        json={"transcript": transcript, "section": "hpi", "instruction": "shorter"},
+    )
+    assert missing.status_code == 503
+    assert "OPENAI_API_KEY" in missing.json()["detail"]
+
+    async def rejected(**kwargs):
+        raise HTTPException(status_code=502, detail="Ambient note model failed: AuthenticationError")
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-bad")
+    reload_settings()
+    monkeypatch.setattr("app.services.ambient_draft.complete_json", rejected)
+    rejected_response = client.post(
+        REGENERATE_PATH,
+        json={"transcript": transcript, "section": "assessment_plan", "instruction": "shorter"},
+    )
+    assert rejected_response.status_code == 502
+    assert "AuthenticationError" in rejected_response.json()["detail"]
+
+    async def other_failure(**kwargs):
+        raise HTTPException(status_code=502, detail="Ambient note model failed: APIConnectionError")
+
+    monkeypatch.setattr("app.services.ambient_draft.complete_json", other_failure)
+    other = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "hpi"})
+    assert other.status_code == 502
+    assert "APIConnectionError" in other.json()["detail"]
 
 
 def test_invalid_note_option_422(client, downstream):
@@ -704,29 +812,17 @@ def test_regenerate_record_covers_only_its_section(client, downstream, monkeypat
 
     monkeypatch.setattr(ambient_stub, "stub_regenerate", fake_regenerate)
     body = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "hpi"}).json()
-    assert body["record"]["clinical_visit"]["historyOfPresentIllness"] == "Sore throat and fever for three days."
-    assert body["record"]["clinical_visit"]["chiefComplaint"]
-    assert "patient_diagnosis" in body["record"]
-    assert body["record_evidence"]["clinical_visit.historyOfPresentIllness"] == ["s2"]
-    assert "missing_required" in body
+    assert body["record"] == {"clinical_visit": {"historyOfPresentIllness": "Sore throat and fever for three days."}}
+    assert body["record_evidence"] == {"clinical_visit.historyOfPresentIllness": ["s2"]}
 
 
 
 def test_regenerate_assessment_plan_record(client, downstream):
     transcript = _post_draft(client).json()["transcript"]
     body = client.post(REGENERATE_PATH, json={"transcript": transcript, "section": "assessment_plan"}).json()
-    assert set(body["record"]) == {
-        "vital_sign",
-        "body_measurements",
-        "pain_assessment",
-        "nursing_assessment",
-        "clinical_visit",
-        "patient_diagnosis",
-        "assessment",
-        "plan_of_care",
-    }
+    assert set(body["record"]) == {"assessment", "plan_of_care", "patient_diagnosis"}
     assert body["record"]["patient_diagnosis"][0]["type"] == "PRIMARY"
-    assert set(body["record"]["plan_of_care"]) >= {"patientId", "encounterId", "treatmentPlan"}
+    assert set(body["record"]["plan_of_care"]) == {"patientId", "encounterId", "treatmentPlan"}
 
 
 def test_asklepios_enum_and_number_rules():
