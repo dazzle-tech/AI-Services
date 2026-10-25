@@ -62,15 +62,8 @@ class TestHealthEndpoint:
 class TestSummarizeEndpoint:
     """Test summarize endpoint."""
     
-    @patch('app.services.summarization_service.AIClient')
-    def test_summarize_success(self, mock_ai_client, client, mock_openai_response):
+    def test_summarize_success(self, client, mock_openai_response):
         """Test successful summary generation."""
-        # Mock AI client
-        mock_client_instance = MagicMock()
-        mock_client_instance.generate_summary.return_value = "A 45-year-old male with Type 2 Diabetes."
-        mock_ai_client.return_value = mock_client_instance
-        
-        # Make request
         request_data = {
             "request_id": "test-001",
             "patient_data": {
@@ -80,7 +73,11 @@ class TestSummarizeEndpoint:
             }
         }
         
-        response = client.post("/api/v1/summarize", json=request_data)
+        with patch(
+            "app.api.routes.summarization_service.ai_client.generate_summary",
+            return_value="A 45-year-old male with Type 2 Diabetes.",
+        ):
+            response = client.post("/api/v1/summarize", json=request_data)
         
         assert response.status_code == 200
         data = response.json()
@@ -117,11 +114,10 @@ class TestSummarizeEndpoint:
     
     def test_summarize_complete_data(self, client, mock_openai_response):
         """Test summarize with complete patient data."""
-        with patch('app.services.summarization_service.AIClient') as mock_ai:
-            mock_client_instance = MagicMock()
-            mock_client_instance.generate_summary.return_value = "A 58-year-old male with STEMI."
-            mock_ai.return_value = mock_client_instance
-            
+        with patch(
+            "app.api.routes.summarization_service.ai_client.generate_summary",
+            return_value="A 58-year-old male with STEMI.",
+        ):
             request_data = {
                 "patient_data": {
                     "Age": "58 years",
@@ -141,11 +137,10 @@ class TestSummarizeEndpoint:
     
     def test_summarize_without_request_id(self, client, mock_openai_response):
         """Test summarize without request_id (should auto-generate)."""
-        with patch('app.services.summarization_service.AIClient') as mock_ai:
-            mock_client_instance = MagicMock()
-            mock_client_instance.generate_summary.return_value = "Test summary"
-            mock_ai.return_value = mock_client_instance
-            
+        with patch(
+            "app.api.routes.summarization_service.ai_client.generate_summary",
+            return_value="Test summary",
+        ):
             request_data = {
                 "patient_data": {
                     "Age": "45 years",
@@ -161,14 +156,8 @@ class TestSummarizeEndpoint:
             assert "request_id" in data
             assert data["request_id"] is not None
     
-    @patch('app.services.summarization_service.AIClient')
-    def test_summarize_api_error(self, mock_ai_client, client):
-        """Test summarize with API error."""
-        # Mock AI client to raise error
-        mock_client_instance = MagicMock()
-        mock_client_instance.generate_summary.side_effect = ValueError("API error")
-        mock_ai_client.return_value = mock_client_instance
-        
+    def test_summarize_api_error(self, client):
+        """An OpenAI failure is explained. It is not replaced with a template summary."""
         request_data = {
             "patient_data": {
                 "Age": "45 years",
@@ -177,8 +166,14 @@ class TestSummarizeEndpoint:
             }
         }
         
-        response = client.post("/api/v1/summarize", json=request_data)
-        assert response.status_code == 400  # Bad request due to validation error
+        with patch(
+            "app.api.routes.summarization_service.ai_client.generate_summary",
+            side_effect=ValueError("OpenAI API error: invalid api key"),
+        ):
+            response = client.post("/api/v1/summarize", json=request_data)
+        assert response.status_code == 502
+        assert response.json()["detail"] == "OpenAI API error: invalid api key"
+        assert "ClinicalSummary" not in response.json()
 
 
 class TestAPIDocumentation:

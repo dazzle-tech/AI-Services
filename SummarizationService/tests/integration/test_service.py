@@ -65,7 +65,7 @@ class TestSummarizationService:
         
         service = SummarizationService()
         
-        with pytest.raises(ValueError, match="Summary generation failed"):
+        with pytest.raises(ValueError, match="OpenAI API error"):
             service.process_request(SAMPLE_REQUEST_MINIMAL)
     
     @patch('app.services.summarization_service.AIClient')

@@ -46,10 +46,10 @@ async def summarize(request: SummaryRequest) -> SummaryResponse:
         return response
         
     except ValueError as e:
-        logger.error(f"Validation error for request {request.request_id}: {e}")
+        logger.error("OpenAI summary failed for request %s: %s", request.request_id, e)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Request validation failed: {str(e)}"
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
         )
     except Exception as e:
         logger.error(f"Unexpected error processing request {request.request_id}: {e}")
@@ -75,10 +75,10 @@ async def encounter_summary(request: EncounterSummaryRequest) -> EncounterSummar
     try:
         return summarization_service.process_encounter_request(request)
     except ValueError as e:
-        logger.error("Validation error for encounter %s: %s", request.encounter_id, e)
+        logger.error("OpenAI summary failed for encounter %s: %s", request.encounter_id, e)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Request validation failed: {str(e)}",
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e),
         )
     except Exception as e:
         logger.error("Unexpected error for encounter %s: %s", request.encounter_id, e)

@@ -102,8 +102,9 @@ class AIClient:
                 summary = self._clean_summary(content)
                 
                 if not summary:
-                    logger.warning("Generated summary is empty")
-                    summary = "Unable to generate clinical summary. Please check input data."
+                    raise ValueError(
+                        f"Model '{self.model}' returned an empty clinical summary after the response was read."
+                    )
                 
                 # Log usage if enabled
                 if settings.enable_usage_tracking:
@@ -179,7 +180,9 @@ class AIClient:
                     )
                 summary = self._clean_summary(content, keep_paragraphs=keep_paragraphs)
                 if not summary:
-                    summary = "Unable to generate clinical summary. Please check input data."
+                    raise ValueError(
+                        f"Model '{self.model}' returned an empty clinical summary after the response was read."
+                    )
                 if settings.enable_usage_tracking and response.usage:
                     usage = response.usage
                     logger.info(

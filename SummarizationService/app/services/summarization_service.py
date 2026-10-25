@@ -131,40 +131,25 @@ class SummarizationService:
             # Log input data (for debugging)
             logger.info(f"Patient data input: {patient_data_dict}")
 
-            # Step 1: Generate summary.
-            # For demographics-only input there is nothing for the model to
-            # synthesize, and small/local models reliably pad such cases with
-            # fabricated detail (invented history, vitals, meds) - so we skip
-            # the LLM entirely and use a deterministic template instead.
-            if is_sparse_input(patient_data_dict):
-                logger.info(
-                    "Sparse input detected for request %s - using deterministic "
-                    "template instead of calling the model", request_id
-                )
-                summary = build_sparse_summary(patient_data_dict)
-                suspect_numbers: Set[str] = set()
-                suspect_categories: Set[str] = set()
-            else:
-                logger.info("Generating clinical summary with OpenAI...")
-                summary = self.ai_client.generate_summary(patient_data_dict)
-                logger.info(f"Summary generated successfully for request {request_id}")
+            # Always call the model. A failed call is returned as an error, not a template.
+            logger.info("Generating clinical summary with OpenAI...")
+            summary = self.ai_client.generate_summary(patient_data_dict)
+            logger.info(f"Summary generated successfully for request {request_id}")
 
-                # Step 1.5: Guard against fabricated clinical detail that
-                # doesn't trace back to anything in the source data.
-                suspect_numbers = find_hallucinated_numbers(patient_data_dict, summary)
-                suspect_categories = find_hallucinated_categories(patient_data_dict, summary)
-                if suspect_numbers:
-                    logger.warning(
-                        "Possible hallucination in request %s: summary contains numeric "
-                        "values not found in source data: %s",
-                        request_id, sorted(suspect_numbers)
-                    )
-                if suspect_categories:
-                    logger.warning(
-                        "Possible hallucination in request %s: summary references "
-                        "categories with no supporting input data: %s",
-                        request_id, sorted(suspect_categories)
-                    )
+            suspect_numbers = find_hallucinated_numbers(patient_data_dict, summary)
+            suspect_categories = find_hallucinated_categories(patient_data_dict, summary)
+            if suspect_numbers:
+                logger.warning(
+                    "Possible hallucination in request %s: summary contains numeric "
+                    "values not found in source data: %s",
+                    request_id, sorted(suspect_numbers)
+                )
+            if suspect_categories:
+                logger.warning(
+                    "Possible hallucination in request %s: summary references "
+                    "categories with no supporting input data: %s",
+                    request_id, sorted(suspect_categories)
+                )
 
             # Step 2: Build response with enhanced metadata
             response = SummaryResponse(
