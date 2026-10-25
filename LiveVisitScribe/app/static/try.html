@@ -216,6 +216,41 @@
   </details>
 
   <script>
+    /*
+      How this page connects to LiveVisitScribe.
+
+      The service is already running (python main.py, port 8037). This page
+      only talks to it. The visit exists only while the WebSocket is open.
+
+      1. Health is ordinary HTTP. The socket URL is rewritten:
+         ws://host:8037/api/v1/live  ->  GET http://host:8037/api/v1/health
+
+      2. Start visit opens the microphone first. The start frame has to name
+         the browser's real sample rate (often 48000). The socket accepts
+         8000–48000 Hz and 1 or 2 channels. This page sends 1 channel.
+
+      3. It then opens ws://host:8037/api/v1/live and sends one text frame:
+         {"type":"start","sample_rate":48000,"channels":1,"patient_context":{...}}
+         patient_context is optional. Binary audio before "ready" is an error.
+
+      4. The server answers {"type":"ready",...}. Only then are binary frames
+         sent. Each ~100 ms block of mic samples (float, -1..1) becomes
+         little-endian int16 PCM and is sent with ws.send(arrayBuffer).
+         The service resamples that to 16 kHz and hands the array to the
+         local Whisper model. This page never calls the model itself.
+
+      5. Server messages are text JSON:
+         segment    a transcript line; the same id is replaced until final:true
+         picked_up  the scratch list, built from finished text, not from audio
+         paused / resumed   acknowledgements of those control frames
+         final      every final line, then the server closes the socket
+         error      bad input leaves the socket open; a failed start is closed here
+
+      6. Pause, resume, and stop are text frames {"type":"pause"|"resume"|"stop"}.
+         Pause stops binary frames first. Resume sends the text frame first and
+         waits for "resumed" before audio flows again. Stop asks the server to
+         finish the open line, flush the picked-up list, and close.
+    */
     const $ = (id) => document.getElementById(id);
     const wsInput = $("wsUrl");
     const defaultUrl = (location.protocol === "https:" ? "wss://" : "ws://") + (location.host || "localhost:8037") + "/api/v1/live";
@@ -231,6 +266,9 @@
     let bytes = 0;
     const segments = new Map();
 
+    // Mic capture. The browser hands this processor ~128 samples at a time.
+    // Those are gathered until ~100 ms (0.1 * sampleRate), then posted to the
+    // page, which turns them into one binary WebSocket frame.
     const WORKLET = `
       class PcmCapture extends AudioWorkletProcessor {
         constructor() {
@@ -266,6 +304,9 @@
       return $(id).value.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
     }
 
+    // The only text frame that begins a visit. sample_rate is samples per
+    // second in the binary frames that follow, so the service can time the
+    // audio and resample it to 16 kHz. It is the microphone rate, not 16000.
     function startPayload(sampleRate) {
       const payload = { type: "start", sample_rate: sampleRate, channels: 1 };
       const patient_context = {
@@ -301,6 +342,7 @@
       $("stopBtn").disabled = !stop;
     }
 
+    // Health uses the same host as the socket, with http(s) and /api/v1/health.
     function httpUrl() {
       const url = new URL(wsInput.value.trim());
       url.protocol = url.protocol === "wss:" ? "https:" : "http:";
@@ -386,6 +428,8 @@
         || '<p class="empty">The list came back empty.</p>';
     }
 
+    // Whisper's side of the socket expects raw little-endian int16, not a WAV
+    // file and not the float samples the browser captured.
     function floatToInt16(samples) {
       const out = new Int16Array(samples.length);
       for (let i = 0; i < samples.length; i++) {
@@ -395,6 +439,8 @@
       return out;
     }
 
+    // One binary frame. "armed" is true only after "ready", and again after
+    // "resumed", so audio is never sent before start or during pause.
     function onSamples(samples) {
       let sum = 0;
       for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
@@ -409,6 +455,8 @@
       $("byteStat").textContent = String(bytes);
     }
 
+    // The gain node is silent. It keeps the capture graph running without
+    // playing the microphone back through the speakers.
     async function attachMic(stream) {
       audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
@@ -459,6 +507,8 @@
       $("picked").innerHTML = '<p class="empty">Updated after a final line, at most every 8 seconds. Medicines always say “confirm dose”.</p>';
     }
 
+    // Every server frame is text JSON. "ready" is the gate that lets binary
+    // audio start. A later segment with the same id replaces the partial line.
     function handleMessage(message) {
       logMessage("←", message);
       if (message.type === "ready") {
@@ -504,6 +554,8 @@
       }
     }
 
+    // Order matters: microphone (to learn sampleRate), then the socket, then
+    // the start text frame. Binary audio waits for the "ready" message.
     async function startVisit() {
       setError("");
       gotReady = false;
@@ -547,6 +599,9 @@
       }
     }
 
+    // pause / resume / stop. Audio is disarmed before the text frame is sent
+    // so a pause cannot be overtaken by a binary frame already in flight.
+    // Resume stays disarmed until the server sends "resumed".
     function sendControl(type) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       armed = false;
