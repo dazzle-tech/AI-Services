@@ -55,8 +55,10 @@ cite is left out; a missing field is normal and is never guessed, defaulted or c
   Tingling, Shooting, Shock-like, Pressure-like, Sharp. Never send a numeric list-of-values key.
 - nursing_assessment: modeOfArrival AMBULATORY|WHEELCHAIR|STRETCHER|OTHER (AMBULATORY when they walked in,
   OTHER for an ambulance), functionalStatus, cognitiveCheck (only if said).
-- assessment: the field "assessment" (text) only if the doctor stated an impression. plan_of_care: the fields
-  goals and treatmentPlan (text) only if the doctor stated them, in the doctor's words.
+- assessment: the field "assessment" (text) when a clinician states an impression, including a hedged one
+  ("tension-type headache is one possibility"), in the words that were said. plan_of_care: goals and
+  treatmentPlan when they state home care, a medicine, or when to return or seek urgent care.
+  Write these from the words even when the speaker label is unknown. A question is not an impression.
 
 Return JSON only:
 {

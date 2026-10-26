@@ -270,6 +270,8 @@ def test_speaker_and_language_guesses():
     assert guess_speaker("Any nausea, or visual aura before the pain?") == "doctor"
     assert guess_speaker("I have had a daily headache for two weeks.") == "patient"
     assert guess_speaker("About three tablets a day.") == "unknown"
+    assert guess_speaker("Alright, Doctor, is my blood pressure okay today?") == "patient"
+    assert guess_speaker("When shall I come back if the headache does not improve?") == "patient"
     assert detect_lang("كم حبة Neurofen تاخذين باليوم؟") == "mixed"
     assert detect_lang("صداع منذ يومين") == "ar"
     assert detect_lang("Blood pressure is 128 over 82") == "en"

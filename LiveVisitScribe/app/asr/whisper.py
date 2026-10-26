@@ -13,6 +13,25 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
+def _register_cuda_dlls() -> None:
+    """Make the pip CUDA 12 libraries visible. Windows does not search site-packages for cublas64_12.dll."""
+    import os
+    import sys
+    from pathlib import Path
+
+    for entry in sys.path:
+        root = Path(entry)
+        for name in ("nvidia/cublas/bin", "nvidia/cudnn/bin"):
+            folder = root / name
+            if not folder.is_dir():
+                continue
+            try:
+                os.add_dll_directory(str(folder))
+            except (AttributeError, OSError):
+                pass
+            os.environ["PATH"] = str(folder) + os.pathsep + os.environ.get("PATH", "")
+
+
 def _resolve_device(preference: str) -> str:
     preference = (preference or "auto").lower()
     if preference != "auto":
@@ -32,6 +51,8 @@ class WhisperTranscriber:
         from faster_whisper import WhisperModel  # lazy: not needed for the stub or the tests
 
         self.device = _resolve_device(settings.whisper_device)
+        if self.device == "cuda":
+            _register_cuda_dlls()
         self.compute_type = settings.whisper_compute_type or ("float16" if self.device == "cuda" else "int8")
         self.model_name = settings.whisper_model
         self._language = settings.whisper_language or None
