@@ -272,6 +272,22 @@ def test_speaker_and_language_guesses():
     assert guess_speaker("About three tablets a day.") == "patient"
     assert guess_speaker("Alright, Doctor, is my blood pressure okay today?") == "patient"
     assert guess_speaker("When shall I come back if the headache does not improve?") == "patient"
+    assert guess_speaker(
+        "That is reassuring. I was worried because the headache has lasted for three days. "
+        "Do you think it could be related to stress or dehydration?"
+    ) == "patient"
+    assert guess_speaker(
+        "Stress, inadequate sleep, and insufficient fluid intake can contribute to headaches. "
+        "Attention type headache is one possibility, but I cannot confirm the cause from this information alone."
+    ) == "doctor"
+    assert guess_speaker("What should I do at home, and should I take anything for the pain?") == "patient"
+    assert guess_speaker(
+        "Try to drink fluids regularly. Do not stop your regular blood pressure medication."
+    ) == "doctor"
+    assert guess_speaker(
+        "Arrange a review if it persists or worsens, seek urgent medical care for a sudden severe headache. "
+        "Thank you, Sarah."
+    ) == "doctor"
     assert detect_lang("كم حبة Neurofen تاخذين باليوم؟") == "mixed"
     assert detect_lang("صداع منذ يومين") == "ar"
     assert detect_lang("Blood pressure is 128 over 82") == "en"
@@ -390,3 +406,63 @@ def test_picked_up_record_fills_the_same_spoken_fields_as_the_draft():
     assert result.record_evidence["body_measurements.headCircumference"] == ["t1"]
     assert result.record_evidence["pain_assessment.painDescription"] == ["t2"]
     assert result.missing_required["pain_assessment"] == ["painDegree"]
+
+
+def test_spoken_impression_plan_pressure_and_denials_are_kept_when_the_model_omits_them():
+    segments = [
+        _seg(
+            "t4",
+            "It is mostly in the front of my head, around my forehead, it feels like pressure, "
+            "and it gets worse in the afternoon. The pain is usually 4 out of 10.",
+        ),
+        _seg(
+            "t6",
+            "I have a little sensitivity to light, but no nausea or vomiting. "
+            "I have not noticed any fever, blurred vision, or neck stiffness.",
+        ),
+        _seg(
+            "t8",
+            "I sometimes get mild headaches when I'm stressed or do not sleep well. "
+            "I have been sleeping about five hours a night recently because of work.",
+        ),
+        _seg(
+            "t12",
+            "Yes, I take it every morning. I have not noticed any weight changes, "
+            "but I have been drinking less water than usual and sometimes skip lunch.",
+        ),
+        _seg(
+            "t17",
+            "Stress, inadequate sleep, and insufficient fluid intake can contribute to headaches. "
+            "Attention type headache is one possibility, but I cannot confirm the cause from this "
+            "information alone. We should consider your symptoms, and how they develop.",
+        ),
+        _seg("t18", "What should I do at home, and should I take anything for the pain?"),
+        _seg(
+            "t19",
+            "Try to drink fluids regularly, eat balanced meals, get enough sleep, and take breaks "
+            "from screens. We can discuss an appropriate pain reliever after reviewing your medical "
+            "history. Do not stop your regular blood pressure medication without medical advice.",
+        ),
+        _seg(
+            "t21",
+            "Arrange a review if it persists or worsens, seek urgent medical care for a sudden severe "
+            "headache. Thank you, Sarah.",
+        ),
+    ]
+    result = enforce_picked_up({"record": {}}, segments, None)
+    pain = result.record["pain_assessment"]
+    assert pain["painDescription"] == "pressure"
+    assert pain["painPattern"] == "Pressure-like"
+    assert pain["painLevel"] == "LEVEL_4"
+    assert pain["painDegree"] is None
+    assert "Attention type headache is one possibility" in result.record["assessment"]["assessment"]
+    plan = result.record["plan_of_care"]["treatmentPlan"]
+    assert "Try to drink fluids regularly" in plan
+    assert "Do not stop your regular blood pressure medication" in plan
+    assert "Arrange a review if it persists or worsens" in plan
+    assert "Thank you, Sarah" not in plan
+    texts = [item.text for item in result.symptoms]
+    assert "no nausea or vomiting" in texts
+    assert "I have not noticed any fever, blurred vision, or neck stiffness" in texts
+    assert "I have been sleeping about five hours a night recently because of work" in texts
+    assert "I have been drinking less water than usual and sometimes skip lunch" in texts

@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     picked_up_interval_seconds: float = 8.0
     picked_up_max_interval_seconds: float = 30  # the gap grows with the number of finished lines, up to this
     extract_max_concurrency: int = 4
-    stop_flush_timeout_seconds: float = 10  # on stop, send `final` even if the last list update is still running
+    stop_flush_timeout_seconds: float = 45  # on stop, wait for the last list update, then send `final` anyway
     live_extract_model: str = "gpt-4o-mini"
     openai_api_key: str = ""
     openai_base_url: str = ""

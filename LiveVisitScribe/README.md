@@ -149,7 +149,7 @@ See `.env.example`.
 | `WHISPER_LOW_CONFIDENCE` | `0.6` | A digit-bearing word under this probability is flagged |
 | `PICKED_UP_MAX_INTERVAL_SECONDS` | `30` | The update gap grows with the number of finished lines, up to this |
 | `EXTRACT_MAX_CONCURRENCY` | `4` | Picked-up model calls in flight in this process |
-| `STOP_FLUSH_TIMEOUT_SECONDS` | `10` | On stop, send `final` if the last update is still running |
+| `STOP_FLUSH_TIMEOUT_SECONDS` | `45` | On stop, wait this long for the last update, then send `final` anyway |
 | `OPENAI_MAX_RETRIES` | `2` | Retries of that model call |
 | `ENABLE_DEV_PAGES` | `false` | `true` serves `/try`, `/docs`, `/redoc` and `/openapi.json` |
 

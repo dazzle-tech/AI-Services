@@ -15,10 +15,11 @@ from typing import Any, Optional
 
 from app.core.config import settings
 from app.live import asklepios, model_client
-from app.live.checks import dose_is_supported, mentions, numbers_of, polarity_ok
+from app.live.checks import dose_is_supported, has_negation, mentions, numbers_of, polarity_ok
+from app.live.speaker import guess_speaker
 from app.live.picked_up_prompts import PICKED_UP_SYSTEM_PROMPT, build_user_prompt
 from app.live.picked_up_stub import stub_picked_up
-from app.live.text_utils import is_question_only, normalize
+from app.live.text_utils import is_question_only, normalize, sentences
 from app.models.schemas import Evidence, Medication, PatientContext, PickedUp, Segment
 
 _SPEAKER_ROLES = {"doctor", "patient"}
@@ -94,6 +95,27 @@ _PAIN_PHRASE = re.compile(
     r"\b((?:burning|dull|aching|stabbing|throbbing|cramping|radiating|tingling|shooting|sharp)\s+ache)\b",
     re.IGNORECASE,
 )
+_PRESSURE_PAIN = re.compile(r"\bpressure\b", re.IGNORECASE)
+_BLOOD_PRESSURE = re.compile(r"\b(?:blood pressure|bp)\b", re.IGNORECASE)
+_IMPRESSION = re.compile(
+    r"\b(?:one possibility|can contribute|cannot confirm|i cannot confirm)\b",
+    re.IGNORECASE,
+)
+_PLAN = re.compile(
+    r"\b(?:try to|do not stop|don't stop|arrange a review|seek urgent|we can discuss)\b",
+    re.IGNORECASE,
+)
+_CLAUSE_SPLIT = re.compile(r"\s*(?:\b(?:but|however)\b|لكن|بس)\s*", re.IGNORECASE)
+_DENIAL_START = re.compile(
+    r"^(?:no|not|never|without|i (?:do not|don't|have not|haven't|did not|didn't)|"
+    r"لا|ما عندي|ماعندي|بدون)\b",
+    re.IGNORECASE,
+)
+_THANKS = re.compile(r"^thank you\b", re.IGNORECASE)
+_HISTORY = re.compile(
+    r"\b(?:drinking less|less water|skip lunch|sleeping about|slept about)\b",
+    re.IGNORECASE,
+)
 _BP_FILL = re.compile(r"\b(?:blood pressure|bp)\D{0,12}(\d+)\s*(?:over|/)\s*(\d+)", re.IGNORECASE)
 _NUMBER_FILL: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("vital_sign", "heartRate", re.compile(r"\b(?:pulse|heart rate)\D{0,12}(\d+(?:\.\d+)?)", re.IGNORECASE)),
@@ -164,6 +186,15 @@ def _fill_spoken_numbers(
                 _store_spoken_number(values, evidence, group, name, match.group(1), seg_id)
 
 
+def _statements(text: str) -> list[str]:
+    kept: list[str] = []
+    for sentence in sentences(text):
+        if sentence.endswith(("?", "؟")) or _THANKS.match(sentence):
+            continue
+        kept.append(sentence.strip())
+    return kept
+
+
 def _fill_spoken_pain_description(
     values: dict[str, dict[str, Any]],
     evidence: dict[str, list[str]],
@@ -171,17 +202,94 @@ def _fill_spoken_pain_description(
     questions: set[str],
 ) -> None:
     group = values.setdefault("pain_assessment", {})
-    if group.get("painDescription"):
-        return
     for seg_id, text in texts.items():
         if seg_id in questions:
             continue
-        match = _PAIN_PHRASE.search(text)
-        if not match:
+        if not group.get("painDescription"):
+            match = _PAIN_PHRASE.search(text)
+            if match:
+                group["painDescription"] = match.group(1).lower()
+                evidence["pain_assessment.painDescription"] = [seg_id]
+        if _PRESSURE_PAIN.search(text) and not _BLOOD_PRESSURE.search(text):
+            if not group.get("painDescription"):
+                group["painDescription"] = "pressure"
+                evidence["pain_assessment.painDescription"] = [seg_id]
+            if not group.get("painPattern"):
+                group["painPattern"] = "Pressure-like"
+                evidence["pain_assessment.painPattern"] = [seg_id]
+
+
+def _fill_spoken_impression_and_plan(
+    values: dict[str, dict[str, Any]],
+    evidence: dict[str, list[str]],
+    texts: dict[str, str],
+    questions: set[str],
+) -> None:
+    """Copy the clinician's spoken impression and home-care advice when the model leaves those groups empty."""
+    assessment = values.setdefault("assessment", {})
+    plan = values.setdefault("plan_of_care", {})
+    impressions: list[str] = []
+    plans: list[str] = []
+    impression_ids: list[str] = []
+    plan_ids: list[str] = []
+    for seg_id, text in texts.items():
+        if seg_id in questions:
             continue
-        group["painDescription"] = match.group(1).lower()
-        evidence["pain_assessment.painDescription"] = [seg_id]
-        return
+        statements = _statements(text)
+        blob = " ".join(statements)
+        if not blob:
+            continue
+        if not assessment.get("assessment") and _IMPRESSION.search(blob):
+            impressions.append(blob)
+            impression_ids.append(seg_id)
+        if not plan.get("treatmentPlan") and _PLAN.search(blob):
+            plans.append(blob)
+            plan_ids.append(seg_id)
+    if impressions and not assessment.get("assessment"):
+        assessment["assessment"] = " ".join(impressions)
+        evidence["assessment.assessment"] = impression_ids
+    if plans and not plan.get("treatmentPlan"):
+        plan["treatmentPlan"] = " ".join(plans)
+        evidence["plan_of_care.treatmentPlan"] = plan_ids
+
+
+def _fill_spoken_denials(
+    symptoms: list[Evidence],
+    texts: dict[str, str],
+    questions: set[str],
+) -> None:
+    """Keep a denial the patient actually said, such as "no nausea or vomiting"."""
+    existing = {normalize(item.text) for item in symptoms}
+    for seg_id, text in texts.items():
+        if seg_id in questions or guess_speaker(text) != "patient":
+            continue
+        for sentence in sentences(text):
+            if sentence.endswith(("?", "؟")):
+                continue
+            for clause in _CLAUSE_SPLIT.split(sentence):
+                clause = clause.strip(" .,;:")
+                if len(clause) < 4 or not _DENIAL_START.match(clause) or not has_negation(clause):
+                    continue
+                key = normalize(clause)
+                if not key or any(key == other or key in other or other in key for other in existing):
+                    continue
+                symptoms.append(Evidence(text=clause, segment_ids=[seg_id]))
+                existing.add(key)
+                if len(symptoms) >= _MAX_ITEMS:
+                    return
+            if len(symptoms) >= _MAX_ITEMS:
+                return
+            for clause in _CLAUSE_SPLIT.split(sentence):
+                clause = clause.strip(" .,;:")
+                if len(clause) < 4 or not _HISTORY.search(clause):
+                    continue
+                key = normalize(clause)
+                if not key or any(key == other or key in other or other in key for other in existing):
+                    continue
+                symptoms.append(Evidence(text=clause, segment_ids=[seg_id]))
+                existing.add(key)
+                if len(symptoms) >= _MAX_ITEMS:
+                    return
 
 
 def _build_record(
@@ -197,6 +305,7 @@ def _build_record(
     values, evidence = asklepios.clean_record(raw.get("record"), texts, questions, asklepios.LIVE_MODEL_GROUPS)
     _fill_spoken_numbers(values, evidence, texts, questions)
     _fill_spoken_pain_description(values, evidence, texts, questions)
+    _fill_spoken_impression_and_plan(values, evidence, texts, questions)
 
     def put(group: str, name: str, text: str, ids: list[str]) -> None:
         values.setdefault(group, {})[name] = text
@@ -306,6 +415,7 @@ def enforce_picked_up(
     symptoms = [item for item in items(raw.get("symptoms")) if agreed(item) is not None]
     exam = [item for item in items(raw.get("exam"), check_numbers=True) if agreed(item) is not None]
     texts = {seg_id: segment.text for seg_id, segment in by_id.items()}
+    _fill_spoken_denials(symptoms, texts, questions)
     record = _build_record(raw, texts, questions, complaint, symptoms, exam, context)
     return PickedUp(
         complaint=complaint,

@@ -279,9 +279,10 @@ class LiveSession:
         if turn.id is None:
             turn.id = f"t{self._next_id}"
             self._next_id += 1
+        speaker = guess_speaker(text)
         segment = Segment(
             id=turn.id,
-            speaker=guess_speaker(text),
+            speaker=speaker if speaker in ("doctor", "patient") else "patient",
             start_ms=_ms(turn.start),
             end_ms=_ms(max(end_sample, turn.start)),
             text=text,

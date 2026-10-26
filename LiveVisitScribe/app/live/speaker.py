@@ -12,16 +12,23 @@ import re
 from app.live.text_utils import sentences
 
 _DOCTOR_RE = re.compile(
-    r"\b(?:let me (?:examine|check|listen)|i will record|i'll record|we'll|we will|i recommend|"
-    r"i'd like to|tell me|what brings|how long|how many|how often|do you|are you|have you|can you|"
-    r"any|blood pressure is|your (?:blood pressure|temperature|pulse)|"
+    r"\b(?:let me (?:examine|check|listen)|i will (?:record|check)|i'll record|we'll|we will|we should|"
+    r"we can|i recommend|i'd like to|tell me|what brings|how long|how many|how often|do you|are you|"
+    r"have you|can you|any|blood pressure is|your (?:blood pressure|temperature|pulse)|you are alert|"
+    r"i do not find|one possibility|can contribute|cannot confirm|try to|do not stop|don't stop|"
+    r"arrange a|seek urgent|"
     r"هل|كم|منذ متى|ما الذي|ماذا|خلني|سأفحص|لنقم)\b",
     re.IGNORECASE,
 )
 _PATIENT_RE = re.compile(
     r"\b(?:i have|i've|i had|i feel|i am having|i was worried|i'm worried|i take|i took|it hurts|"
-    r"it has been|it's been|shall i|is my|my|"
+    r"it has been|it's been|shall i|should i|what should i|when should i|do you think|is my|my|"
     r"عندي|أشعر|اشعر|تعبان|بيوجعني)\b",
+    re.IGNORECASE,
+)
+# A question the patient asks the clinician. These outweigh the "a question is the doctor" score.
+_PATIENT_QUESTION_RE = re.compile(
+    r"\b(?:should i|what should i|when should i|shall i|do you think|is my|i was worried|i'm worried)\b",
     re.IGNORECASE,
 )
 # "Doctor," at the start of a turn is the patient speaking to the clinician. "I am Dr Patel" is not.
@@ -45,8 +52,8 @@ def guess_speaker(text: str) -> str:
         doctor += 2
     elif _ADDRESS_DOCTOR_RE.search(text):
         patient += 2
-    if re.search(r"\b(?:shall i|is my)\b", text, re.IGNORECASE):
-        patient += 2
+    if _PATIENT_QUESTION_RE.search(text):
+        patient += 3
     if doctor > patient:
         return "doctor"
     return "patient"
