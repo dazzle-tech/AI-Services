@@ -4,7 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -27,12 +27,14 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down %s", settings.api_title)
 
 
+_dev_pages = settings.enable_dev_pages
 app = FastAPI(
     title=settings.api_title,
     version=settings.api_version,
     description=settings.api_description,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url="/docs" if _dev_pages else None,
+    redoc_url="/redoc" if _dev_pages else None,
+    openapi_url="/openapi.json" if _dev_pages else None,
     lifespan=lifespan,
 )
 app.add_middleware(
@@ -49,23 +51,36 @@ _TRY_PAGE = Path(__file__).resolve().parent / "app" / "static" / "try.html"
 
 @app.get("/")
 async def root():
-    return {
+    body = {
         "message": "LiveVisitScribe is running!",
         "version": settings.api_version,
         "websocket": "/api/v1/live",
-        "try": "/try",
-        "docs": "/docs",
         "health": "/api/v1/health",
+        "ready": "/api/v1/ready",
+        "metrics": "/api/v1/metrics",
     }
+    if settings.enable_dev_pages:
+        body["try"] = "/try"
+        body["docs"] = "/docs"
+    return body
 
 
 @app.get("/try")
 async def try_page():
     """Browser page that opens the live socket and shows lines plus the picked-up list."""
+    if not settings.enable_dev_pages:
+        raise HTTPException(status_code=404, detail="Not found")
     return FileResponse(_TRY_PAGE)
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("main:app", host=settings.host, port=settings.port, log_level=settings.log_level.lower())
+    uvicorn.run(
+        "main:app",
+        host=settings.host,
+        port=settings.port,
+        log_level=settings.log_level.lower(),
+        ws_max_size=settings.max_frame_bytes,
+        timeout_graceful_shutdown=10,
+    )

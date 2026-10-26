@@ -15,12 +15,14 @@ from typing import Any, Optional
 
 from app.core.config import settings
 from app.live import asklepios, model_client
+from app.live.checks import dose_is_supported, mentions, numbers_of, polarity_ok
 from app.live.picked_up_prompts import PICKED_UP_SYSTEM_PROMPT, build_user_prompt
 from app.live.picked_up_stub import stub_picked_up
 from app.live.text_utils import is_question_only, normalize
 from app.models.schemas import Evidence, Medication, PatientContext, PickedUp, Segment
 
-_NUMBER_RE = re.compile(r"\d+(?:[.,]\d+)?")
+_SPEAKER_ROLES = {"doctor", "patient"}
+
 _ICD_PREFIX_RE = re.compile(r"^[A-Za-z]\d{2}(?:\.\w+)?\s*[-:]?\s*")
 _DOSE_SUFFIX_RE = re.compile(r"\s+\d[\d.,]*\s*\w*$")
 _MAX_ITEMS = 12
@@ -35,9 +37,34 @@ async def raw_extract(segments: list[Segment], context: Optional[PatientContext]
     )
 
 
-async def extract(segments: list[Segment], context: Optional[PatientContext]) -> PickedUp:
+async def extract(segments: list[Segment], context: Optional[PatientContext]) -> tuple[PickedUp, dict[str, str]]:
     raw = await raw_extract(segments, context)
-    return enforce_picked_up(raw, segments, context)
+    return enforce_picked_up(raw, segments, context), speakers_from_model(raw, segments)
+
+
+def speakers_from_model(raw: Any, segments: list[Segment]) -> dict[str, str]:
+    """Speaker the model assigned to each finished line. Unknown ids and other words are dropped."""
+    known = {segment.id for segment in segments if segment.final}
+    labels: dict[str, str] = {}
+    for seg_id, role in _speaker_entries(raw.get("speakers") if isinstance(raw, dict) else None):
+        if seg_id in known and role in _SPEAKER_ROLES and seg_id not in labels:
+            labels[seg_id] = role
+    return labels
+
+
+def _speaker_entries(value: Any):
+    if isinstance(value, dict):
+        pairs = value.items()
+    elif isinstance(value, list):
+        pairs = (
+            (entry.get("id"), entry.get("speaker"))
+            for entry in value
+            if isinstance(entry, dict)
+        )
+    else:
+        return
+    for seg_id, role in pairs:
+        yield str(seg_id or "").strip(), str(role or "").strip().lower()
 
 
 def _context_forms(context: Optional[PatientContext]) -> set[str]:
@@ -57,10 +84,6 @@ def _context_forms(context: Optional[PatientContext]) -> set[str]:
             if len(form) >= 4:
                 forms.add(form)
     return forms
-
-
-def _numbers(text: str) -> set[str]:
-    return {number.replace(",", ".") for number in _NUMBER_RE.findall(text)}
 
 
 def _joined(items: list[Evidence]) -> str:
@@ -240,7 +263,7 @@ def enforce_picked_up(
             spoken = heard(ids)
             if restates_chart(text, spoken):
                 continue
-            if check_numbers and not _numbers(text) <= _numbers(spoken):
+            if check_numbers and not numbers_of(text) <= numbers_of(spoken):
                 continue
             key = normalize(text)
             if key in seen:
@@ -262,19 +285,26 @@ def enforce_picked_up(
         ids = cite(entry.get("segment_ids"))
         if not name or not ids or normalize(name) in named:
             continue
-        spoken = heard(ids)
-        if normalize(name) not in spoken:
+        spoken_raw = " ".join(by_id[seg_id].text for seg_id in ids)
+        if not mentions(spoken_raw, name):
             continue  # not said in this visit (for example copied from the chart)
         detail = str(entry.get("detail") or "").strip() or None
-        if detail and not _numbers(detail) <= _numbers(spoken):
-            detail = None  # an invented dose is worse than none
+        if detail and not dose_is_supported(detail, spoken_raw):
+            detail = None  # an invented or changed dose is worse than none
         named.add(normalize(name))
         medications.append(Medication(name=name, detail=detail, segment_ids=ids))
         if len(medications) >= _MAX_ITEMS:
             break
 
-    symptoms = items(raw.get("symptoms"))
-    exam = items(raw.get("exam"), check_numbers=True)
+    def agreed(item: Optional[Evidence]) -> Optional[Evidence]:
+        if item is None:
+            return None
+        cited = [by_id[seg_id].text for seg_id in item.segment_ids]
+        return item if polarity_ok(item.text, cited) else None
+
+    complaint = agreed(complaint)
+    symptoms = [item for item in items(raw.get("symptoms")) if agreed(item) is not None]
+    exam = [item for item in items(raw.get("exam"), check_numbers=True) if agreed(item) is not None]
     texts = {seg_id: segment.text for seg_id, segment in by_id.items()}
     record = _build_record(raw, texts, questions, complaint, symptoms, exam, context)
     return PickedUp(

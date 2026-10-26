@@ -11,11 +11,19 @@ PICKED_UP_SYSTEM_PROMPT = """You keep a short "picked up so far" list for a doct
 It is a scratch list the doctor glances at, not a clinical note. The doctor reviews everything.
 
 INPUT
-- segments: finished transcript lines with id (t1, t2, ...), speaker (doctor|patient|unknown), lang, text.
-  speaker is a rough guess from the wording and is often wrong or unknown. Decide who said something
-  from its content.
+- segments: finished transcript lines with id (t1, t2, ...), lang, text. No speaker is given. You assign one.
 - patient_context (optional): chart background (chronic_diseases, active_medications, allergies, known_diagnoses).
 - Speech may be Arabic, English, or both in one sentence. Read all of it.
+
+SPEAKERS
+Return "speakers" with every segment id, each one doctor or patient. Never use unknown. Read the line as one turn.
+- patient: their own symptoms, medicines, sleep, worry, or a question they ask the clinician
+  ("what should I do", "should I", "is my blood pressure okay", "when should I come back", "I was worried",
+  "do you think it could be"). A question the patient asks is still the patient. A short answer with no
+  clinician cue is the patient.
+- doctor: a history question, a measurement or exam finding stated about the patient ("your blood pressure is",
+  "you are alert"), an impression including a hedged one ("tension-type headache is one possibility"),
+  home care, or when to return or seek urgent care. Advice is the doctor even with no question mark.
 
 RULES (mandatory)
 1. Write only what was said in these segments. Every item carries segment_ids: the ids that support it.
@@ -58,10 +66,11 @@ cite is left out; a missing field is normal and is never guessed, defaulted or c
 - assessment: the field "assessment" (text) when a clinician states an impression, including a hedged one
   ("tension-type headache is one possibility"), in the words that were said. plan_of_care: goals and
   treatmentPlan when they state home care, a medicine, or when to return or seek urgent care.
-  Write these from the words even when the speaker label is unknown. A question is not an impression.
+  Write these from the words. A question is not an impression.
 
 Return JSON only:
 {
+  "speakers": {"t1": "doctor", "t2": "patient"},
   "complaint": {"text": "...", "segment_ids": ["t2"]} or null,
   "symptoms": [{"text": "...", "segment_ids": ["t4"]}],
   "medications": [{"name": "...", "detail": "..." or null, "segment_ids": ["t5", "t6"]}],
@@ -77,7 +86,7 @@ Return JSON only:
 def build_user_prompt(segments: list[Segment], context: Optional[PatientContext]) -> str:
     payload = {
         "segments": [
-            {"id": seg.id, "speaker": seg.speaker, "lang": seg.lang, "text": seg.text} for seg in segments
+            {"id": seg.id, "lang": seg.lang, "text": seg.text} for seg in segments
         ],
         "patient_context": context.model_dump() if context else None,
     }

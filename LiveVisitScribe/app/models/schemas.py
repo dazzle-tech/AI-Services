@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-Speaker = Literal["doctor", "patient", "unknown"]
+Speaker = Literal["doctor", "patient"]
 Lang = Literal["en", "ar", "mixed"]
 
 
@@ -38,6 +38,7 @@ class Segment(BaseModel):
     text: str
     lang: Lang
     final: bool
+    low_confidence_numbers: list[str] = Field(default_factory=list)
 
 
 class Evidence(BaseModel):

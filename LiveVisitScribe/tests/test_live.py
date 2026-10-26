@@ -7,7 +7,7 @@ import numpy as np
 from app.asr.stub import DEFAULT_SCRIPT, StubTranscriber
 from app.core.config import settings
 from app.live import picked_up
-from app.live.picked_up import enforce_picked_up
+from app.live.picked_up import enforce_picked_up, speakers_from_model
 from app.live.session import LiveSession
 from app.live.speaker import guess_speaker
 from app.live.text_utils import detect_lang
@@ -214,7 +214,7 @@ def test_picked_up_item_that_only_restates_patient_context_is_removed(client, mo
 
 
 def _seg(seg_id: str, text: str) -> Segment:
-    return Segment(id=seg_id, speaker="unknown", start_ms=0, end_ms=1, text=text, lang="en", final=True)
+    return Segment(id=seg_id, speaker="patient", start_ms=0, end_ms=1, text=text, lang="en", final=True)
 
 
 def test_item_cited_only_by_a_question_is_dropped():
@@ -269,12 +269,50 @@ def test_partials_are_skipped_when_behind_but_the_final_line_still_comes():
 def test_speaker_and_language_guesses():
     assert guess_speaker("Any nausea, or visual aura before the pain?") == "doctor"
     assert guess_speaker("I have had a daily headache for two weeks.") == "patient"
-    assert guess_speaker("About three tablets a day.") == "unknown"
+    assert guess_speaker("About three tablets a day.") == "patient"
     assert guess_speaker("Alright, Doctor, is my blood pressure okay today?") == "patient"
     assert guess_speaker("When shall I come back if the headache does not improve?") == "patient"
     assert detect_lang("كم حبة Neurofen تاخذين باليوم؟") == "mixed"
     assert detect_lang("صداع منذ يومين") == "ar"
     assert detect_lang("Blood pressure is 128 over 82") == "en"
+
+
+def test_speaker_labels_keep_only_known_roles():
+    segments = [_seg("t1", "What should I do at home?"), _seg("t2", "Try to drink fluids regularly.")]
+    labels = speakers_from_model(
+        {
+            "speakers": {
+                "t1": "Patient",
+                "t9": "doctor",
+                "t2": "clinician",
+            }
+        },
+        segments,
+    )
+    listed = speakers_from_model(
+        {"speakers": [{"id": "t2", "speaker": "doctor"}, {"id": "t1", "speaker": "nope"}]},
+        segments,
+    )
+    assert labels == {"t1": "patient"}
+    assert listed == {"t2": "doctor"}
+
+
+def test_model_speaker_labels_replace_the_word_guess(client, monkeypatch):
+    async def fake(segments, context):
+        return {"speakers": {"t1": "patient", "t2": "doctor"}, "symptoms": []}
+
+    monkeypatch.setattr(picked_up, "raw_extract", fake)
+    messages = run_visit(client, turns=2)
+    final = messages[-1]
+
+    assert [(segment["id"], segment["speaker"]) for segment in final["segments"]] == [
+        ("t1", "patient"),
+        ("t2", "doctor"),
+    ]
+    assert any(
+        message["type"] == "segment" and message["id"] == "t1" and message["speaker"] == "patient"
+        for message in messages
+    )
 
 
 # --- Asklepios record ------------------------------------------------------

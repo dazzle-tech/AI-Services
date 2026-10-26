@@ -1,8 +1,8 @@
-"""Best-effort speaker label from the words of a line.
+"""First speaker label, from the words, until the picked-up model assigns one.
 
-One microphone cannot reliably separate two voices, so this is a guess and never diarization. Lines
-with no clear markers stay "unknown". The authoritative speaker roles are produced after Stop by
-ConvoVoiceAgent POST /api/v1/draft.
+One microphone cannot reliably separate two voices, so this is a guess and never diarization. A
+finished line keeps this label only until the model returns a speaker for that id. The chart note
+still comes from ConvoVoiceAgent POST /api/v1/draft after Stop.
 """
 
 from __future__ import annotations
@@ -49,6 +49,4 @@ def guess_speaker(text: str) -> str:
         patient += 2
     if doctor > patient:
         return "doctor"
-    if patient > doctor:
-        return "patient"
-    return "unknown"
+    return "patient"

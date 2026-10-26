@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 import numpy as np
@@ -9,6 +9,7 @@ import numpy as np
 @dataclass
 class AsrResult:
     text: str
+    low_confidence: list[str] = field(default_factory=list)
 
 
 class Transcriber(Protocol):

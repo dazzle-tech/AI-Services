@@ -1,0 +1,16 @@
+# GPU override. Dockerfile.gpu has not been built or run.
+# docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+services:
+  live-visit-scribe:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    environment:
+      WHISPER_DEVICE: cuda
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

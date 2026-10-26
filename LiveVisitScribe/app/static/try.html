@@ -240,7 +240,8 @@
          local Whisper model. This page never calls the model itself.
 
       5. Server messages are text JSON:
-         segment    a transcript line; the same id is replaced until final:true
+         segment    a transcript line; a later message with the same id replaces it,
+                    including a speaker correction after the model reads the line
          picked_up  the scratch list, built from finished text, not from audio
          paused / resumed   acknowledgements of those control frames
          final      every final line, then the server closes the socket
@@ -508,7 +509,7 @@
     }
 
     // Every server frame is text JSON. "ready" is the gate that lets binary
-    // audio start. A later segment with the same id replaces the partial line.
+    // audio start. A later segment with the same id replaces that line, including a speaker correction.
     function handleMessage(message) {
       logMessage("←", message);
       if (message.type === "ready") {

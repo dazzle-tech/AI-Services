@@ -20,8 +20,9 @@ from typing import Awaitable, Callable, Optional
 
 import numpy as np
 
-from app.asr.base import Transcriber
+from app.asr.base import AsrResult, Transcriber
 from app.audio.pcm import TARGET_SR, pcm_to_float32
+from app.core import metrics
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.live import picked_up
@@ -80,6 +81,7 @@ class LiveSession:
         sample_rate: int = TARGET_SR,
         channels: int = 1,
         patient_context: Optional[PatientContext] = None,
+        session_id: str = "",
     ) -> None:
         self._asr = transcriber
         self._emit = emit
@@ -87,6 +89,7 @@ class LiveSession:
         self._sample_rate = sample_rate
         self._channels = channels
         self._context = patient_context
+        self._session_id = session_id
 
         self._byte_carry = b""
         self._pending = np.zeros(0, dtype=np.float32)
@@ -111,17 +114,20 @@ class LiveSession:
     def final_segments(self) -> list[Segment]:
         return list(self._finals)
 
-    async def feed(self, data: bytes, *, allow_partial: bool = True) -> None:
+    async def feed(self, data: bytes, *, allow_partial: bool = True) -> int:
+        """Ingest PCM. Returns how many partials were skipped because the socket is behind."""
         if self._paused or self._stopped or not data:
-            return
+            return 0
         audio = self._decode(data)
         if audio.size == 0:
-            return
+            return 0
         pending = np.concatenate([self._pending, audio]) if self._pending.size else audio
         usable = (pending.size // FRAME_SAMPLES) * FRAME_SAMPLES
         self._pending = pending[usable:].copy()
+        skipped = 0
         for frame in pending[:usable].reshape(-1, FRAME_SAMPLES):
-            await self._on_frame(frame, allow_partial)
+            skipped += await self._on_frame(frame, allow_partial)
+        return skipped
 
     async def pause(self) -> None:
         """Close the open line, then ignore audio until resume."""
@@ -147,7 +153,10 @@ class LiveSession:
             logger.exception("Could not finish the last line")
         await self._cancel_extract_task()
         if self._dirty:
-            await self._run_extract()
+            try:
+                await asyncio.wait_for(self._run_extract(), self._settings.stop_flush_timeout_seconds)
+            except asyncio.TimeoutError:
+                logger.warning("session %s picked-up flush timed out", self._session_id or "-")
         await self._emit(
             {
                 "type": "final",
@@ -169,7 +178,7 @@ class LiveSession:
         self._byte_carry = data[whole:]
         return pcm_to_float32(data[:whole], self._sample_rate, self._channels)
 
-    async def _on_frame(self, frame: np.ndarray, allow_partial: bool) -> None:
+    async def _on_frame(self, frame: np.ndarray, allow_partial: bool) -> int:
         cfg = self._settings
         speech = float(np.sqrt(np.mean(frame * frame))) >= cfg.silence_rms
         self._position += frame.size
@@ -179,13 +188,13 @@ class LiveSession:
             if not speech:
                 self._pre_roll.append(frame)
                 del self._pre_roll[:-_PRE_ROLL_FRAMES]
-                return
+                return 0
             lead = self._pre_roll
             self._pre_roll = []
             start = self._position - frame.size - sum(item.size for item in lead)
             turn = self._turn = _Turn(start, [*lead, frame])
             turn.speech_samples = frame.size
-            return
+            return 0
 
         turn.add(frame, speech)
         silence_samples = cfg.silence_ms * TARGET_SR // 1000
@@ -194,22 +203,36 @@ class LiveSession:
         elif turn.samples >= int(cfg.max_turn_seconds * TARGET_SR):
             await self._finalize_turn(carry_overlap=True)
         elif (
-            allow_partial
-            and turn.since_partial >= int(cfg.stream_chunk_seconds * TARGET_SR)
+            turn.since_partial >= int(cfg.stream_chunk_seconds * TARGET_SR)
             and turn.speech_samples >= cfg.min_speech_ms * TARGET_SR // 1000
         ):
+            if not allow_partial:
+                turn.since_partial = 0
+                return 1
             await self._partial(turn)
+        return 0
+
+    async def _transcribe(self, audio: np.ndarray, *, turn_index: int, final: bool) -> AsrResult:
+        started = time.perf_counter()
+        try:
+            return await asyncio.to_thread(
+                self._asr.transcribe, audio, turn_index=turn_index, final=final
+            )
+        finally:
+            elapsed = time.perf_counter() - started
+            audio_seconds = float(audio.size) / TARGET_SR if audio.size else 0.0
+            metrics.observe_asr(final=final, elapsed=elapsed, audio_seconds=audio_seconds)
 
     async def _partial(self, turn: _Turn) -> None:
         turn.since_partial = 0
-        result = await asyncio.to_thread(
-            self._asr.transcribe, turn.audio(), turn_index=len(self._finals), final=False
-        )
+        result = await self._transcribe(turn.audio(), turn_index=len(self._finals), final=False)
         text = " ".join(result.text.split())
         if not text or text == turn.last_text:
             return
         turn.last_text = text
-        await self._emit_segment(turn, text, final=False, end_sample=turn.start + turn.samples)
+        await self._emit_segment(
+            turn, text, final=False, end_sample=turn.start + turn.samples, low_confidence=result.low_confidence
+        )
 
     async def _finalize_turn(self, *, carry_overlap: bool = False) -> None:
         turn = self._turn
@@ -226,8 +249,7 @@ class LiveSession:
                 carry = audio[-overlap:].copy()
 
         if turn.speech_samples >= self._settings.min_speech_ms * TARGET_SR // 1000:
-            result = await asyncio.to_thread(
-                self._asr.transcribe,
+            result = await self._transcribe(
                 turn.audio(trim_silence=True),
                 turn_index=len(self._finals),
                 final=True,
@@ -235,7 +257,9 @@ class LiveSession:
             text = " ".join(result.text.split()) or turn.last_text
             if text:
                 end = turn.start + turn.samples - turn.trailing_silence
-                await self._emit_segment(turn, text, final=True, end_sample=end)
+                await self._emit_segment(
+                    turn, text, final=True, end_sample=end, low_confidence=result.low_confidence
+                )
                 self._dirty = True
                 self._schedule_extract()
 
@@ -243,7 +267,15 @@ class LiveSession:
             start = self._position - carry.size
             self._turn = _Turn(start, [carry], speech_samples=0)
 
-    async def _emit_segment(self, turn: _Turn, text: str, *, final: bool, end_sample: int) -> None:
+    async def _emit_segment(
+        self,
+        turn: _Turn,
+        text: str,
+        *,
+        final: bool,
+        end_sample: int,
+        low_confidence: list[str],
+    ) -> None:
         if turn.id is None:
             turn.id = f"t{self._next_id}"
             self._next_id += 1
@@ -255,6 +287,7 @@ class LiveSession:
             text=text,
             lang=detect_lang(text),
             final=final,
+            low_confidence_numbers=list(low_confidence),
         )
         if final:
             self._finals.append(segment)
@@ -266,9 +299,13 @@ class LiveSession:
         if self._extract_task is None or self._extract_task.done():
             self._extract_task = asyncio.create_task(self._extract_loop())
 
+    def _extract_interval(self) -> float:
+        grown = self._settings.picked_up_interval_seconds + 0.05 * len(self._finals)
+        return min(self._settings.picked_up_max_interval_seconds, grown)
+
     async def _extract_loop(self) -> None:
-        interval = self._settings.picked_up_interval_seconds
         while self._dirty and not self._stopped:
+            interval = self._extract_interval()
             wait = self._last_extract + interval - time.monotonic()
             if wait > 0:
                 await asyncio.sleep(wait)
@@ -279,22 +316,40 @@ class LiveSession:
     async def _run_extract(self) -> None:
         self._dirty = False
         self._last_extract = time.monotonic()
+        started = time.perf_counter()
         try:
-            picked = await picked_up.extract(self.final_segments, self._context)
+            picked, speakers = await picked_up.extract(self.final_segments, self._context)
         except asyncio.CancelledError:
             self._dirty = True
             raise
         except Exception as exc:
-            logger.warning("Picked-up update failed: %s", exc.__class__.__name__)
+            metrics.extract.observe(time.perf_counter() - started)
+            metrics.extract_failures_total.inc()
+            logger.warning("session %s picked-up update failed: %s", self._session_id or "-", exc.__class__.__name__)
             if not self._extract_error_sent:
                 self._extract_error_sent = True
                 await self._emit({"type": "error", "detail": "Picked up so far could not be updated"})
             return
+        metrics.extract.observe(time.perf_counter() - started)
+        await self._apply_speakers(speakers)
         payload = picked.model_dump()
         if payload == self._last_picked or (self._last_picked is None and picked.is_empty()):
             return
         self._last_picked = payload
         await self._emit({"type": "picked_up", **payload})
+
+    async def _apply_speakers(self, speakers: dict[str, str]) -> None:
+        """Replace the word guess with the model's speaker and send the line again under the same id."""
+        changed: list[Segment] = []
+        for index, segment in enumerate(self._finals):
+            speaker = speakers.get(segment.id)
+            if not speaker or speaker == segment.speaker:
+                continue
+            segment = segment.model_copy(update={"speaker": speaker})
+            self._finals[index] = segment
+            changed.append(segment)
+        for segment in changed:
+            await self._emit({"type": "segment", **segment.model_dump()})
 
     async def _cancel_extract_task(self) -> None:
         task = self._extract_task

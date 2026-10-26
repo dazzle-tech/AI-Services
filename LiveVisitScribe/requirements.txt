@@ -1,17 +1,19 @@
+# Upper bounds are the next major version. A real lock file is produced with
+# `pip-compile requirements.txt` and checked with `pip-audit` in CI; that lock is not in this folder yet.
 # FastAPI and server
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-pydantic>=2.10.0
-pydantic-settings>=2.6.0
-python-dotenv>=1.0.0
-httpx>=0.27.0
+fastapi>=0.115.0,<1
+uvicorn[standard]>=0.32.0,<1
+pydantic>=2.10.0,<3
+pydantic-settings>=2.6.0,<3
+python-dotenv>=1.0.0,<2
+httpx>=0.27.0,<1
 
 # Audio and speech (faster-whisper is only loaded when USE_LLM_STUB=false)
-numpy>=1.24
-faster-whisper>=1.0.3
+numpy>=1.24,<3
+faster-whisper>=1.0.3,<2
 
 # Picked-up model (any OpenAI-compatible endpoint)
-openai>=1.30.0
+openai>=1.30.0,<2
 
 # Testing
-pytest>=8.3.0
+pytest>=8.3.0,<9
