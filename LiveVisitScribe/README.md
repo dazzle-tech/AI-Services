@@ -177,3 +177,5 @@ Not done here:
 - Building or running `Dockerfile.gpu`.
 - A lock file and `pip-audit` in CI (`requirements.txt` only has upper bounds).
 - Moving the picked-up model in-Kingdom. Point `OPENAI_BASE_URL` at that endpoint when it exists.
+
+live-visit-scribe
