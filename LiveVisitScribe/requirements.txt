@@ -8,11 +8,12 @@ pydantic-settings>=2.6.0,<3
 python-dotenv>=1.0.0,<2
 httpx>=0.27.0,<1
 
-# Audio and speech (faster-whisper is only loaded when USE_LLM_STUB=false)
+# Audio and speech (gpt-live-transcribe uses the websockets package from uvicorn[standard])
 numpy>=1.24,<3
-faster-whisper>=1.0.3,<2
+# Optional: only needed if you import app.asr.whisper yourself
+# faster-whisper>=1.0.3,<2
 
-# Picked-up model (any OpenAI-compatible endpoint)
+# Picked-up model + speech (OPENAI_API_KEY). Any OpenAI-compatible chat base URL for the list.
 openai>=1.30.0,<2
 
 # Testing

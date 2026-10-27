@@ -11,12 +11,16 @@ _PUNCT_RE = re.compile(r"[^\w\s]")
 
 
 def detect_lang(text: str) -> str:
-    """en, ar, or mixed, from the characters in the line (a drug name inside Arabic speech makes it mixed)."""
-    has_arabic = bool(_ARABIC_RE.search(text))
-    has_latin = bool(_LATIN_RE.search(text))
-    if has_arabic and has_latin:
-        return "mixed"
-    return "ar" if has_arabic else "en"
+    """en or ar only. Whichever script has more letters wins; Arabic wins a tie if any Arabic is present."""
+    arabic = len(_ARABIC_RE.findall(text))
+    latin = len(_LATIN_RE.findall(text))
+    if arabic == 0 and latin == 0:
+        return "en"
+    if arabic > latin:
+        return "ar"
+    if latin > arabic:
+        return "en"
+    return "ar" if arabic else "en"
 
 
 def sentences(text: str) -> list[str]:

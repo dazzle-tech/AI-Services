@@ -24,7 +24,7 @@ copy .env.example .env
 python main.py
 ```
 
-`USE_LLM_STUB=true` runs with no Whisper model and no API key: it returns scripted lines and a deterministic picked-up list (this is what the tests use). Otherwise set `OPENAI_API_KEY` for the picked-up list; the first run downloads the Whisper model. `ENABLE_DEV_PAGES=true` serves the browser page at `/try` and the API docs. A deployed instance leaves it false.
+`USE_LLM_STUB=true` runs with no speech API and no key: it returns scripted lines and a deterministic picked-up list (this is what the tests use). Otherwise set `OPENAI_API_KEY` for both live speech (`gpt-live-transcribe` over Realtime) and the picked-up list. `ENABLE_DEV_PAGES=true` serves the browser page at `/try` and the API docs. A deployed instance leaves it false.
 
 Tests: `python -m pytest -q`
 
@@ -32,20 +32,19 @@ Tests: `python -m pytest -q`
 
 ```powershell
 cd LiveVisitScribe
-copy .env.example .env     # optional; set OPENAI_API_KEY for the picked-up list
+copy .env.example .env     # optional; set OPENAI_API_KEY for speech and the picked-up list
 docker compose up --build  # serves ws://localhost:8037/api/v1/live
 ```
 
-- Plain image: `docker build -t live-visit-scribe .` then `docker run -p 8037:8037 -v live_models:/models live-visit-scribe`.
-- Wiring check with no model and no key: `USE_LLM_STUB=true docker compose up --build`.
-- The Whisper model is downloaded on first start into the `/models` volume, so later starts are fast. The healthcheck allows 2 minutes for that first start.
-- The container runs on CPU by default (`WHISPER_DEVICE=cpu`). A GPU override is `docker-compose.gpu.yml` with `Dockerfile.gpu`. **`Dockerfile.gpu` has not been built or run.**
+- Plain image: `docker build -t live-visit-scribe .` then `docker run -p 8037:8037 live-visit-scribe`.
+- Wiring check with no speech API and no key: `USE_LLM_STUB=true docker compose up --build`.
+- Speech is OpenAI `gpt-live-transcribe` (Realtime). No local GPU Whisper model is required. An older `Dockerfile.gpu` remains in the folder and **has not been built or run**.
 - No ffmpeg is installed: the browser sends raw PCM, not an audio container.
 - The image has not been built in CI yet; if you change `requirements.txt`, rebuild with `--build`.
 
 ## Postman and a test client
 
-- `postman/LiveVisitScribe.postman_collection.json`: `GET /` and `GET /api/v1/health` with saved examples, and a reference item with every WebSocket message (client `start`; server `ready`, partial and final `segment`, Arabic + English `mixed`, `picked_up`, `paused`, `resumed`, `final`, `error`). A Postman collection file cannot hold a WebSocket request, so open **New > WebSocket** in Postman, connect to `ws://localhost:8037/api/v1/live`, and paste the messages from the collection description.
+- `postman/LiveVisitScribe.postman_collection.json`: `GET /` and `GET /api/v1/health` with saved examples, and a reference item with every WebSocket message (client `start`; server `ready`, partial and final `segment`, Arabic (`ar`) and English (`en`), `picked_up`, `paused`, `resumed`, `final`, `error`). A Postman collection file cannot hold a WebSocket request, so open **New > WebSocket** in Postman, connect to `ws://localhost:8037/api/v1/live`, and paste the messages from the collection description.
 - `scripts/stream_wav.py`: plays a 16-bit WAV into the socket at real-time pace, the way the browser microphone does, and prints lines and the picked-up list as they arrive:
 
 ```powershell
@@ -71,7 +70,7 @@ Server to client (text JSON):
 | Message | Shape |
 |---|---|
 | `ready` | `{"type":"ready","sample_rate":16000,"channels":1}` |
-| `segment` | `{"type":"segment","id":"t1","speaker":"doctor\|patient","start_ms":0,"end_ms":4200,"text":"...","lang":"en\|ar\|mixed","final":false,"low_confidence_numbers":[]}`. The same `id` is sent again with `final:true` when the line ends, and again when the model corrects `speaker`. `low_confidence_numbers` lists digit-bearing words Whisper was unsure of (empty unless `WHISPER_WORD_CONFIDENCE` is on) |
+| `segment` | `{"type":"segment","id":"t1","speaker":"doctor\|patient","start_ms":0,"end_ms":4200,"text":"...","lang":"en\|ar","final":false,"low_confidence_numbers":[]}`. The same `id` is sent again with `final:true` when the line ends, and again when the model corrects `speaker`. `low_confidence_numbers` stays empty with `gpt-live-transcribe` (that model does not return word confidence) |
 | `warning` | `{"type":"warning","detail":"session_length","seconds":2700}` once, as the visit nears `MAX_SESSION_SECONDS`. `{"type":"warning","detail":"No audio received; ending the session."}` when the socket goes quiet; that one is followed by `final` |
 | `picked_up` | `{"type":"picked_up","complaint":{"text","segment_ids"}\|null,"symptoms":[{"text","segment_ids"}],"medications":[{"name","detail","confirm":true,"segment_ids"}],"exam":[{"text","segment_ids"}],"record":{...},"record_evidence":{...},"record_status":{...},"missing_required":{...}}` (see "Record payloads") |
 | `paused` / `resumed` | Acknowledge `pause` / `resume`. Every `segment` before `paused` is already final |
@@ -87,7 +86,7 @@ Browser framing: capture with an `AudioWorklet`, convert each `Float32Array` blo
 - A line longer than `MAX_TURN_SECONDS` is split; `STREAM_OVERLAP_SECONDS` of audio is carried into the next line so a word on the cut is not lost (a repeated word at the cut is possible).
 - If the service falls more than `MAX_BACKLOG_SECONDS` behind real time, partials are skipped until it catches up. Final lines are never skipped.
 - `start_ms` / `end_ms` count the audio received while not paused, so they match a recording whose recorder is also paused.
-- `lang` comes from the characters in the line: Arabic only is `ar`, Latin only is `en`, both is `mixed` (a drug name inside Arabic speech makes it `mixed`).
+- `lang` is only `en` or `ar`: whichever script has more letters wins (Arabic wins a tie if any Arabic is present).
 - `speaker` is `doctor` or `patient`. While a line is still being spoken the label is a guess from the words (a tie goes to the patient). Once the line is final, the picked-up model assigns the role and the line is sent again with the same `id`. One microphone cannot reliably separate two voices.
 
 ### Picked up so far
@@ -122,16 +121,19 @@ See `.env.example`.
 | Variable | Default | Meaning |
 |---|---|---|
 | `PORT` | `8037` | HTTP / WebSocket port |
-| `WHISPER_MODEL` | `small` | `tiny` / `base` / `small` / `medium` / `large-v3`. Larger reads Arabic better but needs a GPU to keep up live |
-| `WHISPER_DEVICE` | `auto` | `auto` / `cuda` / `cpu` |
-| `WHISPER_LANGUAGE` | blank | Blank = auto-detect |
+| `LIVE_TRANSCRIBE_MODEL` | `gpt-live-transcribe` | OpenAI Realtime transcription model |
+| `LIVE_TRANSCRIBE_DELAY` | `minimal` | `minimal` / `low` / `medium` / `high` / `xhigh` — lower streams partial text sooner |
+| `LIVE_TRANSCRIBE_CHAR_MS` | `12` | Pause between letters when a partial line grows (`0` sends whole deltas) |
+| `LIVE_TRANSCRIBE_PROMPT` | blank | Free-form context for speech. Falls back to `WHISPER_INITIAL_PROMPT` |
+| `LIVE_TRANSCRIBE_KEYWORDS` | blank | Comma-separated literal terms that may be spoken |
+| `WHISPER_LANGUAGES` | `ar,en` | Expected languages sent to the live speech model |
 | `STREAM_CHUNK_SECONDS` | `4` | Partial refresh interval |
 | `STREAM_OVERLAP_SECONDS` | `0.5` | Audio carried over when a long line is split |
 | `SILENCE_MS` / `SILENCE_RMS` | `800` / `0.01` | End-of-line silence and the energy below which a frame is silence |
 | `PICKED_UP_INTERVAL_SECONDS` | `8` | Minimum gap between list updates |
 | `LIVE_EXTRACT_MODEL` | `gpt-4o-mini` | Model for the list |
-| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | blank | Any OpenAI-compatible endpoint |
-| `USE_LLM_STUB` | `false` | `true` = scripted lines and deterministic list, no model and no key |
+| `OPENAI_API_KEY`, `OPENAI_BASE_URL` | blank | Required for live speech and the list (unless stub). Chat base URL may be OpenAI-compatible |
+| `USE_LLM_STUB` | `false` | `true` = scripted lines and deterministic list, no speech API and no key |
 | `MAX_SESSIONS` | `8` | Live visits this process will hold. One more is refused with `busy` |
 | `MAX_SESSION_SECONDS` | `3600` | Audio seconds (pause time does not count) before the visit is ended with `final` |
 | `SESSION_WARN_SECONDS` | `2700` | One `session_length` warning |
@@ -140,13 +142,6 @@ See `.env.example`.
 | `PAUSE_TIMEOUT_SECONDS` | `900` | Close a visit left on pause |
 | `MAX_FRAME_BYTES` | `524288` | One binary frame larger than this is refused |
 | `MAX_BACKLOG_HARD_SECONDS` | `30` | Queued audio past this closes the visit. `MAX_BACKLOG_SECONDS` still only skips partials |
-| `WHISPER_LANGUAGES` | `ar,en` | Detections outside this list are remapped |
-| `WHISPER_INITIAL_PROMPT` | blank | Hint passed to Whisper. Blank sends none |
-| `WHISPER_NO_SPEECH_THRESHOLD` | `0.6` | With a poor logprob, drop the piece. Missing scores are kept |
-| `WHISPER_MIN_AVG_LOGPROB` | `-1.0` | See above |
-| `WHISPER_MAX_COMPRESSION_RATIO` | `2.4` | Drop a repeated hallucination |
-| `WHISPER_WORD_CONFIDENCE` | `false` | Ask for per-word probabilities and fill `low_confidence_numbers` |
-| `WHISPER_LOW_CONFIDENCE` | `0.6` | A digit-bearing word under this probability is flagged |
 | `PICKED_UP_MAX_INTERVAL_SECONDS` | `30` | The update gap grows with the number of finished lines, up to this |
 | `EXTRACT_MAX_CONCURRENCY` | `4` | Picked-up model calls in flight in this process |
 | `STOP_FLUSH_TIMEOUT_SECONDS` | `45` | On stop, wait this long for the last update, then send `final` anyway |
@@ -155,8 +150,8 @@ See `.env.example`.
 
 ## Limits to know
 
-- Whisper reads one language per pass, so a sentence that switches between Arabic and English can lose words. Check on real recordings; `/draft` re-transcribes the full audio afterwards.
-- Each partial transcribes the whole line so far (up to `MAX_TURN_SECONDS`), so CPU-only machines may fall behind on long lines; backlog skipping keeps final lines coming.
+- Live speech is OpenAI `gpt-live-transcribe`. Audio is streamed as it arrives; partial text is pushed letter by letter. Local silence still ends a line and commits the final transcript.
+- Mixed Arabic/English may still miss words on a pass. Check on real recordings; `/draft` re-transcribes the full audio afterwards.
 - Auth and TLS are the gateway's job. This service does not check a caller.
 
 ## Production notes
@@ -169,7 +164,7 @@ See `.env.example`.
 
 Alert when `livescribe_asr_last_rtf` stays above `0.7` for several minutes (speech is slower than the audio). Alert when `livescribe_sessions_rejected_total`, `livescribe_partials_skipped_total` or `livescribe_extract_failures_total` keeps rising.
 
-Limits: `MAX_SESSIONS` refuses another visit (`busy`, close `1013`). `MAX_SESSION_SECONDS` sends a `session_length` warning at `SESSION_WARN_SECONDS`, then ends the visit with `final`. No audio for `IDLE_TIMEOUT_SECONDS` sends `No audio received; ending the session.` and still sends `final`. A frame over `MAX_FRAME_BYTES` closes with `1009`. Queued audio over `MAX_BACKLOG_HARD_SECONDS` closes with `busy` and `1013`; the smaller `MAX_BACKLOG_SECONDS` only skips partials. `low_confidence_numbers` on a segment lists digit-bearing words below `WHISPER_LOW_CONFIDENCE` when word timestamps are on.
+Limits: `MAX_SESSIONS` refuses another visit (`busy`, close `1013`). `MAX_SESSION_SECONDS` sends a `session_length` warning at `SESSION_WARN_SECONDS`, then ends the visit with `final`. No audio for `IDLE_TIMEOUT_SECONDS` sends `No audio received; ending the session.` and still sends `final`. A frame over `MAX_FRAME_BYTES` closes with `1009`. Queued audio over `MAX_BACKLOG_HARD_SECONDS` closes with `busy` and `1013`; the smaller `MAX_BACKLOG_SECONDS` only skips partials.
 
 The gateway's WebSocket read timeout should be longer than `IDLE_TIMEOUT_SECONDS`, or it will cut a quiet visit before this service can send `final`. Drain an instance before a deploy: stop sending it new visits, wait for the open ones to send `final`, then stop the process (`stop_grace_period` is 15s).
 

@@ -13,10 +13,10 @@ services:
     environment:
       HOST: 0.0.0.0
       PORT: 8037
-      # true = scripted lines, no Whisper model and no API key (demos, wiring checks)
+      # true = scripted lines, no speech API and no key (demos, wiring checks)
       USE_LLM_STUB: ${USE_LLM_STUB:-false}
-      WHISPER_MODEL: ${WHISPER_MODEL:-small}
-      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      LIVE_TRANSCRIBE_MODEL: ${LIVE_TRANSCRIBE_MODEL:-gpt-live-transcribe}
+      LIVE_TRANSCRIBE_DELAY: ${LIVE_TRANSCRIBE_DELAY:-low}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       LIVE_EXTRACT_MODEL: ${LIVE_EXTRACT_MODEL:-gpt-4o-mini}

@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.asr import build_transcriber
@@ -24,6 +25,9 @@ async def lifespan(app: FastAPI):
     mode = getattr(app.state.transcriber, "name", "unavailable")
     logger.info("Speech: %s | Listening on http://%s:%s (ws path /api/v1/live)", mode, settings.host, settings.port)
     yield
+    closer = getattr(app.state.transcriber, "close", None)
+    if callable(closer):
+        await asyncio.to_thread(closer)
     logger.info("Shutting down %s", settings.api_title)
 
 
@@ -46,7 +50,11 @@ app.add_middleware(
 app.include_router(router)
 
 
-_TRY_PAGE = Path(__file__).resolve().parent / "app" / "static" / "try.html"
+_STATIC_DIR = Path(__file__).resolve().parent / "app" / "static"
+_TRY_PAGE = _STATIC_DIR / "try.html"
+
+if settings.enable_dev_pages:
+    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 
 @app.get("/")
@@ -62,6 +70,7 @@ async def root():
     if settings.enable_dev_pages:
         body["try"] = "/try"
         body["docs"] = "/docs"
+        body["sample_wav"] = "/static/samples/doctor_patient_visit_3min.wav"
     return body
 
 

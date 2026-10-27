@@ -23,11 +23,31 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     cors_origins: str = "*"
 
-    # Speech (faster-whisper). USE_LLM_STUB=true replaces it with a scripted transcriber.
+    # Speech: OpenAI Realtime gpt-live-transcribe. USE_LLM_STUB=true replaces it with a scripted transcriber.
+    live_transcribe_model: str = "gpt-live-transcribe"
+    live_transcribe_delay: str = "low"  # minimal | low | medium | high | xhigh — low balances speed and accuracy
+    live_transcribe_char_ms: float = 0  # unused; partials send each real model delta once
+    live_transcribe_prompt: str = (
+        "Doctor-patient clinic visit in English or Arabic only. "
+        "Transcribe exactly what was spoken. "
+        "Write all numbers as digits, never as words "
+        "(2 not two, 4 out of 10 not four out of ten, "
+        "36.7 not thirty-six point seven, "
+        "128/82 not one hundred twenty-eight over eighty-two, "
+        "5 mg not five milligram). "
+        "Keep medical wording exact: Good morning, blood pressure, headache, "
+        "amlodipine, nausea, vomiting, fever, dehydration, arrange a review. "
+        "Do not invent or swap words."
+    )
+    live_transcribe_keywords: str = (
+        "Good morning,Dr. Patel,Sarah Johnson,headache,blood pressure,amlodipine,"
+        "nausea,vomiting,fever,dehydration,arrange a review"
+    )
+    # Kept for older env files and the unused faster-whisper helper module.
     whisper_model: str = "small"
     whisper_device: str = "auto"
     whisper_compute_type: str = ""
-    whisper_language: str = ""  # blank = auto-detect (Arabic and English are both expected)
+    whisper_language: str = ""
     whisper_model_cache: str = ""
 
     # Live segmenting
@@ -49,14 +69,14 @@ class Settings(BaseSettings):
     max_frame_bytes: int = 524288
     max_backlog_hard_seconds: float = 30  # past this, refuse the visit; the soft backlog only skips partials
 
-    # Speech quality gates. Scores the model omits are kept.
-    whisper_languages: str = "ar,en"  # comma-separated; a detection outside this list is remapped
-    whisper_initial_prompt: str = ""
+    # Language hints for gpt-live-transcribe (comma-separated). Also used by the unused Whisper helper.
+    whisper_languages: str = "ar,en"
+    whisper_initial_prompt: str = ""  # used when LIVE_TRANSCRIBE_PROMPT is blank
     whisper_no_speech_threshold: float = 0.6
     whisper_min_avg_logprob: float = -1.0
     whisper_max_compression_ratio: float = 2.4
     whisper_word_confidence: bool = False
-    whisper_low_confidence: float = 0.6  # a digit-bearing word under this probability is flagged
+    whisper_low_confidence: float = 0.6
 
     # "Picked up so far"
     picked_up_interval_seconds: float = 8.0

@@ -1,4 +1,4 @@
-"""Pytest configuration: everything runs on the stub (no Whisper model, no API key)."""
+"""Pytest configuration: everything runs on the stub (no speech API, no API key)."""
 
 import pytest
 from fastapi.testclient import TestClient

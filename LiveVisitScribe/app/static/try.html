@@ -159,6 +159,7 @@
       <li>Open this page at <code>http://localhost:8037/try</code>. Check health hits <code>GET /api/v1/health</code>.</li>
       <li><b>Start visit</b> asks for the microphone, opens <code id="wsLabel">ws://localhost:8037/api/v1/live</code>, and sends the text frame below.</li>
       <li>After <code>{"type":"ready"}</code>, each ~100 ms block of mic audio is converted from float samples to little-endian <b>int16 PCM</b> and sent as a binary frame. The service resamples to 16 kHz.</li>
+      <li>Or use <b>Stream sample visit</b> to play the bundled 3-minute doctor/patient WAV into the same socket (no microphone).</li>
       <li><b>Pause</b> / <b>Resume</b> / <b>Stop</b> are text frames. Stop flushes the open line, sends <code>final</code>, and the server closes the socket.</li>
     </ol>
 
@@ -183,8 +184,24 @@
       </div>
     </details>
 
+    <h3>Sample visit WAV</h3>
+    <p style="margin:0 0 10px;color:var(--muted);font-size:13px;">
+      Bundled file: <code>/static/samples/doctor_patient_visit_3min.wav</code>.
+      Streams raw int16 PCM over the live socket at real-time pace, the same way
+      <code>scripts/stream_wav.py</code> does.
+    </p>
+    <audio id="sampleAudio" controls preload="metadata"
+      src="/static/samples/doctor_patient_visit_3min.wav"
+      style="width:100%;margin-bottom:10px;"></audio>
+    <div class="row" style="margin-top:0;">
+      <label>Or choose another 16-bit PCM WAV
+        <input id="wavFile" type="file" accept="audio/wav,.wav">
+      </label>
+    </div>
+
     <div class="controls">
-      <button type="button" id="startBtn">Start visit</button>
+      <button type="button" id="startBtn">Start visit (mic)</button>
+      <button type="button" class="secondary" id="wavBtn">Stream sample visit</button>
       <button type="button" class="secondary" id="pauseBtn" disabled>Pause</button>
       <button type="button" class="secondary" id="resumeBtn" disabled>Resume</button>
       <button type="button" class="danger" id="stopBtn" disabled>Stop</button>
@@ -236,8 +253,10 @@
       4. The server answers {"type":"ready",...}. Only then are binary frames
          sent. Each ~100 ms block of mic samples (float, -1..1) becomes
          little-endian int16 PCM and is sent with ws.send(arrayBuffer).
-         The service resamples that to 16 kHz and hands the array to the
-         local Whisper model. This page never calls the model itself.
+         The service resamples that to 16 kHz and sends it to speech
+         (gpt-live-transcribe). This page never calls the model itself.
+         "Stream sample visit" reads the bundled WAV and sends the same
+         binary frames without using the microphone.
 
       5. Server messages are text JSON:
          segment    a transcript line; a later message with the same id replaces it,
@@ -265,7 +284,14 @@
     let gotReady = false;
     let frames = 0;
     let bytes = 0;
+    let wavCancel = false;
+    let wavRunning = false;
+    const SAMPLE_WAV = "/static/samples/doctor_patient_visit_3min.wav";
+    const CHAR_MS = 12; // how fast each new letter appears in the transcript panel
     const segments = new Map();
+    const displayLen = new Map(); // id -> how many characters of that line are visible
+    let dripTimer = null;
+    let visitClosedNote = "";
 
     // Mic capture. The browser hands this processor ~128 samples at a time.
     // Those are gathered until ~100 ms (0.1 * sampleRate), then posted to the
@@ -336,11 +362,159 @@
       $("error").textContent = text || "";
     }
 
-    function setButtons({ start, pause, resume, stop }) {
+    function setButtons({ start, pause, resume, stop, wav }) {
       $("startBtn").disabled = !start;
+      $("wavBtn").disabled = wav === undefined ? !start : !wav;
       $("pauseBtn").disabled = !pause;
       $("resumeBtn").disabled = !resume;
       $("stopBtn").disabled = !stop;
+    }
+
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    // 16-bit PCM WAV only (same constraint as scripts/stream_wav.py).
+    function parseWav(buffer) {
+      const view = new DataView(buffer);
+      if (view.byteLength < 44 || String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3)) !== "RIFF") {
+        throw new Error("Not a WAV file.");
+      }
+      let offset = 12;
+      let sampleRate = 0;
+      let channels = 0;
+      let bits = 0;
+      let dataOffset = 0;
+      let dataBytes = 0;
+      while (offset + 8 <= view.byteLength) {
+        const id = String.fromCharCode(view.getUint8(offset), view.getUint8(offset + 1), view.getUint8(offset + 2), view.getUint8(offset + 3));
+        const size = view.getUint32(offset + 4, true);
+        const start = offset + 8;
+        if (id === "fmt ") {
+          const format = view.getUint16(start, true);
+          channels = view.getUint16(start + 2, true);
+          sampleRate = view.getUint32(start + 4, true);
+          bits = view.getUint16(start + 14, true);
+          if (format !== 1) throw new Error("The WAV must be uncompressed PCM.");
+          if (bits !== 16) throw new Error("The WAV must be 16-bit PCM.");
+          if (channels < 1 || channels > 2) throw new Error("The WAV must be mono or stereo.");
+        } else if (id === "data") {
+          dataOffset = start;
+          dataBytes = size;
+          break;
+        }
+        offset = start + size + (size % 2);
+      }
+      if (!sampleRate || !dataBytes) throw new Error("Could not read the WAV audio chunk.");
+      const samples = Math.floor(dataBytes / 2);
+      const pcm = new Int16Array(buffer, dataOffset, samples);
+      return { sampleRate, channels, pcm };
+    }
+
+    async function loadWavSource() {
+      const file = $("wavFile").files && $("wavFile").files[0];
+      if (file) {
+        const parsed = await parseWav(await file.arrayBuffer());
+        return { ...parsed, fromFile: true };
+      }
+      const response = await fetch(SAMPLE_WAV);
+      if (!response.ok) throw new Error("Sample WAV missing. Is ENABLE_DEV_PAGES=true and the file under app/static/samples?");
+      const parsed = await parseWav(await response.arrayBuffer());
+      return { ...parsed, fromFile: false };
+    }
+
+    async function openLiveSocket(sampleRate, channels) {
+      const payload = startPayload(sampleRate);
+      payload.channels = channels;
+      if (payload.sample_rate < 8000 || payload.sample_rate > 48000) {
+        throw new Error("Sample rate must be between 8000 and 48000 Hz.");
+      }
+      $("startPreview").textContent = JSON.stringify(payload, null, 2);
+      gotReady = false;
+      armed = false;
+      await new Promise((resolve, reject) => {
+        ws = new WebSocket(wsInput.value.trim());
+        ws.binaryType = "arraybuffer";
+        ws.onopen = () => {
+          logMessage("→", payload);
+          ws.send(JSON.stringify(payload));
+        };
+        ws.onmessage = (event) => {
+          if (typeof event.data !== "string") return;
+          const message = JSON.parse(event.data);
+          handleMessage(message);
+          if (message.type === "ready") resolve();
+          if (message.type === "error" && !gotReady) reject(new Error(message.detail || "Start failed"));
+        };
+        ws.onerror = () => reject(new Error("WebSocket error. Is LiveVisitScribe running at that URL?"));
+        ws.onclose = () => {
+          armed = false;
+          wavCancel = true;
+          stopMic();
+          ws = null;
+          wavRunning = false;
+          setButtons({ start: true, pause: false, resume: false, stop: false, wav: true });
+          if ($("status").dataset.state === "live" || $("status").dataset.state === "paused") setStatus("Disconnected", "error");
+        };
+      });
+    }
+
+    async function streamWavVisit() {
+      setError("");
+      wavCancel = false;
+      resetVisit();
+      setButtons({ start: false, pause: false, resume: false, stop: false, wav: false });
+      setStatus("Loading WAV", "idle");
+      try {
+        const wav = await loadWavSource();
+        setStatus("Connecting", "idle");
+        await openLiveSocket(wav.sampleRate, wav.channels);
+        wavRunning = true;
+        armed = true;
+        setStatus("Streaming WAV", "live");
+        setButtons({ start: false, pause: false, resume: false, stop: true, wav: false });
+        $("rateStat").textContent = wav.sampleRate + " Hz · " + wav.channels + " ch · sample";
+        const player = $("sampleAudio");
+        try {
+          player.pause();
+          player.currentTime = 0;
+          // Play alongside the socket stream so the scrubber moves with the visit.
+          if (!wav.fromFile) player.play().catch(() => {});
+        } catch (err) { /* player is optional */ }
+        const samplesPerChunk = Math.max(1, Math.round(wav.sampleRate * 0.1) * wav.channels);
+        for (let i = 0; i < wav.pcm.length && !wavCancel; i += samplesPerChunk) {
+          if (!ws || ws.readyState !== WebSocket.OPEN) break;
+          const chunk = wav.pcm.subarray(i, Math.min(i + samplesPerChunk, wav.pcm.length));
+          const copy = chunk.slice();
+          ws.send(copy.buffer);
+          frames += 1;
+          bytes += copy.byteLength;
+          $("frameStat").textContent = String(frames);
+          $("byteStat").textContent = String(bytes);
+          let peak = 0;
+          for (let n = 0; n < copy.length; n++) peak = Math.max(peak, Math.abs(copy[n]));
+          $("level").style.width = Math.min(100, Math.round((peak / 32768) * 100)) + "%";
+          await sleep(100);
+        }
+        if (!wavCancel && ws && ws.readyState === WebSocket.OPEN) {
+          const silence = new Int16Array(wav.sampleRate * wav.channels);
+          ws.send(silence.buffer);
+          const payload = { type: "stop" };
+          logMessage("→", payload);
+          ws.send(JSON.stringify(payload));
+          setStatus("Stopping", "idle");
+        }
+      } catch (err) {
+        if (ws) ws.close();
+        ws = null;
+        setButtons({ start: true, pause: false, resume: false, stop: false, wav: true });
+        setStatus("Idle", "idle");
+        setError(err.message || String(err));
+      } finally {
+        wavRunning = false;
+        $("level").style.width = "0%";
+        try { $("sampleAudio").pause(); } catch (err) { /* ignore */ }
+      }
     }
 
     // Health uses the same host as the socket, with http(s) and /api/v1/health.
@@ -368,6 +542,56 @@
       return Math.floor(total / 60) + ":" + String(total % 60).padStart(2, "0");
     }
 
+    function visibleText(segment) {
+      const full = segment.text || "";
+      const n = Math.min(displayLen.get(segment.id) || 0, full.length);
+      return full.slice(0, n);
+    }
+
+    function commonPrefixLen(a, b) {
+      const limit = Math.min(a.length, b.length);
+      let i = 0;
+      while (i < limit && a[i] === b[i]) i += 1;
+      return i;
+    }
+
+    function ensureDrip() {
+      if (dripTimer) return;
+      dripTimer = setInterval(() => {
+        let busy = false;
+        for (const segment of segments.values()) {
+          const full = segment.text || "";
+          let n = displayLen.get(segment.id) || 0;
+          if (n >= full.length) continue;
+          // Final lines catch up a few letters at a time so the line does not jump in one word.
+          const step = segment.final ? Math.max(1, Math.ceil((full.length - n) / 8)) : 1;
+          displayLen.set(segment.id, Math.min(full.length, n + step));
+          busy = true;
+        }
+        renderTranscript();
+        if (!busy) {
+          clearInterval(dripTimer);
+          dripTimer = null;
+        }
+      }, CHAR_MS);
+    }
+
+    function applySegment(message) {
+      const prev = segments.get(message.id);
+      const full = message.text || "";
+      let shown = displayLen.get(message.id) || 0;
+      if (!prev) {
+        shown = 0;
+      } else {
+        const wasVisible = (prev.text || "").slice(0, shown);
+        shown = commonPrefixLen(wasVisible, full);
+      }
+      displayLen.set(message.id, shown);
+      segments.set(message.id, message);
+      ensureDrip();
+      renderTranscript();
+    }
+
     function renderTranscript() {
       const host = $("transcript");
       if (!segments.size) {
@@ -383,9 +607,9 @@
             <span>${clock(segment.start_ms)}–${clock(segment.end_ms)}</span>
             <span>${segment.final ? "final" : "partial"}</span>
           </div>
-          <div>${esc(segment.text)}</div>
+          <div>${esc(visibleText(segment))}</div>
         </article>
-      `).join("");
+      `).join("") + (visitClosedNote ? `<p class="empty">${esc(visitClosedNote)}</p>` : "");
     }
 
     function evidenceList(title, items) {
@@ -498,7 +722,13 @@
     }
 
     function resetVisit() {
+      if (dripTimer) {
+        clearInterval(dripTimer);
+        dripTimer = null;
+      }
       segments.clear();
+      displayLen.clear();
+      visitClosedNote = "";
       frames = 0;
       bytes = 0;
       $("frameStat").textContent = "0";
@@ -519,8 +749,7 @@
         setButtons({ start: false, pause: true, resume: false, stop: true });
         $("rateStat").textContent = message.sample_rate + " Hz · " + message.channels + " ch";
       } else if (message.type === "segment") {
-        segments.set(message.id, message);
-        renderTranscript();
+        applySegment(message);
       } else if (message.type === "picked_up") {
         renderPicked(message);
       } else if (message.type === "paused") {
@@ -531,13 +760,9 @@
         setStatus("Live", "live");
         setButtons({ start: false, pause: true, resume: false, stop: true });
       } else if (message.type === "final") {
-        (message.segments || []).forEach((segment) => segments.set(segment.id, segment));
-        renderTranscript();
+        visitClosedNote = `Socket closed. ${message.segments.length} final lines, ${(message.audio_ms / 1000).toFixed(1)} s of audio.`;
+        (message.segments || []).forEach((segment) => applySegment(segment));
         setStatus("Closed", "idle");
-        const foot = document.createElement("p");
-        foot.className = "empty";
-        foot.textContent = `Socket closed. ${message.segments.length} final lines, ${(message.audio_ms / 1000).toFixed(1)} s of audio.`;
-        $("transcript").appendChild(foot);
       } else if (message.type === "error") {
         setError(message.detail || "The service reported an error.");
         if (!gotReady && ws) ws.close();
@@ -560,42 +785,23 @@
     async function startVisit() {
       setError("");
       gotReady = false;
+      wavCancel = true;
       resetVisit();
-      setButtons({ start: false, pause: false, resume: false, stop: false });
+      setButtons({ start: false, pause: false, resume: false, stop: false, wav: false });
       setStatus("Connecting", "idle");
       try {
         mic = await navigator.mediaDevices.getUserMedia({
           audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
         });
         await attachMic(mic);
-        const payload = startPayload(audioCtx.sampleRate);
-        if (payload.sample_rate < 8000 || payload.sample_rate > 48000) {
-          throw new Error("This browser's sample rate is outside 8000–48000 Hz, which the socket accepts.");
-        }
-        $("startPreview").textContent = JSON.stringify(payload, null, 2);
-        ws = new WebSocket(wsInput.value.trim());
-        ws.binaryType = "arraybuffer";
-        ws.onopen = () => {
-          logMessage("→", payload);
-          ws.send(JSON.stringify(payload));
-        };
-        ws.onmessage = (event) => {
-          if (typeof event.data !== "string") return;
-          handleMessage(JSON.parse(event.data));
-        };
-        ws.onerror = () => setError("WebSocket error. Is LiveVisitScribe running at that URL?");
-        ws.onclose = () => {
-          armed = false;
-          stopMic();
-          ws = null;
-          setButtons({ start: true, pause: false, resume: false, stop: false });
-          if ($("status").dataset.state === "live" || $("status").dataset.state === "paused") setStatus("Disconnected", "error");
-        };
+        await openLiveSocket(audioCtx.sampleRate, 1);
+        setButtons({ start: false, pause: true, resume: false, stop: true, wav: false });
       } catch (err) {
         stopMic();
         if (ws) ws.close();
         ws = null;
-        setButtons({ start: true, pause: false, resume: false, stop: false });
+        setButtons({ start: true, pause: false, resume: false, stop: false, wav: true });
+        setStatus("Idle", "idle");
         setError(err.message || String(err));
       }
     }
@@ -606,17 +812,18 @@
     function sendControl(type) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       armed = false;
+      if (type === "stop") wavCancel = true;
       const payload = { type };
       logMessage("→", payload);
       ws.send(JSON.stringify(payload));
       if (type === "pause") {
         setStatus("Pausing", "paused");
-        setButtons({ start: false, pause: false, resume: false, stop: true });
+        setButtons({ start: false, pause: false, resume: false, stop: true, wav: false });
       } else if (type === "resume") {
-        setButtons({ start: false, pause: false, resume: false, stop: true });
+        setButtons({ start: false, pause: false, resume: false, stop: true, wav: false });
       } else if (type === "stop") {
         setStatus("Stopping", "idle");
-        setButtons({ start: false, pause: false, resume: false, stop: false });
+        setButtons({ start: false, pause: false, resume: false, stop: false, wav: false });
       }
     }
 
@@ -624,11 +831,12 @@
     wsInput.addEventListener("input", refreshPreview);
     $("healthBtn").addEventListener("click", checkHealth);
     $("startBtn").addEventListener("click", startVisit);
+    $("wavBtn").addEventListener("click", streamWavVisit);
     $("pauseBtn").addEventListener("click", () => sendControl("pause"));
     $("resumeBtn").addEventListener("click", () => sendControl("resume"));
     $("stopBtn").addEventListener("click", () => sendControl("stop"));
     refreshPreview();
-    setButtons({ start: true, pause: false, resume: false, stop: false });
+    setButtons({ start: true, pause: false, resume: false, stop: false, wav: true });
     checkHealth();
   </script>
 </body>

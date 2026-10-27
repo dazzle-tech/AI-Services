@@ -1,4 +1,4 @@
-"""Raw int16 PCM from the browser to 16 kHz mono float32 (what Whisper reads)."""
+"""Raw int16 PCM from the browser to 16 kHz mono float32 (what the live session keeps)."""
 
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ def pcm_to_float32(data: bytes, sample_rate: int, channels: int = 1) -> np.ndarr
     if channels > 1:
         pcm = pcm.reshape(-1, channels).mean(axis=1)
     if sample_rate != TARGET_SR:
-        pcm = _resample_linear(pcm, sample_rate, TARGET_SR)
+        pcm = resample_linear(pcm, sample_rate, TARGET_SR)
     return pcm.astype(np.float32, copy=False)
 
 
-def _resample_linear(samples: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
+def resample_linear(samples: np.ndarray, src_sr: int, dst_sr: int) -> np.ndarray:
     if src_sr == dst_sr or samples.size == 0:
         return samples
     duration = samples.size / src_sr

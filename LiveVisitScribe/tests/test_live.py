@@ -288,7 +288,7 @@ def test_speaker_and_language_guesses():
         "Arrange a review if it persists or worsens, seek urgent medical care for a sudden severe headache. "
         "Thank you, Sarah."
     ) == "doctor"
-    assert detect_lang("كم حبة Neurofen تاخذين باليوم؟") == "mixed"
+    assert detect_lang("كم حبة Neurofen تاخذين باليوم؟") == "ar"
     assert detect_lang("صداع منذ يومين") == "ar"
     assert detect_lang("Blood pressure is 128 over 82") == "en"
 

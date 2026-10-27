@@ -3,10 +3,9 @@
 The session holds only the audio of the line being spoken (a few seconds) and the finished text
 lines. Nothing is written anywhere, and the audio of a finished line is dropped.
 
-Lines: speech starts a line; while it continues a partial (final=false) is refreshed every
-STREAM_CHUNK_SECONDS by transcribing the line so far; SILENCE_MS of silence ends it (final=true).
-A line that runs past MAX_TURN_SECONDS is split, and STREAM_OVERLAP_SECONDS of audio is carried into
-the next line so a word on the cut is not lost.
+With gpt-live-transcribe, audio is streamed to OpenAI as it arrives and partial text is sent
+letter by letter. Local silence still ends a line (final=true). The stub backend still refreshes
+a partial every STREAM_CHUNK_SECONDS by re-reading the line so far.
 
 Time: start_ms / end_ms count the audio received while not paused, so they match a recording whose
 recorder is also paused.
@@ -16,7 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Awaitable, Callable, Optional
+from typing import Any, Awaitable, Callable, Optional
 
 import numpy as np
 
@@ -37,6 +36,7 @@ Emit = Callable[[dict], Awaitable[None]]
 FRAME_SAMPLES = TARGET_SR // 50  # 20 ms
 _PRE_ROLL_FRAMES = 15  # 300 ms kept before speech starts so the first word is not clipped
 _TAIL_KEEP_SAMPLES = int(0.2 * TARGET_SR)  # silence kept after the last word when a line is transcribed
+_STREAM_FLUSH_SAMPLES = TARGET_SR // 10  # ~100 ms of audio between Realtime appends
 
 
 def _ms(samples: int) -> int:
@@ -51,13 +51,16 @@ class _Turn:
         self.speech_samples = speech_samples
         self.trailing_silence = 0
         self.since_partial = 0
+        self.since_stream = 0
         self.id: Optional[str] = None
         self.last_text = ""
+        self.stream_started = False
 
     def add(self, frame: np.ndarray, speech: bool) -> None:
         self.frames.append(frame)
         self.samples += frame.size
         self.since_partial += frame.size
+        self.since_stream += frame.size
         if speech:
             self.speech_samples += frame.size
             self.trailing_silence = 0
@@ -108,6 +111,10 @@ class LiveSession:
         self._extract_task: Optional[asyncio.Task] = None
         self._extract_error_sent = False
 
+        self._stream: Any = None
+        self._stream_sent = 0
+        self._use_live_stream = callable(getattr(transcriber, "open_stream", None))
+
     # --- public ---------------------------------------------------------
 
     @property
@@ -151,6 +158,7 @@ class LiveSession:
             await self._finalize_turn()
         except Exception:
             logger.exception("Could not finish the last line")
+        await self._close_stream()
         await self._cancel_extract_task()
         if self._dirty:
             try:
@@ -168,6 +176,7 @@ class LiveSession:
     async def abort(self) -> None:
         """The socket closed without a stop: drop everything, send nothing."""
         self._stopped = True
+        await self._close_stream()
         await self._cancel_extract_task()
 
     # --- audio to lines -------------------------------------------------
@@ -194,6 +203,8 @@ class LiveSession:
             start = self._position - frame.size - sum(item.size for item in lead)
             turn = self._turn = _Turn(start, [*lead, frame])
             turn.speech_samples = frame.size
+            if self._use_live_stream:
+                await self._stream_begin(turn)
             return 0
 
         turn.add(frame, speech)
@@ -202,6 +213,10 @@ class LiveSession:
             await self._finalize_turn()
         elif turn.samples >= int(cfg.max_turn_seconds * TARGET_SR):
             await self._finalize_turn(carry_overlap=True)
+        elif self._use_live_stream:
+            if not allow_partial:
+                return 0
+            await self._stream_continue(turn)
         elif (
             turn.since_partial >= int(cfg.stream_chunk_seconds * TARGET_SR)
             and turn.speech_samples >= cfg.min_speech_ms * TARGET_SR // 1000
@@ -211,6 +226,60 @@ class LiveSession:
                 return 1
             await self._partial(turn)
         return 0
+
+    async def _ensure_stream(self) -> Any:
+        if self._stream is not None:
+            return self._stream
+        opener = getattr(self._asr, "open_stream", None)
+        if not callable(opener):
+            return None
+        stream = opener()
+        await stream.connect()
+        self._stream = stream
+        return stream
+
+    async def _close_stream(self) -> None:
+        stream = self._stream
+        self._stream = None
+        self._stream_sent = 0
+        if stream is None:
+            return
+        try:
+            await stream.close()
+        except Exception:
+            logger.exception("session %s could not close the speech stream", self._session_id or "-")
+
+    async def _stream_begin(self, turn: _Turn) -> None:
+        stream = await self._ensure_stream()
+        if stream is None:
+            return
+        await stream.begin_turn()
+        turn.stream_started = True
+        audio = turn.audio()
+        self._stream_sent = audio.size
+        turn.since_stream = 0
+        started = time.perf_counter()
+        text = await stream.append(audio)
+        metrics.observe_asr(final=False, elapsed=time.perf_counter() - started, audio_seconds=audio.size / TARGET_SR)
+        await self._emit_partial_text(turn, text, end_sample=turn.start + turn.samples)
+
+    async def _stream_continue(self, turn: _Turn) -> None:
+        if not turn.stream_started or turn.since_stream < _STREAM_FLUSH_SAMPLES:
+            return
+        stream = await self._ensure_stream()
+        if stream is None:
+            return
+        audio = turn.audio()
+        chunk = audio[self._stream_sent :]
+        if chunk.size == 0:
+            turn.since_stream = 0
+            return
+        self._stream_sent = audio.size
+        turn.since_stream = 0
+        started = time.perf_counter()
+        text = await stream.append(chunk)
+        metrics.observe_asr(final=False, elapsed=time.perf_counter() - started, audio_seconds=chunk.size / TARGET_SR)
+        await self._emit_partial_text(turn, text, end_sample=turn.start + turn.samples)
 
     async def _transcribe(self, audio: np.ndarray, *, turn_index: int, final: bool) -> AsrResult:
         started = time.perf_counter()
@@ -249,23 +318,61 @@ class LiveSession:
                 carry = audio[-overlap:].copy()
 
         if turn.speech_samples >= self._settings.min_speech_ms * TARGET_SR // 1000:
-            result = await self._transcribe(
-                turn.audio(trim_silence=True),
-                turn_index=len(self._finals),
-                final=True,
-            )
-            text = " ".join(result.text.split()) or turn.last_text
-            if text:
-                end = turn.start + turn.samples - turn.trailing_silence
-                await self._emit_segment(
-                    turn, text, final=True, end_sample=end, low_confidence=result.low_confidence
+            if self._use_live_stream and turn.stream_started:
+                await self._finalize_stream_turn(turn)
+            else:
+                result = await self._transcribe(
+                    turn.audio(trim_silence=True),
+                    turn_index=len(self._finals),
+                    final=True,
                 )
-                self._dirty = True
-                self._schedule_extract()
+                text = " ".join(result.text.split()) or turn.last_text
+                if text:
+                    end = turn.start + turn.samples - turn.trailing_silence
+                    await self._emit_segment(
+                        turn, text, final=True, end_sample=end, low_confidence=result.low_confidence
+                    )
+                    self._dirty = True
+                    self._schedule_extract()
 
+        self._stream_sent = 0
         if carry is not None:
             start = self._position - carry.size
-            self._turn = _Turn(start, [carry], speech_samples=0)
+            nxt = self._turn = _Turn(start, [carry], speech_samples=0)
+            if self._use_live_stream:
+                await self._stream_begin(nxt)
+
+    async def _finalize_stream_turn(self, turn: _Turn) -> None:
+        stream = await self._ensure_stream()
+        if stream is None:
+            return
+        audio = turn.audio(trim_silence=True)
+        leftover = audio[self._stream_sent :]
+        started = time.perf_counter()
+        if leftover.size:
+            await stream.append(leftover)
+        text = await stream.commit()
+        metrics.observe_asr(
+            final=True,
+            elapsed=time.perf_counter() - started,
+            audio_seconds=max(audio.size, 1) / TARGET_SR,
+        )
+        text = " ".join(text.split()) or turn.last_text
+        if not text:
+            return
+        end = turn.start + turn.samples - turn.trailing_silence
+        turn.last_text = text
+        await self._emit_segment(turn, text, final=True, end_sample=end, low_confidence=[])
+        self._dirty = True
+        self._schedule_extract()
+
+    async def _emit_partial_text(self, turn: _Turn, text: str, *, end_sample: int) -> None:
+        """Send each real model update once. Do not invent a letter-by-letter delay."""
+        text = " ".join((text or "").split())
+        if not text or text == turn.last_text:
+            return
+        turn.last_text = text
+        await self._emit_segment(turn, text, final=False, end_sample=end_sample, low_confidence=[])
 
     async def _emit_segment(
         self,

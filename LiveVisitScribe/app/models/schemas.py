@@ -7,7 +7,7 @@ from typing import Any, Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 Speaker = Literal["doctor", "patient"]
-Lang = Literal["en", "ar", "mixed"]
+Lang = Literal["en", "ar"]
 
 
 class PatientContext(BaseModel):

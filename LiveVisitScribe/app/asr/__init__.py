@@ -14,15 +14,15 @@ logger = get_logger(__name__)
 
 
 def build_transcriber(settings: Settings) -> Optional[Transcriber]:
-    """Stub when USE_LLM_STUB=true (no model download); otherwise faster-whisper. None if it cannot load."""
+    """Stub when USE_LLM_STUB=true; otherwise OpenAI gpt-live-transcribe. None if it cannot start."""
     if settings.use_llm_stub:
         from app.asr.stub import StubTranscriber
 
         return StubTranscriber()
     try:
-        from app.asr.whisper import WhisperTranscriber
+        from app.asr.live_transcribe import LiveTranscribeTranscriber
 
-        return WhisperTranscriber(settings)
+        return LiveTranscribeTranscriber(settings)
     except Exception:
-        logger.exception("Could not load the Whisper model; the live socket will report an error")
+        logger.exception("Could not start gpt-live-transcribe; the live socket will report an error")
         return None

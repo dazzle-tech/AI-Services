@@ -19,6 +19,7 @@ class Transcriber(Protocol):
         """Blocking call (runs in a worker thread). `audio` is 16 kHz mono float32.
 
         `turn_index` is the number of lines already finalized, so a partial and the final pass of the
-        same line get the same value. `final` is False for a rolling partial.
+        same line get the same value. `final` is False for a rolling partial. The default backend is
+        OpenAI gpt-live-transcribe; the stub ignores the samples and returns scripted text.
         """
         ...
