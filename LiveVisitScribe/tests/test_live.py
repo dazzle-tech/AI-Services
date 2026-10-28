@@ -167,6 +167,20 @@ def test_stub_visit_picks_up_complaint_symptoms_exam_and_flags_the_dose(client):
         {"name": "Neurofen", "detail": "About three tablets a day", "confirm": True, "segment_ids": ["t5", "t6"]}
     ]
     assert messages[-1]["type"] == "final" and len(messages[-1]["segments"]) == 7
+    # Stop always ends with a picked_up immediately before final.
+    assert messages[-2]["type"] == "picked_up"
+
+
+def test_stop_always_sends_picked_up_before_final_even_with_no_speech(client):
+    with client.websocket_connect(LIVE_PATH) as ws:
+        ws.send_json(start_message())
+        assert ws.receive_json()["type"] == "ready"
+        ws.send_json({"type": "stop"})
+        messages = read_until(ws, "final")
+    assert messages[-1]["type"] == "final"
+    assert messages[-2]["type"] == "picked_up"
+    assert messages[-2]["complaint"] is None
+    assert messages[-2]["symptoms"] == []
 
 
 def test_picked_up_medication_whose_segment_id_does_not_exist_is_removed(client, monkeypatch):

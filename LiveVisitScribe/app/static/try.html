@@ -223,7 +223,7 @@
     </section>
     <section class="card">
       <h2>Picked up so far</h2>
-      <div id="picked"><p class="empty">Updated after a final line, at most every 8 seconds. Medicines always say “confirm dose”.</p></div>
+      <div id="picked"><p class="empty">Updated after every final line (display only). Medicines always say “confirm dose”.</p></div>
     </section>
   </main>
 
@@ -735,7 +735,7 @@
       $("byteStat").textContent = "0";
       $("log").innerHTML = "";
       renderTranscript();
-      $("picked").innerHTML = '<p class="empty">Updated after a final line, at most every 8 seconds. Medicines always say “confirm dose”.</p>';
+      $("picked").innerHTML = '<p class="empty">Updated after every final line (display only). Medicines always say “confirm dose”.</p>';
     }
 
     // Every server frame is text JSON. "ready" is the gate that lets binary

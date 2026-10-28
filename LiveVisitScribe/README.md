@@ -91,7 +91,7 @@ Browser framing: capture with an `AudioWorklet`, convert each `Float32Array` blo
 
 ### Picked up so far
 
-A scratch list for the doctor, not a note. It is updated at most every `PICKED_UP_INTERVAL_SECONDS` (8 s), only when a new final line arrived, with one small JSON model call over the final lines (or the stub). That call also returns a speaker for each finished line. The last update is flushed on `stop`. A `picked_up` message is sent only when the list changed. A corrected speaker is sent even when the list is unchanged.
+A scratch list for the doctor, not a note (display only; nothing is stored). After every new final line the service runs one small JSON model call over the final lines (or the stub) and **always** sends `picked_up`, even when the list is empty or unchanged. That call also returns a speaker for each finished line. Stop always sends one more `picked_up` immediately before `final`.
 
 Whatever the model returns, `app/live/picked_up.py` enforces these before anything is sent:
 

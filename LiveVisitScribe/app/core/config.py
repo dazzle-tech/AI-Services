@@ -79,8 +79,9 @@ class Settings(BaseSettings):
     whisper_low_confidence: float = 0.6
 
     # "Picked up so far"
-    picked_up_interval_seconds: float = 8.0
-    picked_up_max_interval_seconds: float = 30  # the gap grows with the number of finished lines, up to this
+    # Kept for older .env files; extract no longer waits on this (display-only, send after every final).
+    picked_up_interval_seconds: float = 0.0
+    picked_up_max_interval_seconds: float = 0.0
     extract_max_concurrency: int = 4
     stop_flush_timeout_seconds: float = 45  # on stop, wait for the last list update, then send `final` anyway
     live_extract_model: str = "gpt-4o-mini"

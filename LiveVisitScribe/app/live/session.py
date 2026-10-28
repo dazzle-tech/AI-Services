@@ -27,7 +27,7 @@ from app.core.logging import get_logger
 from app.live import picked_up
 from app.live.speaker import guess_speaker
 from app.live.text_utils import detect_lang
-from app.models.schemas import PatientContext, Segment
+from app.models.schemas import PatientContext, PickedUp, Segment
 
 logger = get_logger(__name__)
 
@@ -160,11 +160,22 @@ class LiveSession:
             logger.exception("Could not finish the last line")
         await self._close_stream()
         await self._cancel_extract_task()
-        if self._dirty:
+        # Always send one picked_up before final so the client never ends without a scratch list.
+        if self._finals:
+            self._dirty = True
             try:
-                await asyncio.wait_for(self._run_extract(), self._settings.stop_flush_timeout_seconds)
+                await asyncio.wait_for(
+                    self._run_extract(),
+                    self._settings.stop_flush_timeout_seconds,
+                )
             except asyncio.TimeoutError:
                 logger.warning("session %s picked-up flush timed out", self._session_id or "-")
+                await self._emit_picked_up_fallback()
+            except Exception:
+                logger.exception("session %s picked-up flush failed", self._session_id or "-")
+                await self._emit_picked_up_fallback()
+        else:
+            await self._emit_picked_up_fallback()
         await self._emit(
             {
                 "type": "final",
@@ -407,18 +418,9 @@ class LiveSession:
         if self._extract_task is None or self._extract_task.done():
             self._extract_task = asyncio.create_task(self._extract_loop())
 
-    def _extract_interval(self) -> float:
-        grown = self._settings.picked_up_interval_seconds + 0.05 * len(self._finals)
-        return min(self._settings.picked_up_max_interval_seconds, grown)
-
     async def _extract_loop(self) -> None:
+        # Display-only: no interval, no “unchanged” skip. Every new final triggers a send.
         while self._dirty and not self._stopped:
-            interval = self._extract_interval()
-            wait = self._last_extract + interval - time.monotonic()
-            if wait > 0:
-                await asyncio.sleep(wait)
-            if not self._dirty or self._stopped:
-                break
             await self._run_extract()
 
     async def _run_extract(self) -> None:
@@ -437,12 +439,18 @@ class LiveSession:
             if not self._extract_error_sent:
                 self._extract_error_sent = True
                 await self._emit({"type": "error", "detail": "Picked up so far could not be updated"})
+            # Still send something to show (last list or empty) — never silent.
+            await self._emit_picked_up_fallback()
             return
         metrics.extract.observe(time.perf_counter() - started)
         await self._apply_speakers(speakers)
         payload = picked.model_dump()
-        if payload == self._last_picked or (self._last_picked is None and picked.is_empty()):
-            return
+        self._last_picked = payload
+        await self._emit({"type": "picked_up", **payload})
+
+    async def _emit_picked_up_fallback(self) -> None:
+        """Last known list, or an empty one — always a picked_up message for the UI."""
+        payload = self._last_picked if self._last_picked is not None else PickedUp().model_dump()
         self._last_picked = payload
         await self._emit({"type": "picked_up", **payload})
 
