@@ -150,7 +150,7 @@ class LiveSession:
         self._paused = False
 
     async def stop(self) -> None:
-        """Close the open line, flush the picked-up list, and send `final`."""
+        """Close the open line, flush picked_up, then send `final` with transcript + picked_up together."""
         if self._stopped:
             return
         self._stopped = True
@@ -160,7 +160,7 @@ class LiveSession:
             logger.exception("Could not finish the last line")
         await self._close_stream()
         await self._cancel_extract_task()
-        # Always send one picked_up before final so the client never ends without a scratch list.
+        # Always rebuild (or fall back) so final never ships without a full picked_up object.
         if self._finals:
             self._dirty = True
             try:
@@ -176,12 +176,25 @@ class LiveSession:
                 await self._emit_picked_up_fallback()
         else:
             await self._emit_picked_up_fallback()
+
+        payload = self._picked_up_payload()
+        # Standalone message for live UIs that listen for type=picked_up during the visit.
+        await self._emit({"type": "picked_up", **payload})
+        # Full visit result: transcript + scratch list in one message (integrators often only read final).
         await self._emit(
             {
                 "type": "final",
                 "segments": [segment.model_dump() for segment in self._finals],
                 "audio_ms": _ms(self._position),
+                "picked_up": payload,
             }
+        )
+        logger.info(
+            "session %s final lines=%d picked_up_empty=%s keys=%s",
+            self._session_id or "-",
+            len(self._finals),
+            PickedUp.model_validate(payload).is_empty(),
+            sorted(payload.keys()),
         )
 
     async def abort(self) -> None:
@@ -448,9 +461,16 @@ class LiveSession:
         self._last_picked = payload
         await self._emit({"type": "picked_up", **payload})
 
+    def _picked_up_payload(self) -> dict[str, Any]:
+        """Full picked_up body for the client (never omit keys)."""
+        if self._last_picked is not None:
+            return self._last_picked
+        # Empty visit / failed extract: still return the enforced empty structure (record statuses, etc.).
+        return picked_up.enforce_picked_up({}, self.final_segments, self._context).model_dump()
+
     async def _emit_picked_up_fallback(self) -> None:
-        """Last known list, or an empty one — always a picked_up message for the UI."""
-        payload = self._last_picked if self._last_picked is not None else PickedUp().model_dump()
+        """Last known list, or a full empty structure — always a picked_up message for the UI."""
+        payload = self._picked_up_payload()
         self._last_picked = payload
         await self._emit({"type": "picked_up", **payload})
 

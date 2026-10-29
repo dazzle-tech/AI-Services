@@ -301,15 +301,21 @@ async def live(ws: WebSocket) -> None:
         disconnected = True
     finally:
         if worker is not None:
-            if stop_requested and not disconnected:
-                await worker
+            # Always finish stop so final+picked_up are emitted, even if the client already closed.
+            if stop_requested:
+                try:
+                    await worker
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.exception("session %s worker failed while stopping", session_id)
             else:
                 worker.cancel()
                 try:
                     await worker
                 except asyncio.CancelledError:
                     pass
-        if session is not None and not (stop_requested and not disconnected):
+        if session is not None and not stop_requested:
             await session.abort()
         line_count = len(session.final_segments) if session is not None else 0
         if acquired and started_at is not None:

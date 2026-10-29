@@ -360,7 +360,7 @@
               "code": 0,
               "_postman_previewlanguage": "json",
               "header": [],
-              "body": "{\n  \"type\": \"final\",\n  \"segments\": [\n    {\n      \"type\": \"segment\",\n      \"id\": \"t1\",\n      \"speaker\": \"doctor\",\n      \"start_ms\": 0,\n      \"end_ms\": 4800,\n      \"text\": \"Good morning, what brings you in today?\",\n      \"lang\": \"en\",\n      \"final\": true\n    },\n    {\n      \"type\": \"segment\",\n      \"id\": \"t2\",\n      \"speaker\": \"doctor\",\n      \"start_ms\": 41000,\n      \"end_ms\": 44200,\n      \"text\": \"كم حبة Neurofen تاخذين باليوم؟\",\n      \"lang\": \"ar\",\n      \"final\": true\n    }\n  ],\n  \"audio_ms\": 272000\n}"
+              "body": "{\n  \"type\": \"final\",\n  \"segments\": [\n    {\n      \"type\": \"segment\",\n      \"id\": \"t1\",\n      \"speaker\": \"doctor\",\n      \"start_ms\": 0,\n      \"end_ms\": 4800,\n      \"text\": \"Good morning, what brings you in today?\",\n      \"lang\": \"en\",\n      \"final\": true\n    },\n    {\n      \"type\": \"segment\",\n      \"id\": \"t2\",\n      \"speaker\": \"doctor\",\n      \"start_ms\": 41000,\n      \"end_ms\": 44200,\n      \"text\": \"كم حبة Neurofen تاخذين باليوم؟\",\n      \"lang\": \"ar\",\n      \"final\": true\n    }\n  ],\n  \"audio_ms\": 272000,\n  \"picked_up\": {\n    \"complaint\": null,\n    \"symptoms\": [],\n    \"medications\": [],\n    \"exam\": [],\n    \"record\": {},\n    \"record_evidence\": {},\n    \"record_status\": {},\n    \"missing_required\": {}\n  }\n}"
             },
             {
               "name": "server: error (audio before start)",

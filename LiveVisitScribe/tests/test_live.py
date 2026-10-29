@@ -167,8 +167,10 @@ def test_stub_visit_picks_up_complaint_symptoms_exam_and_flags_the_dose(client):
         {"name": "Neurofen", "detail": "About three tablets a day", "confirm": True, "segment_ids": ["t5", "t6"]}
     ]
     assert messages[-1]["type"] == "final" and len(messages[-1]["segments"]) == 7
-    # Stop always ends with a picked_up immediately before final.
+    # Stop always ends with a picked_up immediately before final, and final embeds the same object.
     assert messages[-2]["type"] == "picked_up"
+    assert "picked_up" in messages[-1]
+    assert messages[-1]["picked_up"]["complaint"] == picked["complaint"]
 
 
 def test_stop_always_sends_picked_up_before_final_even_with_no_speech(client):
@@ -181,6 +183,11 @@ def test_stop_always_sends_picked_up_before_final_even_with_no_speech(client):
     assert messages[-2]["type"] == "picked_up"
     assert messages[-2]["complaint"] is None
     assert messages[-2]["symptoms"] == []
+    assert "picked_up" in messages[-1]
+    assert messages[-1]["picked_up"]["complaint"] is None
+    assert messages[-1]["picked_up"]["symptoms"] == []
+    assert "record" in messages[-1]["picked_up"]
+    assert "record_status" in messages[-1]["picked_up"]
 
 
 def test_picked_up_medication_whose_segment_id_does_not_exist_is_removed(client, monkeypatch):

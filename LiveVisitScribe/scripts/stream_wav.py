@@ -49,6 +49,11 @@ async def stream(args: argparse.Namespace) -> int:
                                                         ensure_ascii=False))
                     elif kind == "final":
                         print(f"[final] {len(message['segments'])} lines, {message['audio_ms'] / 1000:.1f}s of audio")
+                        picked = message.get("picked_up")
+                        if picked is None:
+                            print("[final] ERROR: picked_up missing from final payload", file=sys.stderr)
+                        else:
+                            print("[final picked_up]", json.dumps(picked, ensure_ascii=False))
                     else:
                         print(f"[{kind}]", json.dumps({k: v for k, v in message.items() if k != "type"},
                                                       ensure_ascii=False))

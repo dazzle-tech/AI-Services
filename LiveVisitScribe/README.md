@@ -74,7 +74,7 @@ Server to client (text JSON):
 | `warning` | `{"type":"warning","detail":"session_length","seconds":2700}` once, as the visit nears `MAX_SESSION_SECONDS`. `{"type":"warning","detail":"No audio received; ending the session."}` when the socket goes quiet; that one is followed by `final` |
 | `picked_up` | `{"type":"picked_up","complaint":{"text","segment_ids"}\|null,"symptoms":[{"text","segment_ids"}],"medications":[{"name","detail","confirm":true,"segment_ids"}],"exam":[{"text","segment_ids"}],"record":{...},"record_evidence":{...},"record_status":{...},"missing_required":{...}}` (see "Record payloads") |
 | `paused` / `resumed` | Acknowledge `pause` / `resume`. Every `segment` before `paused` is already final |
-| `final` | `{"type":"final","segments":[...],"audio_ms":272000}` (all final lines in order) |
+| `final` | `{"type":"final","segments":[...],"audio_ms":272000,"picked_up":{...}}` — all final lines **and** the full scratch list in one message (always present, even if empty) |
 | `error` | `{"type":"error","detail":"..."}`. Bad input errors keep the socket open |
 
 Browser framing: capture with an `AudioWorklet`, convert each `Float32Array` block to `Int16Array` (`Math.max(-1, Math.min(1, x)) * 32767`), and `ws.send(int16.buffer)`. Declare the context's real `sampleRate` in `start`; the service resamples to 16 kHz.
@@ -91,7 +91,7 @@ Browser framing: capture with an `AudioWorklet`, convert each `Float32Array` blo
 
 ### Picked up so far
 
-A scratch list for the doctor, not a note (display only; nothing is stored). After every new final line the service runs one small JSON model call over the final lines (or the stub) and **always** sends `picked_up`, even when the list is empty or unchanged. That call also returns a speaker for each finished line. Stop always sends one more `picked_up` immediately before `final`.
+A scratch list for the doctor, not a note (display only; nothing is stored). After every new final line the service runs one small JSON model call over the final lines (or the stub) and **always** sends `picked_up`, even when the list is empty or unchanged. That call also returns a speaker for each finished line. On stop it sends `picked_up` again and also embeds the same object as `final.picked_up`, so clients that only read the closing `final` message still get transcript + pickups together.
 
 Whatever the model returns, `app/live/picked_up.py` enforces these before anything is sent:
 

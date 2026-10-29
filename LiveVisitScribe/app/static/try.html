@@ -762,6 +762,7 @@
       } else if (message.type === "final") {
         visitClosedNote = `Socket closed. ${message.segments.length} final lines, ${(message.audio_ms / 1000).toFixed(1)} s of audio.`;
         (message.segments || []).forEach((segment) => applySegment(segment));
+        if (message.picked_up) renderPicked({ ...message.picked_up, type: "picked_up" });
         setStatus("Closed", "idle");
       } else if (message.type === "error") {
         setError(message.detail || "The service reported an error.");
