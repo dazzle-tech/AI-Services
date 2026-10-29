@@ -19,7 +19,7 @@ class Settings(BaseSettings):
         "and returns a structured summary. It does not identify multiple speakers."
     )
     api_host: str = "0.0.0.0"
-    api_port: int = 8037
+    api_port: int = 8039
     api_reload: bool = False
     log_level: str = "INFO"
 

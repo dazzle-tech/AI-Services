@@ -2,8 +2,8 @@
 
 One speaker dictates a clinical summary. Send the audio; the service transcribes it and returns the summary. It does not separate speakers or build a SOAP conversation.
 
-API: http://localhost:8037  
-Docs: http://localhost:8037/docs
+API: http://localhost:8039  
+Docs: http://localhost:8039/docs
 
 ## Local development
 
@@ -32,7 +32,7 @@ Import `postman/ClinicalSummaryVoice.postman_collection.json`. Run **Health**, t
 ## Call
 
 ```bash
-curl -X POST http://localhost:8037/api/v1/summarize ^
+curl -X POST http://localhost:8039/api/v1/summarize ^
   -F "audio=@summary.wav"
 ```
 
@@ -55,7 +55,7 @@ The summary model is instructed that the transcript is one person dictating, not
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `API_PORT` | `8037` | Server port |
+| `API_PORT` | `8039` | Server port |
 | `OPENAI_API_KEY` | — | Required unless `USE_LLM_STUB=true` |
 | `OPENAI_SUMMARY_MODEL` | `gpt-4o` | Writes the summary |
 | `OPENAI_TRANSCRIBE_MODEL` | `gpt-4o-transcribe` | Speech to text |

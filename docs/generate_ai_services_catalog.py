@@ -128,10 +128,10 @@ SERVICES = [
     ),
     (
         "RadiolgyWorkFlow",
-        "Radiology AI Pipeline (n8n)",
-        "5678 / 8016",
+        "Radiology AI Pipeline",
+        "8090",
         "Radiology & Imaging",
-        "n8n workflow packaging that orchestrates radiology AI steps (template/QC-related pipeline).",
+        "Orchestrates radiology AI steps (QC 8016, interpretation 8015, report filling 8024, autofill 8022).",
     ),
     (
         "Chatbot",
@@ -171,9 +171,9 @@ SERVICES = [
     (
         "ConvoVoiceAgent",
         "ConvoVoiceAgent",
-        "8026",
+        "8036",
         "Voice & Transcription",
-        "Single integration for doctor–patient recordings; orchestrates ConvoScribe transcript, speakers, and clinical note.",
+        "Single integration for doctor–patient recordings; orchestrates ConvoScribe (8026) and SystemDisplayPlugin (8031).",
     ),
     (
         "STT_Service",
@@ -199,9 +199,9 @@ SERVICES = [
     (
         "ORVoiceAgent",
         "OR Voice Agent",
-        "8030",
+        "8035",
         "Voice & Transcription",
-        "EMR Record-button integration for OR nursing tabs; routes voice to ORScribe / ORDisplayPlugin paths.",
+        "EMR Record-button integration for OR nursing tabs; routes voice to ORScribe (8030) and ORDisplayPlugin (8032).",
     ),
     (
         "LiveVisitScribe",
@@ -213,10 +213,9 @@ SERVICES = [
     (
         "ClinicalSummaryVoice",
         "Clinical Summary Voice",
-        "8037*",
+        "8039",
         "Voice & Transcription",
-        "One-speaker clinical summary dictation: transcribe audio and return a summary (not multi-speaker SOAP). "
-        "*Default API_PORT overlaps LiveVisitScribe—run on one host at a time or change the port.",
+        "One-speaker clinical summary dictation: transcribe audio and return a summary (not multi-speaker SOAP).",
     ),
     (
         "chatbot-patient",
@@ -242,22 +241,22 @@ RELATED = [
     (
         "ConvoScribe",
         "ConvoVoiceAgent/services/ConvoScribe",
-        "Transcription + clinical note worker used by ConvoVoiceAgent.",
+        "Port 8026 — transcription + clinical note worker used by ConvoVoiceAgent.",
     ),
     (
         "SystemDisplayPlugin",
         "ConvoVoiceAgent/services/SystemDisplayPlugin",
-        "Display/plugin surface for ConvoVoiceAgent results.",
+        "Port 8031 — display/plugin surface for ConvoVoiceAgent results.",
     ),
     (
         "ORScribe",
         "ORVoiceAgent/services/ORScribe",
-        "OR voice transcription/extraction worker for ORVoiceAgent.",
+        "Port 8030 — OR voice transcription/extraction worker for ORVoiceAgent.",
     ),
     (
         "ORDisplayPlugin",
         "ORVoiceAgent/services/ORDisplayPlugin",
-        "Display/plugin paths mirrored by ORVoiceAgent.",
+        "Port 8032 — display/plugin paths mirrored by ORVoiceAgent.",
     ),
 ]
 
@@ -404,7 +403,7 @@ def main() -> None:
     notes = [
         "Auth for browser/EMR clients is expected at the API gateway; individual services focus on clinical AI work.",
         "Many services require an OpenAI-compatible API key via .env (never commit real .env files).",
-        "LiveVisitScribe and ClinicalSummaryVoice both default to port 8037 — avoid running both unbound on the same host without changing one port.",
+        "Each top-level service and nested worker has a unique default listen port (LiveVisitScribe 8037, ClinicalSummaryVoice 8039).",
         "Chatbot is a multi-process stack (orchestrator + helpers + optional frontend), not a single FastAPI file.",
         "Folder spelling RadiolgyWorkFlow is intentional as checked into the repository.",
     ]

@@ -106,7 +106,7 @@ SERVICES: list[ServiceDef] = [
     ServiceDef(
         name="RadiologyReportFilling",
         cwd=ROOT.parent / "RadiologyReportFilling",
-        port=8000,
+        port=8024,
         health_path="/api/v1/health",
         startup_timeout_s=35.0,
     ),

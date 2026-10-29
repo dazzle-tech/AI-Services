@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     API_HOST=0.0.0.0 \
-    API_PORT=8037
+    API_PORT=8039
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -23,9 +23,9 @@ COPY . .
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8037
+EXPOSE 8039
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8037/api/v1/health')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8039/api/v1/health')" || exit 1
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8037"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8039"]

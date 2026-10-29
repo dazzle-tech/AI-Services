@@ -1,13 +1,13 @@
 {
   "info": {
     "name": "ClinicalSummaryVoice",
-    "description": "One speaker dictates a clinical summary. POST the WAV; the response summary is one paragraph ending with Assessment and Plan.\n\nDefault audio: samples/chest_pain_summary.wav\nStart the service with python main.py at http://localhost:8037.",
+    "description": "One speaker dictates a clinical summary. POST the WAV; the response summary is one paragraph ending with Assessment and Plan.\n\nDefault audio: samples/chest_pain_summary.wav\nStart the service with python main.py at http://localhost:8039.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:8037"
+      "value": "http://localhost:8039"
     },
     {
       "key": "audioBase64",

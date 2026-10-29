@@ -25,12 +25,12 @@ collection = {
             "One speaker dictates a clinical summary. POST the WAV; the response summary is one "
             "paragraph ending with Assessment and Plan.\n\n"
             "Default audio: samples/chest_pain_summary.wav\n"
-            "Start the service with python main.py at http://localhost:8037."
+            "Start the service with python main.py at http://localhost:8039."
         ),
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     },
     "variable": [
-        {"key": "baseUrl", "value": "http://localhost:8037"},
+        {"key": "baseUrl", "value": "http://localhost:8039"},
         {"key": "audioBase64", "value": b64},
     ],
     "item": [
