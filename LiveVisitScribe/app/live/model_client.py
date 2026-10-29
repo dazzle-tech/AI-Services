@@ -68,7 +68,9 @@ async def complete_json(*, system_prompt: str, user_prompt: str) -> dict[str, An
                 response_format={"type": "json_object"},
             )
     except APIError as exc:
-        raise ExtractionError(f"Picked-up model failed: {exc.__class__.__name__}") from exc
+        code = getattr(exc, "status_code", None)
+        detail = exc.__class__.__name__ if code is None else f"{exc.__class__.__name__} HTTP {code}"
+        raise ExtractionError(f"Picked-up model failed: {detail}") from exc
 
     content = (response.choices[0].message.content or "").strip()
     fence = _JSON_FENCE_RE.search(content)

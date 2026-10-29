@@ -448,7 +448,7 @@ class LiveSession:
         except Exception as exc:
             metrics.extract.observe(time.perf_counter() - started)
             metrics.extract_failures_total.inc()
-            logger.warning("session %s picked-up update failed: %s", self._session_id or "-", exc.__class__.__name__)
+            logger.warning("session %s picked-up update failed: %s", self._session_id or "-", exc)
             if not self._extract_error_sent:
                 self._extract_error_sent = True
                 await self._emit({"type": "error", "detail": "Picked up so far could not be updated"})
