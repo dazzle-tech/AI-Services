@@ -199,15 +199,17 @@ _EXTRACTION_FIELDS = {
         "reports (array of {reportDate, testName, findings, impression, severity, "
         "radiologistInformation, criticalFindings, radiologistComments, physicianName}). "
         "severity must be exactly one of NOTHING, MILD_MINOR, MODERATE, SEVERE, CRITICAL, "
-        "or null when it cannot be determined. Use null for radiologistInformation, "
-        "criticalFindings, and radiologistComments when they are not in the document"
+        "or null when it cannot be determined. radiologistInformation is the reporting "
+        "radiologist, not the referring physician. physicianName is the referring or ordering physician. radiologistComments is the recommendation "
+        "or radiologist comment. Use null only when that text is absent"
     ),
     "imaging_report": (
         "reports (array of {reportDate, testName, findings, impression, severity, "
         "radiologistInformation, criticalFindings, radiologistComments, physicianName}). "
         "severity must be exactly one of NOTHING, MILD_MINOR, MODERATE, SEVERE, CRITICAL, "
-        "or null when it cannot be determined. Use null for radiologistInformation, "
-        "criticalFindings, and radiologistComments when they are not in the document"
+        "or null when it cannot be determined. radiologistInformation is the reporting "
+        "radiologist, not the referring physician. physicianName is the referring or ordering physician. radiologistComments is the recommendation "
+        "or radiologist comment. Use null only when that text is absent"
     ),
     "prescription": (
         "prescription_date, prescribing_provider, medications (array of {name, dosage, "

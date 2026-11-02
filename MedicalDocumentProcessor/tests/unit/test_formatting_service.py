@@ -93,6 +93,41 @@ class TestFormattingServiceRadiology:
         assert report["severity"] is None
         assert report["radiologistInformation"] is None
 
+    def test_radiologist_and_recommendation_are_taken_from_the_report(self, service, ai_client_stub):
+        report_text = """RADIOLOGY REPORT
+Radiologist: Dr. Sami Khalil, Consultant Radiologist
+Referring Physician: Dr. Lina Haddad
+Findings:
+Patchy consolidation in the right lower lobe.
+Impression:
+Right lower lobe pneumonia. Moderate severity.
+Recommendation: Follow-up chest X-ray in 4-6 weeks after treatment to confirm resolution.
+"""
+        ai_client_stub.extract_fields.return_value = {
+            "extracted_fields": {
+                "reports": [
+                    {
+                        "reportDate": "2026-10-20",
+                        "testName": "Chest X-Ray, PA and Lateral",
+                        "findings": "Patchy consolidation in the right lower lobe.",
+                        "impression": "Right lower lobe pneumonia. Moderate severity.",
+                        "severity": "MODERATE",
+                        "radiologistInformation": None,
+                        "radiologistComments": None,
+                        "physicianName": None,
+                    }
+                ]
+            }
+        }
+
+        _, structured_data = service.format(report_text, DocumentType.RADIOLOGY_REPORT)
+        report = structured_data["reports"][0]
+        assert report["radiologistInformation"] == "Dr. Sami Khalil, Consultant Radiologist"
+        assert report["radiologistComments"] == (
+            "Follow-up chest X-ray in 4-6 weeks after treatment to confirm resolution."
+        )
+        assert report["physicianName"] == "Dr. Lina Haddad"
+
 
 class TestFormattingServicePrescription:
     def test_classifies_and_formats_prescription(self, service, ai_client_stub):

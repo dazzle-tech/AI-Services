@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import html
+import re
 from typing import Any, Dict, List, Optional
 
 from app.models.schemas import RadiologyReportData, RadiologyReportEntry, RadiologySeverity
 from app.services.formatters.base import BaseDocumentFormatter
 
+_NEXT_HEADING = re.compile(r"^[A-Za-z][A-Za-z /]{0,40}:\s*")
 _SEVERITIES = {"NOTHING", "MILD_MINOR", "MODERATE", "SEVERE", "CRITICAL"}
 _SEVERITY_SYNONYMS = {
     "nothing": "NOTHING",
@@ -31,12 +33,12 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
         else:
             sources = [extracted_fields]
 
-        reports = [self._entry(item) for item in sources]
+        reports = [self._entry(item, raw_text) for item in sources]
         reports = [entry for entry in reports if self._has_content(entry)]
         data = RadiologyReportData(reports=reports)
         return data.model_dump(by_alias=True)
 
-    def _entry(self, item: Dict[str, Any]) -> RadiologyReportEntry:
+    def _entry(self, item: Dict[str, Any], raw_text: str) -> RadiologyReportEntry:
         return RadiologyReportEntry(
             report_date=self._first(item, "reportDate", "report_date", "study_date"),
             test_name=self._test_name(item),
@@ -44,13 +46,66 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
             severity=self._normalize_severity(self._first(item, "severity")),
             radiologist_information=self._first(
                 item, "radiologistInformation", "radiologist_information", "radiologist"
+            )
+            or self._labeled(
+                raw_text,
+                ("reporting radiologist", "radiologist", "interpreted by", "read by"),
             ),
             critical_findings=self._first(item, "criticalFindings", "critical_findings"),
-            radiologist_comments=self._first(item, "radiologistComments", "radiologist_comments"),
+            radiologist_comments=self._first(
+                item, "radiologistComments", "radiologist_comments", "recommendation", "recommendations"
+            )
+            or self._labeled(
+                raw_text,
+                (
+                    "radiologist comments",
+                    "radiologist comment",
+                    "recommendation",
+                    "recommendations",
+                    "comments",
+                    "comment",
+                ),
+            ),
             physician_name=self._first(
-                item, "physicianName", "physician_name", "ordering_provider"
+                item, "physicianName", "physician_name", "ordering_provider", "referring_physician"
+            )
+            or self._labeled(
+                raw_text,
+                (
+                    "referring physician",
+                    "ordering physician",
+                    "ordering provider",
+                    "requesting physician",
+                ),
             ),
         )
+
+    @staticmethod
+    def _labeled(text: str, labels: tuple[str, ...]) -> Optional[str]:
+        if not text:
+            return None
+        label_pattern = re.compile(
+            rf"^({'|'.join(re.escape(label) for label in labels)})\s*:\s*(.*)$",
+            re.IGNORECASE,
+        )
+        lines = text.splitlines()
+        for index, line in enumerate(lines):
+            match = label_pattern.match(line.strip())
+            if not match:
+                continue
+            parts = [match.group(2).strip()] if match.group(2).strip() else []
+            for follow in lines[index + 1:]:
+                stripped = follow.strip()
+                if not stripped:
+                    if parts:
+                        break
+                    continue
+                if _NEXT_HEADING.match(stripped):
+                    break
+                parts.append(stripped)
+            if parts:
+                return " ".join(parts)
+        return None
 
     def _test_name(self, item: Dict[str, Any]) -> Optional[str]:
         explicit = self._first(item, "testName", "test_name")
