@@ -46,9 +46,16 @@ class ValidationService:
         if isinstance(raw_mismatches, list):
             mismatches = [str(m).strip() for m in raw_mismatches if str(m).strip()]
 
-        # Deterministic guardrails: a clear, structured sex or DOB contradiction always
-        # forces INVALID, regardless of what the model's own `is_valid` flag says.
+        # Deterministic guardrails: a clear, structured sex, DOB, or patient-id
+        # contradiction always forces INVALID, regardless of the model's is_valid flag.
+        # The model often reports the same contradiction in its own words, so keep one
+        # message per field.
         deterministic_mismatches = self._deterministic_checks(patient, signals)
+        covered_fields = {self._mismatch_field(item) for item in deterministic_mismatches}
+        covered_fields.discard(None)
+        mismatches = [
+            item for item in mismatches if self._mismatch_field(item) not in covered_fields
+        ]
         for item in deterministic_mismatches:
             if item not in mismatches:
                 mismatches.append(item)
@@ -99,6 +106,19 @@ class ValidationService:
             )
 
         return mismatches
+
+    @staticmethod
+    def _mismatch_field(text: str) -> Optional[str]:
+        lowered = text.lower().replace("_", " ").replace("-", " ")
+        if "patient id" in lowered:
+            return "patient_id"
+        if "date of birth" in lowered or "birth date" in lowered or " dob " in f" {lowered} ":
+            return "date_of_birth"
+        if "sex" in lowered or "gender" in lowered:
+            return "sex"
+        if "name" in lowered:
+            return "full_name"
+        return None
 
     @staticmethod
     def _text(value: Any) -> Optional[str]:

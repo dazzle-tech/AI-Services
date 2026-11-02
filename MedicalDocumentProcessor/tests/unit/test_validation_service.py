@@ -81,6 +81,29 @@ class TestValidationService:
         assert outcome.is_valid is False
         assert any("date of birth" in m.lower() for m in outcome.mismatches)
 
+    def test_model_and_guardrail_report_each_field_once(self, service, ai_client_stub):
+        ai_client_stub.validate_patient_match.return_value = {
+            "is_valid": False,
+            "extracted_patient_signals": {
+                "full_name": "Rawan Yahya",
+                "sex": "female",
+                "date_of_birth": "2026-07-27",
+                "patient_id": "1000",
+            },
+            "mismatches": [
+                "patient_id: document has 1000, record has 1001",
+                "date_of_birth: document has 2026-07-27, record has 2004-03-02",
+            ],
+            "reason": "Patient does not match",
+        }
+        patient = SAMPLE_PATIENT.model_copy(update={"patient_id": "1001", "date_of_birth": "2004-03-02"})
+
+        outcome = service.validate(patient, "lab report")
+
+        assert len(outcome.mismatches) == 2
+        assert sum("patient" in item.lower() and "1000" in item for item in outcome.mismatches) == 1
+        assert sum("2026-07-27" in item for item in outcome.mismatches) == 1
+
     def test_matching_male_patient_with_male_signals_is_valid(self, service, ai_client_stub):
         ai_client_stub.validate_patient_match.return_value = {
             "is_valid": True,
