@@ -1,0 +1,11 @@
+{
+  "request_id": "stream-check",
+  "patient_context": {
+    "age": "28 years",
+    "gender": "female",
+    "diagnosis": "Headache",
+    "symptoms": ["headache for 3 days"],
+    "vitals": {"pulse": "76"},
+    "clinical_notes": "Pressure around the forehead, worse in the afternoon."
+  }
+}

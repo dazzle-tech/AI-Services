@@ -59,7 +59,6 @@ Required:
 Optional:
 - `OPENAI_MODEL` - Default: `qwen3:1.7b`
 - `OPENAI_TEMPERATURE` - Default: `0.3`
-- `OPENAI_MAX_TOKENS` - Default: `1500`
 - `API_PORT` - Default: `8007` (or `8080` for App Platform)
 
 ## 🔍 Health Check

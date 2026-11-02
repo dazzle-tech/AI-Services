@@ -1,6 +1,6 @@
 """Service layer for clinical recommendations generation."""
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, Iterator, List
 from datetime import datetime
 
 from app.models.schemas import (
@@ -18,6 +18,14 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Drawer lines, in the order the UI shows them while a request is running.
+PROGRESS_STEPS = [
+    "Reading visit conversation",
+    "Reviewing vitals",
+    "Checking patient history",
+    "Preparing recommendations",
+]
+
 
 class RecommendationsService:
     """Service for handling clinical recommendations generation requests."""
@@ -25,6 +33,38 @@ class RecommendationsService:
     def __init__(self):
         """Initialize service with AI client."""
         self.ai_client = AIClient()
+
+    def iter_request(self, request: RecommendationRequest) -> Iterator[Dict[str, Any]]:
+        """Yield each drawer status, then the finished recommendations payload."""
+        yield from self._progress_then(request, lambda: self.process_request(request))
+
+    def iter_user_role(self, request: UserRoleRecommendationRequest) -> Iterator[Dict[str, Any]]:
+        """Yield each drawer status, then the finished role-based payload."""
+        yield from self._progress_then(
+            request, lambda: self.process_user_role_recommendations(request)
+        )
+
+    def _progress_then(self, request: Any, build) -> Iterator[Dict[str, Any]]:
+        context = request.patient_context.dict()
+        stage_fields = (
+            ("diagnosis", "symptoms", "clinical_notes"),
+            ("vitals",),
+            ("medications", "allergies", "comorbidities", "surgeries", "lab_results"),
+            (),
+        )
+        total = len(PROGRESS_STEPS)
+        for index, label in enumerate(PROGRESS_STEPS, start=1):
+            present = [name for name in stage_fields[index - 1] if context.get(name)]
+            logger.info("Progress step %s/%s fields_present=%s", index, total, present)
+            yield {
+                "type": "status",
+                "step": index,
+                "total": total,
+                "status": label,
+                "steps": list(PROGRESS_STEPS),
+            }
+        response = build()
+        yield {"type": "result", "data": response.model_dump(mode="json")}
     
     def process_request(self, request: RecommendationRequest) -> RecommendationsResponse:
         """
@@ -59,7 +99,7 @@ class RecommendationsService:
             )
             
             # Step 2: Parse recommendations into structured objects
-            recommendations = self.ai_client.parse_recommendations(ai_response)
+            recommendations = self.ai_client.parse_recommendations(ai_response, patient_context_dict)
             
             logger.info(f"Generated {len(recommendations)} recommendations for request {request_id}")
             
@@ -67,7 +107,7 @@ class RecommendationsService:
             priority_breakdown = self._calculate_priority_breakdown(recommendations)
             
             # Step 4: Get summary from AI response or generate one
-            summary = ai_response.get("summary", self._generate_summary(recommendations))
+            summary = self._summary_text(ai_response.get("summary"), recommendations)
             
             # Step 5: Build response
             response = RecommendationsResponse(
@@ -130,6 +170,15 @@ class RecommendationsService:
         
         return summary
 
+    def _summary_text(self, summary: Any, recommendations: List[ClinicalRecommendation]) -> str:
+        """Keep the summary a plain string, including when there are no recommendations."""
+        if isinstance(summary, str) and summary.strip():
+            return summary.strip()
+        text = self.ai_client._plain_text(summary)
+        if text:
+            return text
+        return self._generate_summary(recommendations)
+
     def process_specialty_consultation(
         self, request: SpecialtyConsultationRequest
     ) -> SpecialtyConsultationResponse:
@@ -181,9 +230,9 @@ class RecommendationsService:
             recommendation_types=rec_types,
             focus_areas=request.focus_areas,
         )
-        recommendations = self.ai_client.parse_recommendations(ai_response)
+        recommendations = self.ai_client.parse_recommendations(ai_response, patient_context_dict)
         priority_breakdown = self._calculate_priority_breakdown(recommendations)
-        summary = ai_response.get("summary", self._generate_summary(recommendations))
+        summary = self._summary_text(ai_response.get("summary"), recommendations)
         return RecommendationsResponse(
             request_id=request_id,
             recommendations=recommendations,

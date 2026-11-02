@@ -1,6 +1,7 @@
 """OpenAI client for clinical recommendations generation - optimized for GPT-4."""
 import json
 import logging
+import re
 import time
 from typing import Dict, Any, List, Optional
 from openai import OpenAI
@@ -11,7 +12,12 @@ from app.ai.prompts import (
     build_specialty_prompt,
     build_role_based_prompt
 )
-from app.models.schemas import ClinicalRecommendation, RecommendationType, RecommendationPriority
+from app.models.schemas import (
+    ClinicalRecommendation,
+    RecommendationType,
+    RecommendationPriority,
+    RecommendationStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -63,54 +69,142 @@ class AIClient:
         # Use internal API call method
         return self._call_openai_api(messages)
     
-    def parse_recommendations(self, ai_response: Dict[str, Any]) -> List[ClinicalRecommendation]:
-        """Parse AI response into ClinicalRecommendation objects."""
+    def parse_recommendations(
+        self,
+        ai_response: Dict[str, Any],
+        patient_context: Optional[Dict[str, Any]] = None,
+    ) -> List[ClinicalRecommendation]:
+        """Parse AI response into ClinicalRecommendation objects.
+
+        Review status is always pending. The model cannot accept or dismiss.
+        An empty or unusable recommendations list is a successful empty result.
+        """
         recommendations = []
         
         recommendations_data = ai_response.get("recommendations", [])
+        if not isinstance(recommendations_data, list):
+            return []
         
         for idx, rec_data in enumerate(recommendations_data):
             try:
-                # Generate recommendation ID if not provided
-                rec_id = rec_data.get("recommendation_id", f"rec_{idx + 1}")
+                if not isinstance(rec_data, dict):
+                    continue
+                rec_id = self._plain_text(rec_data.get("recommendation_id")) or f"rec_{idx + 1}"
 
                 rec_type = self._normalize_recommendation_type(rec_data)
                 
-                # Parse priority
-                priority_str = rec_data.get("priority", "moderate")
+                priority_str = self._plain_text(rec_data.get("priority")) or "moderate"
                 try:
                     priority = RecommendationPriority(priority_str)
                 except ValueError:
                     priority = RecommendationPriority.MODERATE
-                
+
+                title = self._plain_text(rec_data.get("title")) or "Untitled Recommendation"
                 recommendation = ClinicalRecommendation(
                     recommendation_id=rec_id,
+                    status=RecommendationStatus.PENDING,
                     type=rec_type,
-                    title=rec_data.get("title", "Untitled Recommendation"),
-                    description=rec_data.get("description", ""),
-                    rationale=rec_data.get("rationale", ""),
+                    title=title,
+                    description=self._plain_text(rec_data.get("description")),
+                    rationale=self._plain_text(rec_data.get("rationale")),
                     priority=priority,
-                    actionable_steps=rec_data.get("actionable_steps", []),
-                    evidence_level=rec_data.get("evidence_level"),
-                    contraindications=rec_data.get("contraindications", []),
-                    monitoring_requirements=rec_data.get("monitoring_requirements"),
-                    follow_up=rec_data.get("follow_up")
+                    actionable_steps=self._plain_list(rec_data.get("actionable_steps")),
+                    evidence_level=self._optional_text(rec_data.get("evidence_level")),
+                    contraindications=self._plain_list(rec_data.get("contraindications")),
+                    monitoring_requirements=self._optional_text(rec_data.get("monitoring_requirements")),
+                    follow_up=self._optional_text(rec_data.get("follow_up")),
+                    based_on=self._chips_from_context(
+                        self._string_chips(rec_data.get("based_on")),
+                        patient_context,
+                    ),
                 )
                 recommendations.append(recommendation)
                 
             except Exception as e:
                 logger.warning(f"Error parsing recommendation {idx}: {e}")
-                logger.debug(f"Recommendation data: {rec_data}")
                 continue
         
         return recommendations
 
+    @staticmethod
+    def _plain_text(value: Any) -> str:
+        """Collapse model output to one plain string."""
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, dict):
+            for key in ("en", "text", "value"):
+                item = value.get(key)
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+            for item in value.values():
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+        return ""
+
+    @classmethod
+    def _plain_list(cls, value: Any) -> List[str]:
+        """Keep only plain string list items."""
+        if not isinstance(value, list):
+            return []
+        items: List[str] = []
+        for item in value:
+            text = cls._plain_text(item)
+            if text:
+                items.append(text)
+        return items
+
+    @staticmethod
+    def _chips_from_context(chips: List[str], patient_context: Optional[Dict[str, Any]]) -> List[str]:
+        """Drop a chip unless every word and number in it appears in the supplied context."""
+        if not patient_context:
+            return chips
+        blob = AIClient._context_blob(patient_context)
+        kept: List[str] = []
+        for chip in chips:
+            tokens = re.findall(r"[a-z0-9]+", chip.lower())
+            tokens = [token for token in tokens if len(token) > 2 or token.isdigit()]
+            if tokens and all(token in blob for token in tokens):
+                kept.append(chip)
+        return kept
+
+    @staticmethod
+    def _context_blob(patient_context: Dict[str, Any]) -> str:
+        parts: List[str] = []
+
+        def walk(value: Any) -> None:
+            if isinstance(value, str):
+                parts.append(value)
+            elif isinstance(value, dict):
+                for key, item in value.items():
+                    parts.append(str(key))
+                    walk(item)
+            elif isinstance(value, list):
+                for item in value:
+                    walk(item)
+            elif isinstance(value, (int, float)):
+                parts.append(str(value))
+
+        walk(patient_context)
+        return " ".join(parts).lower()
+
+    @staticmethod
+    def _string_chips(value: Any) -> List[str]:
+        """Keep based_on chips that are already plain strings."""
+        if not isinstance(value, list):
+            return []
+        return [item.strip() for item in value if isinstance(item, str) and item.strip()]
+
+    @classmethod
+    def _optional_text(cls, value: Any) -> Optional[str]:
+        text = cls._plain_text(value)
+        return text or None
+
     def _normalize_recommendation_type(self, rec_data: Dict[str, Any]) -> RecommendationType:
         """Normalize model output into one of the supported RecommendationType enum values."""
-        raw_type = str(rec_data.get("type", "") or "").strip().lower()
-        title = str(rec_data.get("title", "") or "").lower()
-        description = str(rec_data.get("description", "") or "").lower()
-        rationale = str(rec_data.get("rationale", "") or "").lower()
+        raw_type = self._plain_text(rec_data.get("type")).lower()
+        title = self._plain_text(rec_data.get("title")).lower()
+        description = self._plain_text(rec_data.get("description")).lower()
+        rationale = self._plain_text(rec_data.get("rationale")).lower()
         combined_text = " ".join([title, description, rationale])
 
         if raw_type:
@@ -256,7 +350,8 @@ class AIClient:
                     raise ValueError("AI response is not a dictionary")
                 
                 # Ensure required keys exist
-                if "recommendations" not in result:
+                recommendations = result.get("recommendations")
+                if not isinstance(recommendations, list):
                     result["recommendations"] = []
                 if "summary" not in result:
                     result["summary"] = "No summary provided"

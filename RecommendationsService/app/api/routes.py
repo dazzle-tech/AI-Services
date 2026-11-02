@@ -1,6 +1,8 @@
 """API routes for the Clinical Recommendations Service."""
+import json
 import logging
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 from app.models.schemas import (
     RecommendationRequest,
     RecommendationsResponse,
@@ -16,6 +18,28 @@ router = APIRouter(prefix="/api/v1", tags=["recommendations"])
 
 # Initialize service
 recommendations_service = RecommendationsService()
+
+
+def _sse(payload: dict) -> str:
+    return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+
+def _stream(events):
+    """Send progress statuses as they happen, then the result or a generic error."""
+
+    def generate():
+        try:
+            for event in events:
+                yield _sse(event)
+        except Exception as exc:
+            logger.error("Recommendations stream failed: %s", type(exc).__name__)
+            yield _sse({"type": "error", "status": "Recommendations generation failed"})
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post(
@@ -59,6 +83,22 @@ async def get_recommendations(request: RecommendationRequest) -> Recommendations
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"
         )
+
+
+@router.post(
+    "/recommendations/stream",
+    summary="Stream drawer statuses, then the recommendations",
+    description="""
+    Same request as POST /recommendations. Each event is one SSE data line.
+    Status events use the drawer labels, in order:
+    Reading visit conversation, Reviewing vitals, Checking patient history,
+    Preparing recommendations.
+    The last event is type "result" and its data is the recommendations response.
+    """,
+)
+async def stream_recommendations(request: RecommendationRequest) -> StreamingResponse:
+    """Emit the four working statuses, then the finished recommendations."""
+    return _stream(recommendations_service.iter_request(request))
 
 
 @router.get(
@@ -184,4 +224,15 @@ async def get_user_role_recommendations(request: UserRoleRecommendationRequest) 
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Internal server error: {str(e)}"
         )
+
+
+@router.post(
+    "/recommendations/user-role/stream",
+    summary="Stream drawer statuses, then role-based recommendations",
+)
+async def stream_user_role_recommendations(
+    request: UserRoleRecommendationRequest,
+) -> StreamingResponse:
+    """Emit the four working statuses, then the finished role-based recommendations."""
+    return _stream(recommendations_service.iter_user_role(request))
 

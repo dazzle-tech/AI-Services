@@ -100,7 +100,6 @@ Edit `.env` and add your OpenAI API key:
 OPENAI_API_KEY=sk-your-actual-openai-api-key-here
 OPENAI_MODEL=qwen3:1.7b
 OPENAI_TEMPERATURE=0.3
-OPENAI_MAX_TOKENS=1500
 
 # API Server Configuration
 API_HOST=0.0.0.0
@@ -323,7 +322,6 @@ The service handles various error scenarios:
 | `OPENAI_API_KEY` | OpenAI API key (required) | - |
 | `OPENAI_MODEL` | OpenAI model to use | `qwen3:1.7b` |
 | `OPENAI_TEMPERATURE` | Model temperature | `0.3` |
-| `OPENAI_MAX_TOKENS` | Max tokens in response | `1500` |
 | `API_HOST` | Server host | `0.0.0.0` |
 | `API_PORT` | Server port | `8007` |
 | `API_RELOAD` | Enable auto-reload | `False` |

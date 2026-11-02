@@ -26,7 +26,9 @@ OUTPUT FORMAT:
 - Return ONLY valid JSON with a "recommendations" array
 - Each recommendation must include: type, title, description, rationale, priority, actionable_steps
 - Include summary of all recommendations
-- Provide priority breakdown"""
+- Provide priority breakdown
+- Do not set a review status. Every recommendation is pending until the clinician accepts or dismisses it.
+- based_on is a short list of phrases copied from the supplied patient context. Do not invent facts."""
 
 
 def format_patient_context(patient_context: Dict[str, Any]) -> str:
@@ -111,6 +113,8 @@ For each recommendation, provide:
 - Contraindications to consider
 - Monitoring requirements (if needed)
 - Follow-up recommendations (if applicable)
+- based_on: 1 to 4 short phrases copied from the patient context above (symptoms, vitals, labs, notes). Leave it empty if nothing in the context supports the recommendation. Never invent a fact that was not supplied.
+- title, description, rationale, and every list item must be plain strings, not objects
 
 Return your response as JSON with this structure:
 {{
@@ -126,7 +130,8 @@ Return your response as JSON with this structure:
       "evidence_level": "Strong",
       "contraindications": [],
       "monitoring_requirements": "Monitor X, Y",
-      "follow_up": "Follow-up in Z weeks"
+      "follow_up": "Follow-up in Z weeks",
+      "based_on": ["Symptom from the context"]
     }}
   ],
   "summary": "Brief summary of all recommendations",
@@ -258,6 +263,8 @@ Provide recommendations as a {user_role} specialist would, considering:
 2. {user_role} treatment protocols
 3. {user_role} monitoring requirements
 4. {user_role} referral criteria if needed
+5. based_on: 1 to 4 short phrases copied from the patient context. Leave it empty if nothing supplied supports the recommendation. Do not invent facts.
+6. title, description, rationale, and every list item must be plain strings. Do not set a review status.
 
 Return your response as JSON with this structure:
 {{
@@ -273,7 +280,8 @@ Return your response as JSON with this structure:
       "evidence_level": "Strong",
       "contraindications": [],
       "monitoring_requirements": "{user_role}-specific monitoring",
-      "follow_up": "Follow-up as {user_role} specialist"
+      "follow_up": "Follow-up as {user_role} specialist",
+      "based_on": ["Fact copied from the patient context"]
     }}
   ],
   "summary": "Recommendations from {user_role} specialist perspective",
