@@ -41,6 +41,31 @@ class TestFormattingServiceLabResult:
         assert row["marker"] == "UPPER_LIMIT"
         assert row["physicianName"] == "Dr. Hassan"
 
+    def test_plain_critical_uses_the_side_of_the_range(self, service, ai_client_stub):
+        def _marker(value: str, reference: str, flag: str = "critical") -> str:
+            ai_client_stub.extract_fields.return_value = {
+                "extracted_fields": {
+                    "results": [
+                        {
+                            "test_name": "Potassium",
+                            "value": value,
+                            "reference_range": reference,
+                            "flag": flag,
+                        }
+                    ]
+                }
+            }
+            _, structured = service.format("lab", DocumentType.LAB_RESULT)
+            return structured["results"][0]["marker"]
+
+        assert _marker("6.8", "3.5-5.1") == "CRITICAL_UPPER"
+        assert _marker("2.1", "3.5 - 5.1") == "CRITICAL_LOWER"
+        assert _marker("4.0", "3.5-5.1") == "ABNORMAL_MARKER"
+        assert _marker("Positive", "Negative") == "ABNORMAL_MARKER"
+        assert _marker("8", "<= 5.0") == "CRITICAL_UPPER"
+        assert _marker("3", ">= 12.0") == "CRITICAL_LOWER"
+        assert _marker("20", "4.0-11.0", flag="abnormal") == "ABNORMAL_MARKER"
+
 
 class TestFormattingServiceRadiology:
     def test_classifies_and_formats_radiology_report(self, service, ai_client_stub):

@@ -36,7 +36,6 @@ _MARKER_SYNONYMS = {
     "critical_low": "CRITICAL_LOWER",
     "critical_lower": "CRITICAL_LOWER",
     "ll": "CRITICAL_LOWER",
-    "critical": "ABNORMAL_MARKER",
     "abnormal": "ABNORMAL_MARKER",
     "abnormal_marker": "ABNORMAL_MARKER",
     "a": "ABNORMAL_MARKER",
@@ -47,6 +46,7 @@ _RANGE_SPLIT = re.compile(
     re.IGNORECASE,
 )
 _RANGE_BOUND = re.compile(r"^\s*(>=|<=|>|<)\s*(.+?)\s*$")
+_NUMBER = re.compile(r"[+-]?\d+(?:\.\d+)?")
 
 
 class LabResultFormatter(BaseDocumentFormatter):
@@ -64,19 +64,21 @@ class LabResultFormatter(BaseDocumentFormatter):
                 name = self._first(item, "testName", "test_name", "name")
                 if not name:
                     continue
+                result_value = self._first(item, "resultValue", "result_value", "value")
+                normal_range = self._normalize_range(
+                    self._first(item, "normalRangeValue", "normal_range_value", "reference_range")
+                )
                 results.append(
                     LabResultEntry(
                         test_name=name,
                         result_date=self._first(item, "resultDate", "result_date", "test_date")
                         or shared_date,
-                        result_value=self._first(item, "resultValue", "result_value", "value"),
+                        result_value=result_value,
                         unit=self._first(item, "unit"),
-                        normal_range_value=self._normalize_range(
-                            self._first(
-                                item, "normalRangeValue", "normal_range_value", "reference_range"
-                            )
+                        normal_range_value=normal_range,
+                        marker=self._normalize_marker(
+                            self._first(item, "marker", "flag"), result_value, normal_range
                         ),
-                        marker=self._normalize_marker(self._first(item, "marker", "flag")),
                         physician_name=self._first(
                             item, "physicianName", "physician_name", "ordering_provider"
                         )
@@ -87,14 +89,71 @@ class LabResultFormatter(BaseDocumentFormatter):
         data = LabResultData(results=results)
         return data.model_dump(by_alias=True)
 
-    def _normalize_marker(self, marker: Optional[str]) -> LabMarker:
+    def _normalize_marker(
+        self, marker: Optional[str], result_value: Optional[str], normal_range: Optional[str]
+    ) -> LabMarker:
         if not marker:
             return "UNKNOWN"
         token = marker.strip().upper().replace(" ", "_").replace("-", "_")
         if token in _MARKERS:
             return token  # type: ignore[return-value]
-        mapped = _MARKER_SYNONYMS.get(marker.strip().lower().replace(" ", "_").replace("-", "_"))
+        key = marker.strip().lower().replace(" ", "_").replace("-", "_")
+        if key == "critical":
+            return self._critical_direction(result_value, normal_range)
+        mapped = _MARKER_SYNONYMS.get(key)
         return mapped or "UNKNOWN"  # type: ignore[return-value]
+
+    @classmethod
+    def _critical_direction(cls, result_value: Optional[str], normal_range: Optional[str]) -> LabMarker:
+        """A plain critical flag is upper or lower when the value sits outside the range."""
+        number = cls._parse_number(result_value)
+        bounds = cls._range_bounds(normal_range)
+        if number is None or bounds is None:
+            return "ABNORMAL_MARKER"
+        low, high, low_inclusive, high_inclusive = bounds
+        above = high is not None and (number > high if high_inclusive else number >= high)
+        below = low is not None and (number < low if low_inclusive else number <= low)
+        if above and not below:
+            return "CRITICAL_UPPER"
+        if below and not above:
+            return "CRITICAL_LOWER"
+        return "ABNORMAL_MARKER"
+
+    @staticmethod
+    def _parse_number(value: Optional[str]) -> Optional[float]:
+        if not value:
+            return None
+        match = _NUMBER.search(value.replace(",", ""))
+        if not match:
+            return None
+        try:
+            return float(match.group(0))
+        except ValueError:
+            return None
+
+    @classmethod
+    def _range_bounds(
+        cls, value: Optional[str]
+    ) -> Optional[tuple[Optional[float], Optional[float], bool, bool]]:
+        if not value:
+            return None
+        split = _RANGE_SPLIT.match(value)
+        if split:
+            return float(split.group(1)), float(split.group(2)), True, True
+        bound = _RANGE_BOUND.match(value)
+        if not bound:
+            return None
+        operator, raw_number = bound.group(1), bound.group(2)
+        number = cls._parse_number(raw_number)
+        if number is None:
+            return None
+        if operator == ">=":
+            return number, None, True, True
+        if operator == ">":
+            return number, None, False, True
+        if operator == "<=":
+            return None, number, True, True
+        return None, number, True, False
 
     @classmethod
     def _normalize_range(cls, value: Optional[str]) -> Optional[str]:
