@@ -33,13 +33,6 @@ class RecommendationPriority(str, Enum):
     ROUTINE = "routine"
 
 
-class RecommendationStatus(str, Enum):
-    """Review status shown in the recommendations drawer."""
-    PENDING = "pending"
-    ACCEPTED = "accepted"
-    DISMISSED = "dismissed"
-
-
 class PatientContextInput(BaseModel):
     """Input schema for patient context."""
     age: str = Field(..., description="Patient age (e.g., '45 years', '3 months')")
@@ -96,10 +89,6 @@ class RecommendationRequest(BaseModel):
 class ClinicalRecommendation(BaseModel):
     """A single clinical recommendation."""
     recommendation_id: str = Field(..., description="Unique identifier for this recommendation")
-    status: RecommendationStatus = Field(
-        default=RecommendationStatus.PENDING,
-        description="Review status. Generation always returns pending; accept and dismiss stay with the caller."
-    )
     type: RecommendationType = Field(..., description="Type of recommendation")
     title: str = Field(..., description="Short title/heading")
     description: str = Field(..., description="Detailed recommendation description")
@@ -110,10 +99,6 @@ class ClinicalRecommendation(BaseModel):
     contraindications: List[str] = Field(default_factory=list, description="Any contraindications to consider")
     monitoring_requirements: Optional[str] = Field(None, description="Monitoring needed")
     follow_up: Optional[str] = Field(None, description="Follow-up recommendations")
-    based_on: List[str] = Field(
-        default_factory=list,
-        description="Short chips drawn only from the supplied patient context"
-    )
 
 
 class RecommendationsResponse(BaseModel):
