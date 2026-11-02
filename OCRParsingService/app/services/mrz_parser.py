@@ -7,7 +7,7 @@ This parser is intentionally conservative:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 import re
 
@@ -139,6 +139,7 @@ class MRZParseResult:
     full_name: str | None
     valid: bool | None
     validation: dict[str, bool]
+    source_line_indices: tuple[int, ...] = ()
 
 
 def _is_mrzish(line: str) -> bool:
@@ -150,42 +151,50 @@ def _is_mrzish(line: str) -> bool:
     return allowed / max(1, len(line)) > 0.95
 
 
-def find_mrz_candidates(text_lines: list[str]) -> list[str]:
-    candidates: list[str] = []
-    for line in text_lines:
+def _indexed_mrz_candidates(text_lines: list[str]) -> list[tuple[int, str]]:
+    found: list[tuple[int, str]] = []
+    for index, line in enumerate(text_lines):
         normalized = _normalize_mrz_line(line)
         if normalized and _is_mrzish(normalized):
-            candidates.append(normalized)
-    return candidates
+            found.append((index, normalized))
+    return found
+
+
+def find_mrz_candidates(text_lines: list[str]) -> list[str]:
+    return [text for _, text in _indexed_mrz_candidates(text_lines)]
 
 
 def parse_mrz(text_lines: list[str], *, today: date | None = None) -> MRZParseResult | None:
     """Attempt to parse MRZ (TD3/TD2/TD1) from OCR lines."""
     today = today or date.today()
-    candidates = find_mrz_candidates(text_lines)
-    if len(candidates) < 2:
+    indexed = _indexed_mrz_candidates(text_lines)
+    if len(indexed) < 2:
         return None
+    candidates = [text for _, text in indexed]
+    candidate_lines = [index for index, _ in indexed]
 
     # Prefer 2-line TD3 (passport) / TD2.
-    best_two: tuple[int, str, str] | None = None
+    best_two: tuple[int, int, str, str] | None = None
     for i in range(len(candidates) - 1):
         a, b = candidates[i], candidates[i + 1]
         if abs(len(a) - len(b)) > 2:
             continue
         score = len(a) + len(b) + (50 if a.startswith(("P<", "I<", "A<", "C<")) else 0)
         if best_two is None or score > best_two[0]:
-            best_two = (score, a, b)
+            best_two = (score, i, a, b)
 
     if best_two is not None:
-        _, line1, line2 = best_two
-        two_len = max(len(line1), len(line2))
+        _, start, line1, line2 = best_two
         # Try TD3 (44 chars) first, then TD2 (36 chars).
         for target_len, parser in [(44, _parse_td3), (36, _parse_td2)]:
             l1 = line1.ljust(target_len, "<")[:target_len]
             l2 = line2.ljust(target_len, "<")[:target_len]
             parsed = parser(l1, l2, today=today)
             if parsed is not None:
-                return parsed
+                return replace(
+                    parsed,
+                    source_line_indices=(candidate_lines[start], candidate_lines[start + 1]),
+                )
 
     # Try 3-line TD1 (ID card).
     for i in range(len(candidates) - 2):
@@ -200,7 +209,14 @@ def parse_mrz(text_lines: list[str], *, today: date | None = None) -> MRZParseRe
             today=today,
         )
         if p is not None:
-            return p
+            return replace(
+                p,
+                source_line_indices=(
+                    candidate_lines[i],
+                    candidate_lines[i + 1],
+                    candidate_lines[i + 2],
+                ),
+            )
 
     return None
 

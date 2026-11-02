@@ -3,6 +3,22 @@ import logging
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
+try:
+    from openai import APIConnectionError, APITimeoutError, AuthenticationError, RateLimitError
+except ImportError:  # pragma: no cover
+    class AuthenticationError(Exception):
+        pass
+
+    class RateLimitError(Exception):
+        pass
+
+    class APIConnectionError(Exception):
+        pass
+
+    class APITimeoutError(Exception):
+        pass
+
+from app.ai.client import OCRUnavailable
 from app.models.schemas import (
     ExtractAndParseResponse,
     ExtractTextResponse,
@@ -20,6 +36,12 @@ router = APIRouter(prefix="/api/v1", tags=["ocr-parsing"])
 ocr_service = OCRService()
 parsing_service = ParsingService()
 identity_service = IdentityService()
+
+_PROVIDER_ERRORS = (OCRUnavailable, AuthenticationError, RateLimitError, APIConnectionError, APITimeoutError)
+_UNAVAILABLE = {
+    "code": "OCR_UNAVAILABLE",
+    "message": "The reading service is temporarily unavailable.",
+}
 
 
 @router.post(
@@ -43,10 +65,10 @@ async def extract_text(file: UploadFile = File(...)) -> ExtractTextResponse:
             detail=str(exc),
         ) from exc
     except Exception as exc:
-        logger.error("Failed OCR extraction for file=%s: %s", file.filename, exc)
+        logger.error("OCR extraction failed type=%s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"OCR extraction failed: {exc}",
+            detail="OCR extraction failed",
         ) from exc
 
 
@@ -64,17 +86,17 @@ async def parse_text(request: ParseTextRequest) -> ParseTextResponse:
             structured_data=structured_data,
             model=parsing_service.model,
         )
-    except ValueError as exc:
-        logger.error("Invalid parse output: %s", exc)
+    except ValueError:
+        logger.error("Invalid parse output type=ValueError")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Parsing failed: {exc}",
-        ) from exc
+            detail="Parsing failed",
+        )
     except Exception as exc:
-        logger.error("Failed parsing request: %s", exc)
+        logger.error("Parsing failed type=%s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Parsing failed: {exc}",
+            detail="Parsing failed",
         ) from exc
 
 
@@ -95,17 +117,17 @@ async def extract_and_parse(file: UploadFile = File(...)) -> ExtractAndParseResp
             structured_data=structured_data,
             model=parsing_service.model,
         )
-    except ValueError as exc:
-        logger.error("Invalid combined output for file=%s: %s", file.filename, exc)
+    except ValueError:
+        logger.error("Extract-and-parse failed type=ValueError")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Extract-and-parse failed: {exc}",
-        ) from exc
+            detail="Extract-and-parse failed",
+        )
     except Exception as exc:
-        logger.error("Failed combined request for file=%s: %s", file.filename, exc)
+        logger.error("Extract-and-parse failed type=%s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Extract-and-parse failed: {exc}",
+            detail="Extract-and-parse failed",
         ) from exc
 
 
@@ -121,7 +143,13 @@ async def extract_identity(
 ) -> IdentityExtractResponse:
     try:
         image_bytes = await file.read()
-        identity, quality, validation, mrz_present, mrz_valid, text_lines = identity_service.extract_identity_from_image(image_bytes)
+        result = identity_service.extract_identity_from_image(image_bytes)
+        identity = result.identity
+        quality = result.quality
+        validation = result.validation
+        mrz_present = result.mrz_present
+        mrz_valid = result.mrz_valid
+        text_lines = result.text_lines
 
         extracted_any = any(
             [
@@ -158,7 +186,16 @@ async def extract_identity(
             mrz_present=mrz_present,
             mrz_valid=mrz_valid,
             text_lines=text_lines,
+            lines=result.lines,
+            field_sources=result.field_sources,
+            image=result.image,
         )
+    except _PROVIDER_ERRORS as exc:
+        logger.error("Identity extraction unavailable type=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=_UNAVAILABLE,
+        ) from None
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -167,10 +204,10 @@ async def extract_identity(
     except HTTPException:
         raise
     except Exception as exc:
-        logger.error("Failed identity extraction for file=%s: %s", file.filename, exc)
+        logger.error("Identity extraction failed type=%s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Identity extraction failed: {exc}",
+            detail="Identity extraction failed",
         ) from exc
 
 

@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Needed by Pillow/OpenCV/EasyOCR on slim images
+# Needed by Pillow/OpenCV on slim images
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \

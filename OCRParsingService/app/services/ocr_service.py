@@ -2,41 +2,188 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
+import base64
 import logging
 from io import BytesIO
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import cv2  # type: ignore
 
+from app.ai.client import StructuredOutputClient
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-try:
-    import easyocr  # type: ignore
-except ImportError:  # pragma: no cover
-    easyocr = None
+
+def _clamp01(value: float) -> float:
+    return max(0.0, min(1.0, value))
+
+
+def map_polygon_to_upright(
+    points: list[tuple[float, float]],
+    rotation_degrees: int,
+) -> list[tuple[float, float]]:
+    """Map normalized points from a rotated OCR run back onto the upright image.
+
+    rotation_degrees is the clockwise rotation that was applied before OCR
+    (the same angles cv2.rotate uses: 0, 90, 180, 270).
+    """
+    deg = int(rotation_degrees) % 360
+    mapped: list[tuple[float, float]] = []
+    for x, y in points:
+        if deg == 90:
+            mx, my = y, 1.0 - x
+        elif deg == 180:
+            mx, my = 1.0 - x, 1.0 - y
+        elif deg == 270:
+            mx, my = 1.0 - y, x
+        else:
+            mx, my = x, y
+        mapped.append((_clamp01(mx), _clamp01(my)))
+    return mapped
+
+
+_MAX_MODEL_SIDE_PX = 2048
+
+
+def _jpeg_for_model(image: Image.Image) -> bytes:
+    """Re-encode pixels as JPEG. The result has no EXIF or GPS from the upload."""
+    longest = max(image.size)
+    if longest > _MAX_MODEL_SIDE_PX:
+        scale = _MAX_MODEL_SIDE_PX / longest
+        resized = image.resize(
+            (max(1, int(image.width * scale)), max(1, int(image.height * scale))),
+            Image.Resampling.LANCZOS,
+        )
+    else:
+        resized = image
+    buffer = BytesIO()
+    resized.save(buffer, format="JPEG", quality=90)
+    return buffer.getvalue()
+
+
+@dataclass(frozen=True)
+class OCRLine:
+    text: str
+    confidence: float | None
+    box: tuple[float, float, float, float]
+    box_valid: bool = True
+    uncertain: bool = False
+
+
+_VISION_SYSTEM = (
+    "You transcribe text that is visible in an image. Return JSON only. "
+    "Do not translate, guess, or correct characters. "
+    "Keep names, numbers, and spellings as printed. "
+    "When a character is unreadable, write ? in its place and set uncertain to true."
+)
+_INVALID_BOX = (0.0, 0.0, 0.0, 0.0)
+
+
+def _parse_box_numbers(box: object) -> tuple[float, float, float, float] | None:
+    try:
+        if isinstance(box, dict):
+            raw = (box["x"], box["y"], box["w"], box["h"])
+        elif isinstance(box, (list, tuple)) and len(box) >= 4:
+            raw = (box[0], box[1], box[2], box[3])
+        else:
+            return None
+        numbers = tuple(float(value) for value in raw)
+    except (TypeError, ValueError, KeyError):
+        return None
+    if any(number != number for number in numbers):  # NaN
+        return None
+    return numbers  # type: ignore[return-value]
+
+
+def assess_box(box: object) -> tuple[tuple[float, float, float, float], bool]:
+    """Return a drawable box and whether it is safe to draw.
+
+    A small overshoot of at most 0.02 past the right or bottom edge is clamped to 1.
+    Anything else that cannot be drawn is returned as a zero box.
+    """
+    parsed = _parse_box_numbers(box)
+    if parsed is None:
+        return _INVALID_BOX, False
+    x, y, w, h = parsed
+    if w <= 0 or h <= 0 or h > 0.25 or (w * h) > 0.6:
+        return _INVALID_BOX, False
+    if x < 0 or y < 0 or x > 1 or y > 1:
+        return _INVALID_BOX, False
+    if x + w > 1.02 or y + h > 1.02:
+        return _INVALID_BOX, False
+    if x + w > 1:
+        w = 1.0 - x
+    if y + h > 1:
+        h = 1.0 - y
+    return (x, y, w, h), True
+
+
+def _confidence_value(raw: object) -> float | None:
+    if raw is None or raw == "":
+        return None
+    try:
+        value = float(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if value > 1.0 and value <= 100.0:
+        value = value / 100.0
+    return _clamp01(value)
+
+
+def _uncertain_flag(raw: object) -> bool:
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, str):
+        return raw.strip().lower() in {"true", "1", "yes"}
+    return bool(raw) if isinstance(raw, (int, float)) else False
+
+
+def lines_from_vision_payload(payload: dict) -> list[OCRLine]:
+    """Turn the vision model's JSON into OCR lines. Blank text is dropped."""
+    raw_lines = payload.get("lines")
+    if not isinstance(raw_lines, list):
+        text = payload.get("text")
+        if isinstance(text, str) and text.strip():
+            raw_lines = [{"text": line} for line in text.splitlines()]
+        else:
+            raw_lines = []
+
+    lines: list[OCRLine] = []
+    for item in raw_lines:
+        if isinstance(item, str):
+            text = item.strip()
+            box, box_valid = _INVALID_BOX, False
+            confidence = None
+            uncertain = False
+        elif isinstance(item, dict):
+            text = str(item.get("text") or "").strip()
+            box, box_valid = assess_box(item.get("box"))
+            confidence = _confidence_value(item.get("confidence"))
+            uncertain = _uncertain_flag(item.get("uncertain"))
+        else:
+            continue
+        if not text:
+            continue
+        lines.append(
+            OCRLine(
+                text=text,
+                confidence=confidence,
+                box=box,
+                box_valid=box_valid,
+                uncertain=uncertain,
+            )
+        )
+    return lines
 
 
 class OCRService:
-    """Extract text lines from an image using EasyOCR."""
+    """Extract text lines from an image with the configured OpenAI vision model."""
 
     def __init__(self) -> None:
-        self._reader: easyocr.Reader | None = None
-
-    @property
-    def reader(self) -> easyocr.Reader:
-        if easyocr is None:
-            raise RuntimeError(
-                "EasyOCR is not installed. Install dependencies with: py -m pip install -r requirements.txt"
-            )
-        if self._reader is None:
-            logger.info("Initializing EasyOCR reader with languages=%s, gpu=%s", settings.ocr_languages_list, settings.ocr_gpu)
-            self._reader = easyocr.Reader(settings.ocr_languages_list, gpu=settings.ocr_gpu)
-            logger.info("EasyOCR reader initialized")
-        return self._reader
+        self._client = StructuredOutputClient()
 
     @dataclass(frozen=True)
     class OCRExtraction:
@@ -50,138 +197,85 @@ class OCRService:
         blur_variance: float | None
         brightness_mean: float | None
         contrast_std: float | None
+        lines: list[OCRLine] = field(default_factory=list)
+        original_width_px: int = 0
+        original_height_px: int = 0
 
     def extract(self, image_bytes: bytes) -> "OCRService.OCRExtraction":
         """Run OCR and return lines + confidence metrics."""
         try:
-            image = Image.open(BytesIO(image_bytes)).convert("RGB")
+            image = Image.open(BytesIO(image_bytes))
+            transposed = ImageOps.exif_transpose(image)
+            if transposed is not None:
+                image = transposed
+            image = image.convert("RGB")
         except Exception as exc:  # PIL throws various exceptions for bad images
             raise ValueError("Unsupported or corrupted image input") from exc
 
+        original_width, original_height = image.size
         image_np = np.array(image)
-        h, w = image_np.shape[:2]
-
-        # Baseline run at 0 degrees (with optional preprocessing).
-        best = self._run_easyocr(image_np, rotation_degrees=0)
-        if settings.ocr_preprocess:
-            processed = self._preprocess_for_ocr(image_np)
-            candidate = self._run_easyocr(processed, rotation_degrees=0)
-            best = self._pick_better(best, candidate)
-
-        # If baseline looks weak, try additional rotations (helps with upside-down/sideways scans).
-        if settings.ocr_try_rotations_on_low_quality and self._looks_low_quality(best):
-            for deg in settings.ocr_rotations_list:
-                if deg % 360 == 0:
-                    continue
-                rotated = self._rotate_rgb(image_np, deg)
-                cand = self._run_easyocr(rotated, rotation_degrees=deg)
-                best = self._pick_better(best, cand)
-
-                if settings.ocr_preprocess:
-                    rotated_processed = self._preprocess_for_ocr(rotated)
-                    cand2 = self._run_easyocr(rotated_processed, rotation_degrees=deg)
-                    best = self._pick_better(best, cand2)
-
-        logger.info(
-            "OCR extracted %d lines (avg_conf=%s)",
-            len(best.text_lines),
-            None if best.avg_confidence is None else f"{best.avg_confidence:.3f}",
+        extraction = self._recognize(image_np)
+        extraction = replace(
+            extraction,
+            original_width_px=original_width,
+            original_height_px=original_height,
+            image_width_px=original_width,
+            image_height_px=original_height,
+            image_rotation_degrees=0,
         )
-        return best
+        logger.info(
+            "OCR extracted %d lines (avg_conf=%s model=%s)",
+            len(extraction.text_lines),
+            None if extraction.avg_confidence is None else f"{extraction.avg_confidence:.3f}",
+            settings.vision_model,
+        )
+        return extraction
 
     def extract_text_lines(self, image_bytes: bytes) -> list[str]:
         """Compatibility wrapper used by existing endpoints."""
         return self.extract(image_bytes).text_lines
 
-    def _score(self, extraction: "OCRService.OCRExtraction") -> float:
-        avg = extraction.avg_confidence or 0.0
-        lines = min(len(extraction.text_lines), 25)
-        return avg + 0.04 * lines
-
-    def _pick_better(
-        self,
-        left: "OCRService.OCRExtraction",
-        right: "OCRService.OCRExtraction",
-    ) -> "OCRService.OCRExtraction":
-        return right if self._score(right) > self._score(left) else left
-
-    def _looks_low_quality(self, extraction: "OCRService.OCRExtraction") -> bool:
-        if len(extraction.text_lines) < max(4, settings.ocr_min_lines):
-            return True
-        if extraction.avg_confidence is not None and extraction.avg_confidence < max(0.45, settings.ocr_min_avg_confidence):
-            return True
-        return False
-
-    def _run_easyocr(self, rgb_image: np.ndarray, *, rotation_degrees: int) -> "OCRService.OCRExtraction":
-        h, w = rgb_image.shape[:2]
+    def _recognize(self, rgb_image: np.ndarray) -> "OCRService.OCRExtraction":
+        height, width = rgb_image.shape[:2]
         blur_var, brightness_mean, contrast_std = self._image_quality_metrics(rgb_image)
-        results = self.reader.readtext(rgb_image, detail=1)
-        lines: list[str] = []
-        confidences: list[float] = []
-        for item in results:
-            # item: (bbox, text, confidence)
-            if not isinstance(item, (list, tuple)) or len(item) < 3:
-                continue
-            text = str(item[1]).strip()
-            conf = float(item[2]) if item[2] is not None else None
-            if not text:
-                continue
-            lines.append(text)
-            if conf is not None:
-                confidences.append(max(0.0, min(1.0, conf)))
-
+        image = Image.fromarray(rgb_image)
+        jpeg = _jpeg_for_model(image)
+        data_url = "data:image/jpeg;base64," + base64.b64encode(jpeg).decode("ascii")
+        languages = ", ".join(settings.ocr_languages_list)
+        payload = self._client.generate_vision_json(
+            _VISION_SYSTEM,
+            (
+                "Read every visible text line from top to bottom. "
+                f"The document may use these languages: {languages}. "
+                "Return JSON "
+                '{"lines":[{"text":"...","confidence":0.0,"uncertain":false,'
+                '"box":{"x":0,"y":0,"w":0,"h":0}}]}. '
+                "confidence is your certainty from 0 to 1. "
+                "Set uncertain to true when any character is hard to read. "
+                "Never guess or correct a character; write ? for each unreadable character. "
+                "box is normalized to this image, origin top-left, each value from 0 to 1. "
+                "One object per visual line. Omit blank lines."
+            ),
+            data_url,
+            image_bytes=len(jpeg),
+        )
+        ocr_lines = lines_from_vision_payload(payload if isinstance(payload, dict) else {})
+        confidences = [line.confidence for line in ocr_lines if line.confidence is not None]
         avg_conf = (sum(confidences) / len(confidences)) if confidences else None
         min_conf = min(confidences) if confidences else None
         return OCRService.OCRExtraction(
-            text_lines=lines,
+            text_lines=[line.text for line in ocr_lines],
             confidences=confidences,
             avg_confidence=avg_conf,
             min_confidence=min_conf,
-            image_width_px=w,
-            image_height_px=h,
-            image_rotation_degrees=int(rotation_degrees % 360),
+            image_width_px=width,
+            image_height_px=height,
+            image_rotation_degrees=0,
             blur_variance=blur_var,
             brightness_mean=brightness_mean,
             contrast_std=contrast_std,
+            lines=ocr_lines,
         )
-
-    def _preprocess_for_ocr(self, rgb_image: np.ndarray) -> np.ndarray:
-        """Lightweight preprocessing for low-quality scans (denoise + threshold)."""
-        # Convert RGB -> GRAY
-        gray = cv2.cvtColor(rgb_image, cv2.COLOR_RGB2GRAY)
-
-        # Scale up small images (helps OCR on low-res mobile scans)
-        h, w = gray.shape[:2]
-        if max(h, w) < 900:
-            scale = 2.0
-            gray = cv2.resize(gray, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_CUBIC)
-
-        gray = cv2.bilateralFilter(gray, d=7, sigmaColor=50, sigmaSpace=50)
-        gray = cv2.fastNlMeansDenoising(gray, h=10)
-
-        # Otsu binarization often helps with glare/shadows.
-        _, th = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-        # Convert back to 3-channel RGB for EasyOCR.
-        rgb = cv2.cvtColor(th, cv2.COLOR_GRAY2RGB)
-        return rgb
-
-    def _rotate_rgb(self, rgb_image: np.ndarray, degrees: int) -> np.ndarray:
-        degrees = int(degrees % 360)
-        if degrees == 0:
-            return rgb_image
-        if degrees == 90:
-            return cv2.rotate(rgb_image, cv2.ROTATE_90_CLOCKWISE)
-        if degrees == 180:
-            return cv2.rotate(rgb_image, cv2.ROTATE_180)
-        if degrees == 270:
-            return cv2.rotate(rgb_image, cv2.ROTATE_90_COUNTERCLOCKWISE)
-
-        # Fallback for uncommon angles (shouldn't be used in normal configs)
-        h, w = rgb_image.shape[:2]
-        center = (w / 2.0, h / 2.0)
-        mat = cv2.getRotationMatrix2D(center, degrees, 1.0)
-        return cv2.warpAffine(rgb_image, mat, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
 
     def _image_quality_metrics(self, rgb_image: np.ndarray) -> tuple[float | None, float | None, float | None]:
         try:

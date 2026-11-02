@@ -84,6 +84,37 @@ class IdentityValidation(BaseModel):
     warnings: list[IdentityIssue] = Field(default_factory=list)
 
 
+class Box(BaseModel):
+    """Normalized axis-aligned box on the upright image. Origin is top-left, values are in [0, 1]."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+
+
+class OCRLineOut(BaseModel):
+    index: int
+    text: str
+    confidence: float | None = None
+    box: Box
+    box_valid: bool = True
+    uncertain: bool = False
+
+
+class FieldSource(BaseModel):
+    line_indices: list[int] = Field(default_factory=list)
+    source_kind: Literal["visual", "mrz", "llm"]
+    confidence: float | None = None
+    level: Literal["high", "medium", "low"] | None = None
+    box_valid: bool = True
+
+
+class ImageInfo(BaseModel):
+    original_width_px: int
+    original_height_px: int
+
+
 class IdentityExtractResponse(BaseModel):
     identity: PatientIdentity = Field(...)
     quality: OCRQuality = Field(...)
@@ -91,3 +122,6 @@ class IdentityExtractResponse(BaseModel):
     mrz_present: bool = Field(default=False)
     mrz_valid: bool | None = Field(default=None, description="MRZ check-digit validation result when MRZ present")
     text_lines: list[str] = Field(default_factory=list, description="OCR extracted text lines (for debugging/audit)")
+    lines: list[OCRLineOut] = Field(default_factory=list)
+    field_sources: dict[str, FieldSource] = Field(default_factory=dict)
+    image: ImageInfo | None = None

@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     ocr_brightness_min: float = 35.0
     ocr_brightness_max: float = 220.0
     ocr_contrast_std_min: float = 18.0
+    ocr_return_boxes: bool = True
+    ocr_use_model_confidence_for_quality: bool = False
+    ocr_field_high_confidence: float = 0.90
+    ocr_field_medium_confidence: float = 0.70
 
     # Identity extraction
     identity_llm_fallback_enabled: bool = False
@@ -40,10 +44,22 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str | None = None
     openai_model: str = "gpt-4o"
+    openai_vision_model: str = ""
+    openai_vision_timeout: int = 30
+    openai_vision_detail: str = "high"
     openai_temperature: float = 0.1
     openai_timeout: int = 120
     openai_max_retries: int = 1
     openai_retry_delay: float = 1.0
+
+    @property
+    def vision_model(self) -> str:
+        return self.openai_vision_model.strip() or self.openai_model
+
+    @property
+    def vision_detail(self) -> str:
+        detail = (self.openai_vision_detail or "high").strip().lower()
+        return detail if detail in {"low", "auto", "high"} else "high"
 
     @property
     def ocr_languages_list(self) -> list[str]:

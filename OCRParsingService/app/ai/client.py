@@ -5,14 +5,25 @@ import time
 from typing import Any
 
 try:
-    from openai import APIConnectionError, APIError, APITimeoutError, OpenAI, RateLimitError
+    from openai import (
+        APIConnectionError,
+        APIError,
+        APITimeoutError,
+        AuthenticationError,
+        OpenAI,
+        RateLimitError,
+    )
 except ImportError:  # pragma: no cover
-    APIConnectionError = APIError = APITimeoutError = RateLimitError = Exception  # type: ignore[assignment]
+    APIConnectionError = APIError = APITimeoutError = AuthenticationError = RateLimitError = Exception  # type: ignore[assignment]
     OpenAI = None  # type: ignore[assignment]
 
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+class OCRUnavailable(Exception):
+    """The vision provider cannot be called. The message stays empty so it cannot carry image data."""
 
 
 class StructuredOutputClient:
@@ -37,7 +48,56 @@ class StructuredOutputClient:
 
     def generate_json(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
         """Send a JSON-mode request and return the parsed object."""
+        return self._complete(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+        )
+
+    def generate_vision_json(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        image_data_url: str,
+        *,
+        image_bytes: int,
+    ) -> dict[str, Any]:
+        """Send an image plus instructions and return the parsed JSON object."""
+        return self._complete(
+            [
+                {"role": "system", "content": system_prompt},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": image_data_url, "detail": settings.vision_detail},
+                        },
+                    ],
+                },
+            ],
+            image_bytes=image_bytes,
+            temperature=0,
+            timeout=settings.openai_vision_timeout,
+            model=settings.vision_model,
+            vision=True,
+        )
+
+    def _complete(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        image_bytes: int | None = None,
+        temperature: float | None = None,
+        timeout: int | None = None,
+        model: str | None = None,
+        vision: bool = False,
+    ) -> dict[str, Any]:
         if not self.api_key:
+            if vision:
+                raise OCRUnavailable()
             raise ValueError("OPENAI_API_KEY must be set")
         if OpenAI is None:  # pragma: no cover
             raise RuntimeError("openai package is not installed")
@@ -49,28 +109,28 @@ class StructuredOutputClient:
                 max_retries=self.max_retries,
             )
 
+        call_model = model or self.model
+        call_timeout = self.timeout if timeout is None else timeout
+        call_temperature = self.temperature if temperature is None else temperature
         last_exception: Exception | None = None
         for attempt in range(self.max_retries):
             try:
                 logger.info("OpenAI API call attempt %d/%d", attempt + 1, self.max_retries)
-                prompt_length = len(system_prompt) + len(user_prompt)
                 logger.info(
-                    "Calling OCR structured extraction using model %s base_url=%s timeout=%ss prompt_length=%s",
-                    self.model,
+                    "Calling model %s base_url=%s timeout=%ss text_chars=%s image_bytes=%s",
+                    call_model,
                     self.base_url,
-                    self.timeout,
-                    prompt_length,
+                    call_timeout,
+                    _text_length(messages),
+                    image_bytes,
                 )
                 start_time = time.monotonic()
                 response = self.client.chat.completions.create(
-                    model=self.model,
-                    temperature=self.temperature,
+                    model=call_model,
+                    temperature=call_temperature,
                     response_format={"type": "json_object"},
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    timeout=self.timeout,
+                    messages=messages,
+                    timeout=call_timeout,
                 )
                 elapsed_seconds = time.monotonic() - start_time
                 logger.info("OpenAI request finished in %.2fs", elapsed_seconds)
@@ -93,24 +153,54 @@ class StructuredOutputClient:
                     )
                 return result
 
+            except AuthenticationError:
+                logger.warning("OpenAI authentication failed type=AuthenticationError")
+                if vision:
+                    raise OCRUnavailable() from None
+                raise
+
             except RateLimitError as exc:
                 last_exception = exc
                 wait_time = self.retry_delay * (2 ** attempt)
-                logger.warning("Rate limit, retrying in %.1fs: %s", wait_time, exc)
+                logger.warning("OpenAI rate limit type=%s", type(exc).__name__)
                 if attempt < self.max_retries - 1:
                     time.sleep(wait_time)
 
             except (APITimeoutError, APIConnectionError) as exc:
                 last_exception = exc
                 wait_time = self.retry_delay * (attempt + 1)
-                logger.warning("Connection error, retrying in %.1fs: %s", wait_time, exc)
+                logger.warning("OpenAI connection failure type=%s", type(exc).__name__)
                 if attempt < self.max_retries - 1:
                     time.sleep(wait_time)
 
-            except APIError as exc:
-                raise ValueError(f"OpenAI API error: {exc}") from exc
+            except APIError:
+                logger.warning("OpenAI API error type=APIError")
+                if vision:
+                    raise OCRUnavailable() from None
+                raise RuntimeError("OpenAI request failed") from None
 
-            except json.JSONDecodeError as exc:
-                raise ValueError(f"Model returned invalid JSON: {exc}") from exc
+            except json.JSONDecodeError:
+                raise ValueError("Model returned invalid JSON") from None
 
-        raise ValueError(f"Failed after {self.max_retries} attempts: {last_exception}")
+        logger.warning(
+            "OpenAI request failed type=%s",
+            type(last_exception).__name__ if last_exception else "None",
+        )
+        if vision:
+            raise OCRUnavailable() from None
+        raise RuntimeError("OpenAI request failed") from None
+
+
+def _text_length(messages: list[dict[str, Any]]) -> int:
+    total = 0
+    for message in messages:
+        content = message.get("content")
+        if isinstance(content, str):
+            total += len(content)
+            continue
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if isinstance(part, dict) and part.get("type") == "text":
+                total += len(str(part.get("text") or ""))
+    return total
