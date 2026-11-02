@@ -7,8 +7,6 @@ are combined into a single call.
 import json
 from typing import Any, Dict, List, Optional
 
-from app.models.schemas import DocumentType
-
 
 def _truncate(text: str, max_chars: int) -> str:
     if len(text) <= max_chars:
@@ -73,10 +71,10 @@ def build_relevance_prompt(
     extracted_text: str,
     relevance_windows_days: Dict[str, int],
     existing_documents: List[Dict[str, Any]],
+    document_type: str,
     max_chars: int,
 ) -> List[Dict[str, str]]:
     schema = {
-        "apparent_document_type": f"one of {DocumentType.values()}",
         "document_date": "string|null -- ISO date the document pertains to, if determinable",
         "is_relevant": "boolean",
         "reason": (
@@ -86,9 +84,7 @@ def build_relevance_prompt(
         ),
     }
 
-    windows_text = "\n".join(
-        f"  - {doc_type}: {days} days" for doc_type, days in relevance_windows_days.items()
-    )
+    window_days = relevance_windows_days.get(document_type, relevance_windows_days.get("other"))
     existing_text = (
         json.dumps(existing_documents, indent=2, default=str)
         if existing_documents
@@ -99,16 +95,15 @@ def build_relevance_prompt(
 whether a newly uploaded document is still clinically relevant to include in a patient's
 ACTIVE record, using this rubric:
 
-1. Identify the document's apparent type (one of {DocumentType.values()}) and the date it
-   pertains to (e.g. test date, study date, note date -- not the upload date).
-2. Compare the document's age against the configured relevance window for its type (in days):
-{windows_text}
-   If the document is older than its type's window, it is NOT relevant (outdated/superseded).
-3. If a newer existing document of the SAME type is listed below, the newly uploaded document
-   is superseded and is NOT relevant, even if it is within the recency window.
-4. A document type that plainly does not apply to active care (e.g. an unrelated administrative
-   form) is NOT relevant.
-5. If the document has no determinable date, be conservative and treat it as relevant unless
+The caller already chose the document type: {document_type}. Do not reclassify it.
+Its relevance window is {window_days} days.
+
+1. Identify the date the document pertains to (e.g. test date, study date, note date -- not
+   the upload date).
+2. If the document is older than {window_days} days, it is NOT relevant.
+3. If a newer existing document of type {document_type} is listed below, the newly uploaded
+   document is superseded and is NOT relevant, even if it is within the recency window.
+4. If the document has no determinable date, be conservative and treat it as relevant unless
    there is a clear reason otherwise (e.g. explicitly superseded).
 
 Return STRICT JSON only. No markdown, no code fences, no extra text before or after the JSON
@@ -190,39 +185,53 @@ Return ONLY the required JSON object."""
 
 
 # ---------------------------------------------------------------------------
-# Step 4 -- document-type classification + loose structured extraction
+# Step 4 -- field extraction for the caller-chosen document type
 # ---------------------------------------------------------------------------
-def build_classification_prompt(
-    extracted_text: str, max_chars: int
+_EXTRACTION_FIELDS = {
+    "lab_result": (
+        "test_date, ordering_provider, results (array of {test_name, value, unit, "
+        "reference_range, flag where flag is normal, high, low, or critical})"
+    ),
+    "radiology_report": (
+        "study_date, modality, body_part_examined, ordering_provider, findings, impression"
+    ),
+    "imaging_report": (
+        "study_date, modality, body_part_examined, ordering_provider, findings, impression"
+    ),
+    "prescription": (
+        "prescription_date, prescribing_provider, medications (array of {name, dosage, "
+        "frequency, route, duration, instructions})"
+    ),
+    "clinical_note": "note_date, author, note_type, subjective, objective, assessment, plan",
+    "physician_note": "note_date, author, note_type, subjective, objective, assessment, plan",
+    "discharge_summary": "summary",
+    "other": "summary",
+}
+
+
+def build_extraction_prompt(
+    extracted_text: str, document_type: str, max_chars: int
 ) -> List[Dict[str, str]]:
+    fields = _EXTRACTION_FIELDS.get(document_type, _EXTRACTION_FIELDS["other"])
     schema = {
-        "document_type": f"one of {DocumentType.values()}",
         "extracted_fields": (
-            "object -- flexible key/value extraction of whatever structured fields are "
-            "present and relevant to the classified document_type (e.g. for a lab_result: "
-            "test_date, ordering_provider, results (array of {test_name, value, unit, "
-            "reference_range, flag}); for a radiology_report: study_date, modality, "
-            "body_part_examined, ordering_provider, findings, impression; for a prescription: "
-            "prescription_date, prescribing_provider, medications (array of {name, dosage, "
-            "frequency, route, duration, instructions}); for a clinical_note/physician_note: "
-            "note_date, author, note_type, subjective, objective, assessment, plan). Use null "
-            "for any field that cannot be determined from the text -- never invent values."
+            f"object with these fields for a {document_type}: {fields}. "
+            "Use null for any field that cannot be determined from the text -- never invent values."
         ),
     }
 
-    system = f"""You are a clinical document classification and structured-extraction
-assistant. Classify the document into exactly one of these types:
-{DocumentType.values()}
+    system = f"""You extract structured fields from a clinical document.
+The caller already chose the document type: {document_type}. Do not reclassify it.
 
-Then extract the fields relevant to that type into extracted_fields, using only information
-present in the document text. Never fabricate values -- use null for anything not present.
-Preserve numeric values, units, and dates exactly as written.
+Extract only these fields into extracted_fields: {fields}.
+Use only information present in the document text. Never fabricate values -- use null for
+anything not present. Preserve numeric values, units, and dates exactly as written.
 
 Keep the JSON compact:
 - Do NOT copy the full source document into any field.
 - For lab_result, put every test in extracted_fields.results as a short object
   {{test_name, value, unit, reference_range, flag}} -- no commentary.
-- For long narrative fields (findings, impression, subjective, plan), summarize to
+- For long narrative fields (findings, impression, subjective, plan, summary), summarize to
   the clinically essential sentences rather than pasting pages of text.
 
 Return STRICT JSON only. No markdown, no code fences, no extra text before or after the JSON
@@ -230,10 +239,12 @@ object. The output must be one JSON object with this exact top-level structure:
 {json.dumps(schema, indent=2)}
 """
 
-    user = f"""DOCUMENT TEXT:
+    user = f"""DOCUMENT TYPE: {document_type}
+
+DOCUMENT TEXT:
 {_truncate(extracted_text, max_chars)}
 
-Classify and extract, then return ONLY the required JSON object."""
+Extract the fields, then return ONLY the required JSON object."""
 
     return [
         {"role": "system", "content": system},

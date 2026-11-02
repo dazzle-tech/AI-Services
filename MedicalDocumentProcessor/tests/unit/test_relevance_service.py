@@ -25,7 +25,7 @@ class TestRelevanceService:
             "reason": "Recent lab result within the relevance window.",
         }
 
-        outcome = service.check("recent lab text", [])
+        outcome = service.check("recent lab text", [], "lab_result")
 
         assert outcome.is_relevant is True
         assert outcome.apparent_document_type == "lab_result"
@@ -39,7 +39,7 @@ class TestRelevanceService:
             "reason": "Blood test dated 2019-03-11 -- outside the 180-day relevance window for lab_result.",
         }
 
-        outcome = service.check("old lab text", [])
+        outcome = service.check("old lab text", [], "lab_result")
 
         assert outcome.is_relevant is False
         assert "2019-03-11" in outcome.reason
@@ -53,7 +53,7 @@ class TestRelevanceService:
             "reason": None,
         }
 
-        outcome = service.check("text", [])
+        outcome = service.check("text", [], "prescription")
 
         assert outcome.is_relevant is False
         assert outcome.reason  # non-empty default reason
@@ -69,9 +69,10 @@ class TestRelevanceService:
         }
         existing = [ExistingDocumentSummary(document_type="lab_result", document_date="2026-08-05")]
 
-        outcome = service.check("text", existing)
+        outcome = service.check("text", existing, "lab_result")
 
         ai_client_stub.classify_relevance.assert_called_once()
-        _, _, forwarded_existing = ai_client_stub.classify_relevance.call_args[0]
+        _, _, forwarded_existing, forwarded_type = ai_client_stub.classify_relevance.call_args[0]
         assert forwarded_existing == [{"document_type": "lab_result", "document_date": "2026-08-05"}]
+        assert forwarded_type == "lab_result"
         assert outcome.is_relevant is False

@@ -23,9 +23,20 @@ def client():
     return TestClient(app)
 
 
-def _upload(client, text: str, patient: dict, translate: bool = False, target_language: str | None = None):
+def _upload(
+    client,
+    text: str,
+    patient: dict,
+    translate: bool = False,
+    target_language: str | None = None,
+    document_type: str = "lab_result",
+):
     files = {"file": ("document.txt", text.encode("utf-8"), "text/plain")}
-    data = {"patient": json.dumps(patient), "translate": str(translate).lower()}
+    data = {
+        "patient": json.dumps(patient),
+        "translate": str(translate).lower(),
+        "document_type": document_type,
+    }
     if target_language:
         data["target_language"] = target_language
     return client.post("/api/v1/process-document", files=files, data=data)
@@ -106,7 +117,7 @@ class TestScenarioIrrelevantOldDocument:
 class TestScenarioValidRequiringTranslation:
     """(c) valid document requiring translation."""
 
-    @patch("app.ai.client.AIClient.classify_and_extract")
+    @patch("app.ai.client.AIClient.extract_fields")
     @patch("app.ai.client.AIClient.process_translation")
     @patch("app.ai.client.AIClient.classify_relevance")
     @patch("app.ai.client.AIClient.validate_patient_match")
@@ -138,7 +149,12 @@ class TestScenarioValidRequiringTranslation:
         }
 
         response = _upload(
-            client, "NOTE CLINIQUE ... texte francais", PATIENT_JANE, translate=True, target_language="en"
+            client,
+            "NOTE CLINIQUE ... texte francais",
+            PATIENT_JANE,
+            translate=True,
+            target_language="en",
+            document_type="clinical_note",
         )
 
         assert response.status_code == 200
@@ -149,15 +165,16 @@ class TestScenarioValidRequiringTranslation:
         assert data["document_type"] == "clinical_note"
         assert data["structured_data"]["assessment"] == "Tension headache."
 
-        # The classification step should have run on the TRANSLATED text, not the original.
-        classify_args = mock_classify.call_args[0]
-        assert "translated to English" in classify_args[0]
+        # Field extraction should have run on the TRANSLATED text, for the chosen type.
+        extract_args = mock_classify.call_args[0]
+        assert "translated to English" in extract_args[0]
+        assert extract_args[1] == "clinical_note"
 
 
 class TestScenarioValidNotRequiringTranslation:
     """(d) valid document not requiring translation."""
 
-    @patch("app.ai.client.AIClient.classify_and_extract")
+    @patch("app.ai.client.AIClient.extract_fields")
     @patch("app.ai.client.AIClient.process_translation")
     @patch("app.ai.client.AIClient.classify_relevance")
     @patch("app.ai.client.AIClient.validate_patient_match")
@@ -200,13 +217,30 @@ class TestScenarioValidNotRequiringTranslation:
 class TestRequestParsing:
     def test_invalid_patient_json_returns_400(self, client):
         files = {"file": ("document.txt", b"some text", "text/plain")}
-        data = {"patient": "not valid json", "translate": "false"}
+        data = {"patient": "not valid json", "translate": "false", "document_type": "lab_result"}
         response = client.post("/api/v1/process-document", files=files, data=data)
         assert response.status_code == 400
 
+    def test_unknown_document_type_returns_400(self, client):
+        files = {"file": ("document.txt", b"some text", "text/plain")}
+        data = {
+            "patient": json.dumps(PATIENT_JANE),
+            "translate": "false",
+            "document_type": "invoice",
+        }
+        response = client.post("/api/v1/process-document", files=files, data=data)
+        assert response.status_code == 400
+        assert "document_type" in response.json()["detail"]
+
+    def test_missing_document_type_returns_422(self, client):
+        files = {"file": ("document.txt", b"some text", "text/plain")}
+        data = {"patient": json.dumps(PATIENT_JANE), "translate": "false"}
+        response = client.post("/api/v1/process-document", files=files, data=data)
+        assert response.status_code == 422
+
     def test_empty_file_returns_422(self, client):
         files = {"file": ("document.txt", b"", "text/plain")}
-        data = {"patient": json.dumps(PATIENT_JANE), "translate": "false"}
+        data = {"patient": json.dumps(PATIENT_JANE), "translate": "false", "document_type": "lab_result"}
         response = client.post("/api/v1/process-document", files=files, data=data)
         assert response.status_code == 422
 

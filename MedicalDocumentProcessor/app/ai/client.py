@@ -17,7 +17,7 @@ from openai import APIError, APITimeoutError, APIConnectionError, OpenAI, RateLi
 
 from app.core.config import settings
 from app.ai.prompts import (
-    build_classification_prompt,
+    build_extraction_prompt,
     build_relevance_prompt,
     build_translation_prompt,
     build_validation_prompt,
@@ -62,10 +62,15 @@ class AIClient:
         extracted_text: str,
         relevance_windows_days: Dict[str, int],
         existing_documents: List[Dict[str, Any]],
+        document_type: str,
     ) -> Dict[str, Any]:
-        """Step 2: relevance classification."""
+        """Step 2: relevance classification for the caller-chosen document type."""
         messages = build_relevance_prompt(
-            extracted_text, relevance_windows_days, existing_documents, settings.max_input_length
+            extracted_text,
+            relevance_windows_days,
+            existing_documents,
+            document_type,
+            settings.max_input_length,
         )
         return self._call_json("relevance classification", messages)
 
@@ -81,14 +86,16 @@ class AIClient:
             "translation", messages, max_tokens=max(self.max_tokens, 4000)
         )
 
-    def classify_and_extract(self, extracted_text: str) -> Dict[str, Any]:
-        """Step 4: document-type classification + loose structured extraction."""
-        messages = build_classification_prompt(extracted_text, settings.max_input_length)
+    def extract_fields(self, extracted_text: str, document_type: str) -> Dict[str, Any]:
+        """Step 4: extract structured fields for the caller-chosen document type."""
+        messages = build_extraction_prompt(
+            extracted_text, document_type, settings.max_input_length
+        )
         # Lab panels and long notes routinely exceed the default 2000-token cap and
         # produce truncated JSON ("Expecting value" at EOF). Floor this step like
         # translation does.
         return self._call_json(
-            "classification + extraction",
+            "field extraction",
             messages,
             max_tokens=max(self.max_tokens, 8000),
         )

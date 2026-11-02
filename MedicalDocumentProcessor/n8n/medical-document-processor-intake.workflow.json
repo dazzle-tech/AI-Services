@@ -10,7 +10,7 @@
       "parameters": {
         "width": 460,
         "height": 380,
-        "content": "## Medical Document Processor intake\n\nThis workflow is a thin webhook proxy in front of the\n`MedicalDocumentProcessor` FastAPI service (port 8029).\n\n**Caller contract (identical to the service's own API):**\nPOST multipart/form-data with fields:\n- `file` (the document)\n- `patient` (JSON string: patient_id, full_name, sex, date_of_birth)\n- `translate` (\"true\"/\"false\", optional)\n- `target_language` (optional)\n- `existing_documents` (JSON array string, optional)\n\n**Test with the service's own samples/, e.g.:**\n```\ncurl -X POST http://localhost:5678/webhook-test/medical-document-processor \\\n  -F \"file=@samples/jane_doe_lab_result.txt\" \\\n  -F \"patient=<samples/patients/jane_doe.json\" \\\n  -F \"translate=false\"\n```\n\n**Output routing is NOT decided yet.** The `processed` branch\ncurrently just tags + returns the structured_data to the caller.\nWire it into hospital.db / Postgres / Sheets / Slack once you\ndecide where results should land."
+        "content": "## Medical Document Processor intake\n\nThis workflow is a thin webhook proxy in front of the\n`MedicalDocumentProcessor` FastAPI service (port 8029).\n\n**Caller contract (identical to the service's own API):**\nPOST multipart/form-data with fields:\n- `file` (the document)\n- `document_type` (lab_result, radiology_report, imaging_report, discharge_summary, prescription, physician_note, clinical_note, or other)\n- `patient` (JSON string: patient_id, full_name, sex, date_of_birth)\n- `translate` (\"true\"/\"false\", optional)\n- `target_language` (optional)\n- `existing_documents` (JSON array string, optional)\n\n**Test with the service's own samples/, e.g.:**\n```\ncurl -X POST http://localhost:5678/webhook-test/medical-document-processor \\\n  -F \"file=@samples/jane_doe_lab_result.txt\" \\\n  -F \"patient=<samples/patients/jane_doe.json\" \\\n  -F \"document_type=lab_result\" \\\n  -F \"translate=false\"\n```\n\n**Output routing is NOT decided yet.** The `processed` branch\ncurrently just tags + returns the structured_data to the caller.\nWire it into hospital.db / Postgres / Sheets / Slack once you\ndecide where results should land."
       }
     },
     {
@@ -34,7 +34,7 @@
       "typeVersion": 2,
       "position": [720, 200],
       "parameters": {
-        "jsCode": "const item = $input.first();\nconst body = item.json.body ?? item.json ?? {};\n\nfunction asString(value) {\n  if (value === undefined || value === null) return '';\n  if (typeof value === 'string') return value;\n  return JSON.stringify(value);\n}\n\nreturn [{\n  json: {\n    patient: asString(body.patient),\n    translate: (body.translate === true || body.translate === 'true') ? 'true' : 'false',\n    target_language: asString(body.target_language),\n    existing_documents: asString(body.existing_documents)\n  },\n  binary: item.binary\n}];"
+        "jsCode": "const item = $input.first();\nconst body = item.json.body ?? item.json ?? {};\n\nfunction asString(value) {\n  if (value === undefined || value === null) return '';\n  if (typeof value === 'string') return value;\n  return JSON.stringify(value);\n}\n\nreturn [{\n  json: {\n    patient: asString(body.patient),\n    document_type: asString(body.document_type),\n    translate: (body.translate === true || body.translate === 'true') ? 'true' : 'false',\n    target_language: asString(body.target_language),\n    existing_documents: asString(body.existing_documents)\n  },\n  binary: item.binary\n}];"
       }
     },
     {
@@ -53,6 +53,7 @@
           "parameters": [
             { "parameterType": "formBinaryData", "name": "file", "inputDataFieldName": "file" },
             { "parameterType": "formData", "name": "patient", "value": "={{ $json.patient }}" },
+            { "parameterType": "formData", "name": "document_type", "value": "={{ $json.document_type }}" },
             { "parameterType": "formData", "name": "translate", "value": "={{ $json.translate }}" },
             { "parameterType": "formData", "name": "target_language", "value": "={{ $json.target_language }}" },
             { "parameterType": "formData", "name": "existing_documents", "value": "={{ $json.existing_documents }}" }

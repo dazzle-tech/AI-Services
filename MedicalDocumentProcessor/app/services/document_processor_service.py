@@ -11,6 +11,7 @@ from app.ai.client import AIClient
 from app.core.config import settings
 from app.extraction.file_extractor import FileExtractor
 from app.models.schemas import (
+    DocumentType,
     ExistingDocumentSummary,
     PatientInfo,
     ProcessDocumentResponse,
@@ -41,6 +42,7 @@ class DocumentProcessorService:
         translate: bool,
         target_language: str,
         existing_documents: List[ExistingDocumentSummary],
+        document_type: DocumentType,
         request_id: Optional[str] = None,
     ) -> ProcessDocumentResponse:
         request_id = request_id or f"req_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -56,6 +58,7 @@ class DocumentProcessorService:
                 reason=str(exc),
                 raw_extracted_text="",
                 request_id=request_id,
+                document_type=document_type.value,
                 metadata={"stage": "file_extraction"},
             )
 
@@ -70,6 +73,7 @@ class DocumentProcessorService:
                 reason=validation.reason,
                 raw_extracted_text=raw_text,
                 request_id=request_id,
+                document_type=document_type.value,
                 metadata={
                     "stage": "patient_validation",
                     "detected_format": extraction.detected_format,
@@ -79,7 +83,7 @@ class DocumentProcessorService:
             )
 
         # Step 2 -- relevance check.
-        relevance = self.relevance_service.check(raw_text, existing_documents)
+        relevance = self.relevance_service.check(raw_text, existing_documents, document_type.value)
         if not relevance.is_relevant:
             logger.info("Request %s marked irrelevant: %s", request_id, relevance.reason)
             return self._response(
@@ -87,6 +91,7 @@ class DocumentProcessorService:
                 reason=relevance.reason,
                 raw_extracted_text=raw_text,
                 request_id=request_id,
+                document_type=document_type.value,
                 metadata={
                     "stage": "relevance_check",
                     "detected_format": extraction.detected_format,
@@ -100,10 +105,10 @@ class DocumentProcessorService:
         translation = self.translation_service.process(raw_text, translate, target_language)
         working_text = translation.translated_text if translation.translated else raw_text
 
-        # Step 4 -- document-type classification + structured formatting.
-        document_type, structured_data = self.formatting_service.format(working_text)
+        # Step 4 -- structured formatting for the caller-chosen document type.
+        resolved_type, structured_data = self.formatting_service.format(working_text, document_type)
 
-        logger.info("Request %s processed successfully as document_type=%s", request_id, document_type)
+        logger.info("Request %s processed successfully as document_type=%s", request_id, resolved_type)
         return self._response(
             status="processed",
             reason=None,
@@ -111,7 +116,7 @@ class DocumentProcessorService:
             request_id=request_id,
             detected_language=translation.detected_language,
             translated=translation.translated,
-            document_type=document_type,
+            document_type=resolved_type,
             structured_data=structured_data,
             metadata={
                 "stage": "completed",

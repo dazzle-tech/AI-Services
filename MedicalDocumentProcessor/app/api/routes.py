@@ -7,7 +7,12 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import ValidationError
 
 from app.core.config import settings
-from app.models.schemas import ExistingDocumentSummary, PatientInfo, ProcessDocumentResponse
+from app.models.schemas import (
+    DocumentType,
+    ExistingDocumentSummary,
+    PatientInfo,
+    ProcessDocumentResponse,
+)
 from app.services.document_processor_service import DocumentProcessorService
 
 logger = logging.getLogger(__name__)
@@ -29,6 +34,16 @@ def _parse_patient(patient_json: str) -> PatientInfo:
         return PatientInfo(**data)
     except ValidationError as exc:
         raise ValueError(f"Invalid `patient` payload: {exc}") from exc
+
+
+def _parse_document_type(document_type: str) -> DocumentType:
+    normalized = str(document_type or "").strip().lower().replace(" ", "_").replace("-", "_")
+    allowed = DocumentType.values()
+    if normalized not in allowed:
+        raise ValueError(
+            f"`document_type` must be one of: {', '.join(allowed)}"
+        )
+    return DocumentType(normalized)
 
 
 def _parse_existing_documents(existing_documents_json: Optional[str]) -> list[ExistingDocumentSummary]:
@@ -53,13 +68,13 @@ def _parse_existing_documents(existing_documents_json: Optional[str]) -> list[Ex
     summary="Run a medical document through the validation -> relevance -> "
     "translation -> structured-formatting pipeline",
     description="""
-    Accepts an uploaded medical document (PDF, DOCX, TXT, CSV, or JPG/PNG scan) plus
-    patient metadata, and runs it through a four-step pipeline:
+    Accepts an uploaded medical document (PDF, DOCX, TXT, CSV, or JPG/PNG scan), the
+    document type chosen in the UI, and patient metadata, and runs it through a four-step pipeline:
     1. File & patient-data validation (stops here if the document doesn't match the patient).
-    2. Relevance check against configurable per-document-type recency windows (stops here
+    2. Relevance check against the chosen type's recency window (stops here
        if the document is outdated/superseded).
     3. Language detection, with translation if requested and the target language differs.
-    4. Document-type classification and structured formatting.
+    4. Structured formatting for the chosen document type.
 
     Returns a single response object regardless of where the pipeline stopped.
     """,
@@ -67,6 +82,13 @@ def _parse_existing_documents(existing_documents_json: Optional[str]) -> list[Ex
 async def process_document(
     file: UploadFile = File(..., description="The medical document to process"),
     patient: str = Form(..., description="JSON-encoded patient object: patient_id, full_name, sex, date_of_birth"),
+    document_type: str = Form(
+        ...,
+        description=(
+            "Document type chosen in the UI: lab_result, radiology_report, imaging_report, "
+            "discharge_summary, prescription, physician_note, clinical_note, or other"
+        ),
+    ),
     translate: bool = Form(False, description="Translate the document if its language differs from target_language"),
     target_language: Optional[str] = Form(None, description="Defaults to the service's configured default language"),
     existing_documents: Optional[str] = Form(
@@ -75,6 +97,7 @@ async def process_document(
 ) -> ProcessDocumentResponse:
     try:
         patient_obj = _parse_patient(patient)
+        document_type_obj = _parse_document_type(document_type)
         existing_documents_obj = _parse_existing_documents(existing_documents)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -99,6 +122,7 @@ async def process_document(
             translate=translate,
             target_language=target_language or settings.default_target_language,
             existing_documents=existing_documents_obj,
+            document_type=document_type_obj,
         )
     except ValueError as exc:
         logger.error("Validation error processing document: %s", exc)

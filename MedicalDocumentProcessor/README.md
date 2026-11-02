@@ -1,9 +1,9 @@
 # Medical Document Processor Service
 
 AI-powered intake pipeline for uploaded medical documents, using OpenAI GPT. Accepts a
-document of any common format, validates it against the given patient's identity,
-checks whether it's still clinically relevant, translates it if needed, and returns a
-structured, document-type-specific extraction.
+document of any common format plus the document type chosen in the UI, validates it
+against the given patient's identity, checks whether it's still clinically relevant,
+translates it if needed, and returns a structured extraction for that type.
 
 **Important:** This service performs intake support only -- it does not diagnose and does
 not replace clinical review of the uploaded document.
@@ -19,13 +19,13 @@ not replace clinical review of the uploaded document.
 - **Pipeline:**
   1. **Validation** -- extract text, cross-check patient-identifying signals in the
      document against the given patient record. Stops here on a clear mismatch.
-  2. **Relevance** -- classify against configurable per-document-type recency windows
+  2. **Relevance** -- use the chosen document type's recency window
      (and, optionally, existing documents already on record). Stops here if outdated
      or superseded.
   3. **Translation** -- always detects the document's language; translates only if
      `translate=true` and the detected language differs from `target_language`.
-  4. **Structured formatting** -- classifies the document type and shapes the
-     (possibly translated) text into a type-specific structured schema.
+  4. **Structured formatting** -- shapes the (possibly translated) text into the
+     schema for the document type the caller sent.
 - **Output:** A single response object regardless of where the pipeline stopped:
   `status`, `reason`, `detected_language`, `translated`, `document_type`,
   `structured_data`, `raw_extracted_text` (always present, for traceability).
@@ -90,6 +90,7 @@ docker-compose up --build
 | Field                | Type   | Required | Notes                                                       |
 |----------------------|--------|----------|--------------------------------------------------------------|
 | `file`               | file   | yes      | PDF, DOCX, TXT, CSV, or JPG/PNG                               |
+| `document_type`      | string | yes      | One of `lab_result`, `radiology_report`, `imaging_report`, `discharge_summary`, `prescription`, `physician_note`, `clinical_note`, `other` |
 | `patient`            | string | yes      | JSON-encoded `{patient_id, full_name, sex, date_of_birth}`   |
 | `translate`          | bool   | no       | Default `false`                                               |
 | `target_language`    | string | no       | Defaults to `DEFAULT_TARGET_LANGUAGE`                         |
@@ -101,6 +102,7 @@ docker-compose up --build
 curl -X POST http://localhost:8029/api/v1/process-document \
   -F "file=@samples/jane_doe_lab_result.pdf" \
   -F 'patient={"patient_id":"P-1001","full_name":"Jane Doe","sex":"female","date_of_birth":"1980-05-14"}' \
+  -F "document_type=lab_result" \
   -F "translate=false"
 ```
 
@@ -202,10 +204,8 @@ Integration tests cover: (a) invalid patient match, (b) irrelevant/outdated docu
 - Scanned/image-only PDFs (no extractable text layer) are rejected as `invalid` rather
   than OCR'd -- only JPG/PNG scans go through the OCR path. Re-scan or re-export such
   PDFs as an image to process them.
-- The relevance check (Step 2) independently infers the document's apparent type and
-  date rather than depending on Step 4's formal classification (which hasn't run yet in
-  pipeline order) -- keeping each step self-contained and independently testable. Step 4
-  performs the authoritative classification used in the final output.
+- The document type is the value sent by the caller. Step 2 uses that type's relevance
+  window and still infers the document date. Step 4 extracts fields for that same type.
 
 ## Safety
 

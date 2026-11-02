@@ -44,6 +44,7 @@ Valid lab result, no translation:
 curl -X POST http://localhost:8029/api/v1/process-document `
   -F "file=@samples/jane_doe_lab_result.txt" `
   -F "patient=<samples/patients/jane_doe.json" `
+  -F "document_type=lab_result" `
   -F "translate=false"
 ```
 
@@ -53,6 +54,7 @@ PDF / DOCX / CSV / PNG — same patient, swap the file:
 curl -X POST http://localhost:8029/api/v1/process-document `
   -F "file=@samples/jane_doe_lab_result.pdf" `
   -F "patient=<samples/patients/jane_doe.json" `
+  -F "document_type=lab_result" `
   -F "translate=false"
 ```
 
@@ -62,6 +64,7 @@ French note with translation:
 curl -X POST http://localhost:8029/api/v1/process-document `
   -F "file=@samples/jane_doe_clinical_note_fr.txt" `
   -F "patient=<samples/patients/jane_doe.json" `
+  -F "document_type=clinical_note" `
   -F "translate=true" `
   -F "target_language=en"
 ```
@@ -72,6 +75,7 @@ Patient mismatch (John Smith document + Jane Doe record):
 curl -X POST http://localhost:8029/api/v1/process-document `
   -F "file=@samples/john_smith_lab_result.txt" `
   -F "patient=<samples/patients/jane_doe.json" `
+  -F "document_type=lab_result" `
   -F "translate=false"
 ```
 
@@ -81,6 +85,7 @@ Outdated lab (outside the 180-day window):
 curl -X POST http://localhost:8029/api/v1/process-document `
   -F "file=@samples/jane_doe_old_lab_result.txt" `
   -F "patient=<samples/patients/jane_doe.json" `
+  -F "document_type=lab_result" `
   -F "translate=false"
 ```
 
@@ -91,6 +96,7 @@ curl -X POST http://localhost:8029/api/v1/process-document `
   -F "file=@samples/jane_doe_lab_result.txt" `
   -F "patient=<samples/patients/jane_doe.json" `
   -F "existing_documents=<samples/patients/existing_documents.json" `
+  -F "document_type=lab_result" `
   -F "translate=false"
 ```
 

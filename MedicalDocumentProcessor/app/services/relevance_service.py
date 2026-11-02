@@ -1,9 +1,8 @@
 """Step 2: relevance check.
 
-Runs its own independent classification of apparent document type + date (rather than
-depending on Step 4's formal classification, which hasn't run yet in the pipeline order),
-so this step stays self-contained and independently testable/debuggable, per the pipeline
-design. Step 4 performs the authoritative classification for the final output.
+The document type comes from the caller. This step asks only for the document date and
+whether that date is still inside the type's relevance window, or superseded by a newer
+document of the same type.
 """
 from __future__ import annotations
 
@@ -25,28 +24,31 @@ class RelevanceService:
         self,
         extracted_text: str,
         existing_documents: List[ExistingDocumentSummary],
+        document_type: str,
     ) -> RelevanceOutcome:
         relevance_windows_days = settings.relevance_windows_days
         raw = self.ai_client.classify_relevance(
             extracted_text,
             relevance_windows_days,
             [doc.model_dump() for doc in existing_documents],
+            document_type,
         )
-        return self._normalize(raw, relevance_windows_days)
+        return self._normalize(raw, relevance_windows_days, document_type)
 
     def _normalize(
-        self, raw: Dict[str, Any], relevance_windows_days: Dict[str, int]
+        self,
+        raw: Dict[str, Any],
+        relevance_windows_days: Dict[str, int],
+        document_type: str,
     ) -> RelevanceOutcome:
-        apparent_type = self._text(raw.get("apparent_document_type"))
+        apparent_type = document_type
         document_date = self._text(raw.get("document_date"))
         is_relevant = bool(raw.get("is_relevant", True))
         reason = self._text(raw.get("reason"))
 
-        window_days: Optional[int] = None
-        if apparent_type:
-            window_days = relevance_windows_days.get(
-                apparent_type.strip().lower(), relevance_windows_days.get("other")
-            )
+        window_days = relevance_windows_days.get(
+            document_type, relevance_windows_days.get("other")
+        )
 
         if not is_relevant and not reason:
             reason = "Document was classified as not clinically relevant to the active record."
