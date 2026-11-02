@@ -119,11 +119,17 @@ Ready-to-upload files for every supported format and pipeline outcome live in
   "translated": true,
   "document_type": "lab_result",
   "structured_data": {
-    "document_type": "lab_result",
-    "test_date": "2026-08-01",
-    "ordering_provider": "Dr. Amina Hassan",
+    "documentType": "lab_result",
     "results": [
-      {"test_name": "WBC", "value": "11.2", "unit": "10^9/L", "reference_range": "4.0-11.0", "flag": "high"}
+      {
+        "testName": "WBC",
+        "resultDate": "2026-08-01",
+        "resultValue": "11.2",
+        "unit": "10^9/L",
+        "normalRangeValue": "4.0 - 11.0",
+        "marker": "UPPER_LIMIT",
+        "physicianName": "Dr. Amina Hassan"
+      }
     ]
   },
   "raw_extracted_text": "...",

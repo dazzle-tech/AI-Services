@@ -189,14 +189,25 @@ Return ONLY the required JSON object."""
 # ---------------------------------------------------------------------------
 _EXTRACTION_FIELDS = {
     "lab_result": (
-        "test_date, ordering_provider, results (array of {test_name, value, unit, "
-        "reference_range, flag where flag is normal, high, low, or critical})"
+        "results (array of {testName, resultDate, resultValue, unit, normalRangeValue, "
+        "marker, physicianName}). marker must be exactly one of NORMAL_MARKER, UPPER_LIMIT, "
+        "LOWER_LIMIT, CRITICAL_UPPER, CRITICAL_LOWER, ABNORMAL_MARKER, UNKNOWN. "
+        "normalRangeValue uses 'a - b' with spaces around the dash, or '>= a', '<= b', "
+        "'< b', '> a', or the written text such as 'Negative', or null when no range is present"
     ),
     "radiology_report": (
-        "study_date, modality, body_part_examined, ordering_provider, findings, impression"
+        "reports (array of {reportDate, testName, findings, impression, severity, "
+        "radiologistInformation, criticalFindings, radiologistComments, physicianName}). "
+        "severity must be exactly one of NOTHING, MILD_MINOR, MODERATE, SEVERE, CRITICAL, "
+        "or null when it cannot be determined. Use null for radiologistInformation, "
+        "criticalFindings, and radiologistComments when they are not in the document"
     ),
     "imaging_report": (
-        "study_date, modality, body_part_examined, ordering_provider, findings, impression"
+        "reports (array of {reportDate, testName, findings, impression, severity, "
+        "radiologistInformation, criticalFindings, radiologistComments, physicianName}). "
+        "severity must be exactly one of NOTHING, MILD_MINOR, MODERATE, SEVERE, CRITICAL, "
+        "or null when it cannot be determined. Use null for radiologistInformation, "
+        "criticalFindings, and radiologistComments when they are not in the document"
     ),
     "prescription": (
         "prescription_date, prescribing_provider, medications (array of {name, dosage, "
@@ -229,8 +240,10 @@ anything not present. Preserve numeric values, units, and dates exactly as writt
 
 Keep the JSON compact:
 - Do NOT copy the full source document into any field.
-- For lab_result, put every test in extracted_fields.results as a short object
-  {{test_name, value, unit, reference_range, flag}} -- no commentary.
+- For lab_result, put every test in extracted_fields.results. Copy the shared date and
+  physician onto each row when the document does not give them per test.
+- For radiology_report and imaging_report, put each study in extracted_fields.reports.
+  Keep findings and impression as plain text; do not write HTML.
 - For long narrative fields (findings, impression, subjective, plan, summary), summarize to
   the clinically essential sentences rather than pasting pages of text.
 

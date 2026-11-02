@@ -21,3 +21,10 @@ class BaseDocumentFormatter(ABC):
             return None
         text = str(value).strip()
         return text or None
+
+    def _first(self, item: Dict[str, Any], *keys: str) -> str | None:
+        for key in keys:
+            text = self._text(item.get(key))
+            if text:
+                return text
+        return None

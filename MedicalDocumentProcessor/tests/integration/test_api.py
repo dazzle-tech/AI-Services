@@ -210,7 +210,10 @@ class TestScenarioValidNotRequiringTranslation:
         assert data["detected_language"] == "en"
         assert data["translated"] is False
         assert data["document_type"] == "lab_result"
-        assert data["structured_data"]["results"][0]["test_name"] == "WBC"
+        assert data["structured_data"]["documentType"] == "lab_result"
+        assert data["structured_data"]["results"][0]["testName"] == "WBC"
+        assert data["structured_data"]["results"][0]["marker"] == "UPPER_LIMIT"
+        assert data["structured_data"]["results"][0]["normalRangeValue"] == "4.0 - 11.0"
         mock_translate.assert_called_once()
 
 

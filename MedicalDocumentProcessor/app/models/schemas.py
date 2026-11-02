@@ -5,7 +5,7 @@ from datetime import date
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ---------------------------------------------------------------------------
@@ -104,29 +104,58 @@ class TranslationOutcome(BaseModel):
 # Per-document-type structured shapes (Step 4 output). Extensible: add a new model +
 # formatter for new document types without changing core pipeline logic.
 # ---------------------------------------------------------------------------
+LabMarker = Literal[
+    "NORMAL_MARKER",
+    "UPPER_LIMIT",
+    "LOWER_LIMIT",
+    "CRITICAL_UPPER",
+    "CRITICAL_LOWER",
+    "ABNORMAL_MARKER",
+    "UNKNOWN",
+]
+
+RadiologySeverity = Literal["NOTHING", "MILD_MINOR", "MODERATE", "SEVERE", "CRITICAL"]
+
+
 class LabResultEntry(BaseModel):
-    test_name: str
-    value: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    test_name: str = Field(alias="testName")
+    result_date: Optional[str] = Field(None, alias="resultDate")
+    result_value: Optional[str] = Field(None, alias="resultValue")
     unit: Optional[str] = None
-    reference_range: Optional[str] = None
-    flag: Literal["normal", "high", "low", "critical"] = "normal"
+    normal_range_value: Optional[str] = Field(None, alias="normalRangeValue")
+    marker: LabMarker = "UNKNOWN"
+    physician_name: Optional[str] = Field(None, alias="physicianName")
 
 
 class LabResultData(BaseModel):
-    document_type: Literal["lab_result"] = "lab_result"
-    test_date: Optional[str] = None
-    ordering_provider: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    document_type: Literal["lab_result"] = Field("lab_result", alias="documentType")
     results: List[LabResultEntry] = Field(default_factory=list)
 
 
+class RadiologyReportEntry(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    report_date: Optional[str] = Field(None, alias="reportDate")
+    test_name: Optional[str] = Field(None, alias="testName")
+    report: Optional[str] = None
+    severity: Optional[RadiologySeverity] = None
+    radiologist_information: Optional[str] = Field(None, alias="radiologistInformation")
+    critical_findings: Optional[str] = Field(None, alias="criticalFindings")
+    radiologist_comments: Optional[str] = Field(None, alias="radiologistComments")
+    physician_name: Optional[str] = Field(None, alias="physicianName")
+
+
 class RadiologyReportData(BaseModel):
-    document_type: Literal["radiology_report", "imaging_report"] = "radiology_report"
-    study_date: Optional[str] = None
-    modality: Optional[str] = None
-    body_part_examined: Optional[str] = None
-    ordering_provider: Optional[str] = None
-    findings: Optional[str] = None
-    impression: Optional[str] = None
+    model_config = ConfigDict(populate_by_name=True)
+
+    document_type: Literal["radiology_report", "imaging_report"] = Field(
+        "radiology_report", alias="documentType"
+    )
+    reports: List[RadiologyReportEntry] = Field(default_factory=list)
 
 
 class PrescriptionMedicationEntry(BaseModel):

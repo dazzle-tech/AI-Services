@@ -29,5 +29,13 @@ class FormattingService:
             extracted_fields = {}
 
         structured_data = format_document(document_type, extracted_fields, extracted_text)
-        structured_data["document_type"] = document_type.value
+        if document_type in (
+            DocumentType.LAB_RESULT,
+            DocumentType.RADIOLOGY_REPORT,
+            DocumentType.IMAGING_REPORT,
+        ):
+            structured_data["documentType"] = document_type.value
+            structured_data.pop("document_type", None)
+        else:
+            structured_data["document_type"] = document_type.value
         return document_type.value, structured_data

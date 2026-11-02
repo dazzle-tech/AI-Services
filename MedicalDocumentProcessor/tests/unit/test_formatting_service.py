@@ -32,9 +32,14 @@ class TestFormattingServiceLabResult:
         document_type, structured_data = service.format("lab text", DocumentType.LAB_RESULT)
 
         assert document_type == "lab_result"
-        assert structured_data["test_date"] == "2026-08-01"
-        assert structured_data["results"][0]["test_name"] == "WBC"
-        assert structured_data["results"][0]["flag"] == "high"
+        assert structured_data["documentType"] == "lab_result"
+        row = structured_data["results"][0]
+        assert row["testName"] == "WBC"
+        assert row["resultDate"] == "2026-08-01"
+        assert row["resultValue"] == "11.2"
+        assert row["normalRangeValue"] == "4.0 - 11.0"
+        assert row["marker"] == "UPPER_LIMIT"
+        assert row["physicianName"] == "Dr. Hassan"
 
 
 class TestFormattingServiceRadiology:
@@ -52,7 +57,16 @@ class TestFormattingServiceRadiology:
         document_type, structured_data = service.format("radiology text", DocumentType.RADIOLOGY_REPORT)
 
         assert document_type == "radiology_report"
-        assert structured_data["modality"] == "X-Ray"
+        report = structured_data["reports"][0]
+        assert structured_data["documentType"] == "radiology_report"
+        assert report["testName"] == "X-Ray Chest"
+        assert report["reportDate"] == "2026-07-20"
+        assert report["report"] == (
+            "<p><strong>Findings:</strong> No acute process.</p>"
+            "<p><strong>Impression:</strong> Normal.</p>"
+        )
+        assert report["severity"] is None
+        assert report["radiologistInformation"] is None
 
 
 class TestFormattingServicePrescription:
@@ -113,8 +127,10 @@ class TestFormattingServiceChosenType:
         document_type, structured_data = service.format("scan text", DocumentType.IMAGING_REPORT)
 
         assert document_type == "imaging_report"
-        assert structured_data["document_type"] == "imaging_report"
-        assert structured_data["modality"] == "MRI"
+        assert structured_data["documentType"] == "imaging_report"
+        assert "document_type" not in structured_data
+        assert structured_data["reports"][0]["testName"] == "MRI"
+        assert "Impression" in structured_data["reports"][0]["report"]
 
     def test_missing_extracted_fields_does_not_crash(self, service, ai_client_stub):
         ai_client_stub.extract_fields.return_value = {"document_type": "prescription"}
@@ -122,5 +138,5 @@ class TestFormattingServiceChosenType:
         document_type, structured_data = service.format("text", DocumentType.LAB_RESULT)
 
         assert document_type == "lab_result"
-        assert structured_data["document_type"] == "lab_result"
+        assert structured_data["documentType"] == "lab_result"
         assert structured_data["results"] == []

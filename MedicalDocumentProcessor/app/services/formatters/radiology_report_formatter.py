@@ -1,20 +1,103 @@
 """Formatter for radiology_report / imaging_report documents."""
 from __future__ import annotations
 
-from typing import Any, Dict
+import html
+from typing import Any, Dict, List, Optional
 
-from app.models.schemas import RadiologyReportData
+from app.models.schemas import RadiologyReportData, RadiologyReportEntry, RadiologySeverity
 from app.services.formatters.base import BaseDocumentFormatter
+
+_SEVERITIES = {"NOTHING", "MILD_MINOR", "MODERATE", "SEVERE", "CRITICAL"}
+_SEVERITY_SYNONYMS = {
+    "nothing": "NOTHING",
+    "none": "NOTHING",
+    "normal": "NOTHING",
+    "unremarkable": "NOTHING",
+    "mild": "MILD_MINOR",
+    "minor": "MILD_MINOR",
+    "mild_minor": "MILD_MINOR",
+    "moderate": "MODERATE",
+    "severe": "SEVERE",
+    "critical": "CRITICAL",
+}
 
 
 class RadiologyReportFormatter(BaseDocumentFormatter):
     def format(self, extracted_fields: Dict[str, Any], raw_text: str) -> Dict[str, Any]:
-        data = RadiologyReportData(
-            study_date=self._text(extracted_fields.get("study_date")),
-            modality=self._text(extracted_fields.get("modality")),
-            body_part_examined=self._text(extracted_fields.get("body_part_examined")),
-            ordering_provider=self._text(extracted_fields.get("ordering_provider")),
-            findings=self._text(extracted_fields.get("findings")),
-            impression=self._text(extracted_fields.get("impression")),
+        reports_raw = extracted_fields.get("reports")
+        sources: List[Dict[str, Any]]
+        if isinstance(reports_raw, list):
+            sources = [item for item in reports_raw if isinstance(item, dict)]
+        else:
+            sources = [extracted_fields]
+
+        reports = [self._entry(item) for item in sources]
+        reports = [entry for entry in reports if self._has_content(entry)]
+        data = RadiologyReportData(reports=reports)
+        return data.model_dump(by_alias=True)
+
+    def _entry(self, item: Dict[str, Any]) -> RadiologyReportEntry:
+        return RadiologyReportEntry(
+            report_date=self._first(item, "reportDate", "report_date", "study_date"),
+            test_name=self._test_name(item),
+            report=self._report_html(item),
+            severity=self._normalize_severity(self._first(item, "severity")),
+            radiologist_information=self._first(
+                item, "radiologistInformation", "radiologist_information", "radiologist"
+            ),
+            critical_findings=self._first(item, "criticalFindings", "critical_findings"),
+            radiologist_comments=self._first(item, "radiologistComments", "radiologist_comments"),
+            physician_name=self._first(
+                item, "physicianName", "physician_name", "ordering_provider"
+            ),
         )
-        return data.model_dump()
+
+    def _test_name(self, item: Dict[str, Any]) -> Optional[str]:
+        explicit = self._first(item, "testName", "test_name")
+        if explicit:
+            return explicit
+        modality = self._first(item, "modality")
+        body_part = self._first(item, "body_part_examined", "bodyPartExamined")
+        parts = [part for part in (modality, body_part) if part]
+        return " ".join(parts) or None
+
+    def _report_html(self, item: Dict[str, Any]) -> Optional[str]:
+        supplied = self._first(item, "report")
+        if supplied and "<p>" in supplied:
+            return supplied
+        findings = self._first(item, "findings")
+        impression = self._first(item, "impression")
+        paragraphs: List[str] = []
+        if findings:
+            paragraphs.append(f"<p><strong>Findings:</strong> {html.escape(findings)}</p>")
+        if impression:
+            paragraphs.append(f"<p><strong>Impression:</strong> {html.escape(impression)}</p>")
+        if paragraphs:
+            return "".join(paragraphs)
+        if supplied:
+            return f"<p>{html.escape(supplied)}</p>"
+        return None
+
+    def _normalize_severity(self, severity: Optional[str]) -> Optional[RadiologySeverity]:
+        if not severity:
+            return None
+        token = severity.strip().upper().replace(" ", "_").replace("-", "_")
+        if token in _SEVERITIES:
+            return token  # type: ignore[return-value]
+        mapped = _SEVERITY_SYNONYMS.get(severity.strip().lower().replace(" ", "_").replace("-", "_"))
+        return mapped  # type: ignore[return-value]
+
+    @staticmethod
+    def _has_content(entry: RadiologyReportEntry) -> bool:
+        return any(
+            (
+                entry.report_date,
+                entry.test_name,
+                entry.report,
+                entry.severity,
+                entry.radiologist_information,
+                entry.critical_findings,
+                entry.radiologist_comments,
+                entry.physician_name,
+            )
+        )
