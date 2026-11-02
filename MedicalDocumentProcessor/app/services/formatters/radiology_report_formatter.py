@@ -42,7 +42,7 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
         return RadiologyReportEntry(
             report_date=self._first(item, "reportDate", "report_date", "study_date"),
             test_name=self._test_name(item),
-            report=self._report_html(item),
+            report=self._report_html(item, raw_text),
             severity=self._normalize_severity(self._first(item, "severity")),
             radiologist_information=self._first(
                 item, "radiologistInformation", "radiologist_information", "radiologist"
@@ -116,19 +116,31 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
         parts = [part for part in (modality, body_part) if part]
         return " ".join(parts) or None
 
-    def _report_html(self, item: Dict[str, Any]) -> Optional[str]:
+    def _report_html(self, item: Dict[str, Any], raw_text: str) -> Optional[str]:
+        """Clinical narrative that has no field of its own. Names, recommendation, and critical findings stay in their fields."""
+        sections = (
+            ("Clinical History", ("clinical history", "clinical indication", "indication"), None),
+            ("Technique", ("technique",), None),
+            ("Comparison", ("comparison", "comparisons"), None),
+            ("Findings", ("findings",), "findings"),
+            ("Impression", ("impression", "conclusion"), "impression"),
+        )
+        fallbacks = {
+            "findings": ("findings",),
+            "impression": ("impression",),
+        }
+        paragraphs: List[str] = []
+        for title, labels, field_name in sections:
+            text = self._labeled(raw_text, labels)
+            if text is None and field_name:
+                text = self._first(item, *fallbacks[field_name])
+            if text:
+                paragraphs.append(f"<p><strong>{title}:</strong> {html.escape(text)}</p>")
+        if paragraphs:
+            return "".join(paragraphs)
         supplied = self._first(item, "report")
         if supplied and "<p>" in supplied:
             return supplied
-        findings = self._first(item, "findings")
-        impression = self._first(item, "impression")
-        paragraphs: List[str] = []
-        if findings:
-            paragraphs.append(f"<p><strong>Findings:</strong> {html.escape(findings)}</p>")
-        if impression:
-            paragraphs.append(f"<p><strong>Impression:</strong> {html.escape(impression)}</p>")
-        if paragraphs:
-            return "".join(paragraphs)
         if supplied:
             return f"<p>{html.escape(supplied)}</p>"
         return None

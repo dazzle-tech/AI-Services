@@ -127,6 +127,55 @@ Recommendation: Follow-up chest X-ray in 4-6 weeks after treatment to confirm re
             "Follow-up chest X-ray in 4-6 weeks after treatment to confirm resolution."
         )
         assert report["physicianName"] == "Dr. Lina Haddad"
+        assert "<strong>Findings:</strong>" in report["report"]
+        assert "<strong>Impression:</strong>" in report["report"]
+        assert "Recommendation" not in report["report"]
+        assert "Dr. Sami Khalil" not in report["report"]
+        assert "Dr. Lina Haddad" not in report["report"]
+
+    def test_report_html_includes_clinical_sections_without_patient_or_facility(self, service, ai_client_stub):
+        report_text = """RADIOLOGY REPORT
+Facility: Al Shifa Imaging Center
+Patient: Rawan Yahya
+Patient ID: 1001
+Sex: Female
+Date of Birth: 2004-03-02
+Clinical History:
+Low back pain radiating to the left leg for 3 months.
+Technique:
+Sagittal T1 and T2 images.
+Comparison:
+Lumbar spine X-ray dated 2026-08-14.
+Findings:
+Normal lumbar alignment.
+Impression:
+Mild degenerative disc changes.
+Recommendation:
+Clinical correlation if symptoms persist.
+"""
+        ai_client_stub.extract_fields.return_value = {
+            "extracted_fields": {
+                "reports": [
+                    {
+                        "findings": "short",
+                        "impression": "short",
+                        "report": "<p><strong>Findings:</strong> short</p>",
+                    }
+                ]
+            }
+        }
+
+        _, structured_data = service.format(report_text, DocumentType.RADIOLOGY_REPORT)
+        html_report = structured_data["reports"][0]["report"]
+        assert "Low back pain radiating to the left leg" in html_report
+        assert "Sagittal T1 and T2 images." in html_report
+        assert "Lumbar spine X-ray dated 2026-08-14." in html_report
+        assert "Normal lumbar alignment." in html_report
+        assert "Mild degenerative disc changes." in html_report
+        assert "Clinical correlation if symptoms persist." not in html_report
+        assert "Rawan Yahya" not in html_report
+        assert "Al Shifa" not in html_report
+        assert "1001" not in html_report
 
 
 class TestFormattingServicePrescription:
