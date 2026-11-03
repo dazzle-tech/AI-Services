@@ -68,7 +68,9 @@ class AIClient:
         recommendations = []
         
         recommendations_data = ai_response.get("recommendations", [])
-        
+        if not isinstance(recommendations_data, list):
+            return []
+
         for idx, rec_data in enumerate(recommendations_data):
             try:
                 # Generate recommendation ID if not provided

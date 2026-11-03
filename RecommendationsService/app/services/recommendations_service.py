@@ -99,7 +99,7 @@ class RecommendationsService:
             )
             
             # Step 2: Parse recommendations into structured objects
-            recommendations = self.ai_client.parse_recommendations(ai_response, patient_context_dict)
+            recommendations = self.ai_client.parse_recommendations(ai_response)
             
             logger.info(f"Generated {len(recommendations)} recommendations for request {request_id}")
             
@@ -174,9 +174,14 @@ class RecommendationsService:
         """Keep the summary a plain string, including when there are no recommendations."""
         if isinstance(summary, str) and summary.strip():
             return summary.strip()
-        text = self.ai_client._plain_text(summary)
-        if text:
-            return text
+        if isinstance(summary, dict):
+            for key in ("en", "text", "value"):
+                item = summary.get(key)
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
+            for item in summary.values():
+                if isinstance(item, str) and item.strip():
+                    return item.strip()
         return self._generate_summary(recommendations)
 
     def process_specialty_consultation(
@@ -230,7 +235,7 @@ class RecommendationsService:
             recommendation_types=rec_types,
             focus_areas=request.focus_areas,
         )
-        recommendations = self.ai_client.parse_recommendations(ai_response, patient_context_dict)
+        recommendations = self.ai_client.parse_recommendations(ai_response)
         priority_breakdown = self._calculate_priority_breakdown(recommendations)
         summary = self._summary_text(ai_response.get("summary"), recommendations)
         return RecommendationsResponse(
