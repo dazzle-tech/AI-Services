@@ -208,6 +208,34 @@ Advice: Urgent surgical consultation.
         assert "Communicated by phone" not in report["criticalFindings"]
         assert "Acute appendicitis with appendicolith" in report["report"]
 
+    def test_critical_findings_include_the_rest_of_the_report_except_the_phone_call(self, service, ai_client_stub):
+        report_text = """FINDINGS:
+The appendix is dilated (11 mm) with a 6 mm appendicolith.
+IMPRESSION:
+1. Acute appendicitis with appendicolith. No perforation.
+CRITICAL FINDINGS:
+Pneumoperitoneum.
+Communicated by phone to Dr. Omar Nasser at 14:10 on 2026-10-25.
+"""
+        ai_client_stub.extract_fields.return_value = {
+            "extracted_fields": {
+                "reports": [
+                    {
+                        "severity": "CRITICAL",
+                        "criticalFindings": (
+                            "Pneumoperitoneum. Communicated by phone to Dr. Omar Nasser "
+                            "at 14:10 on 2026-10-25."
+                        ),
+                    }
+                ]
+            }
+        }
+
+        _, structured_data = service.format(report_text, DocumentType.RADIOLOGY_REPORT)
+        critical = structured_data["reports"][0]["criticalFindings"]
+        assert critical == "Acute appendicitis with appendicolith. No perforation. Pneumoperitoneum."
+        assert "Communicated by phone" not in critical
+
 
 class TestFormattingServicePrescription:
     def test_classifies_and_formats_prescription(self, service, ai_client_stub):

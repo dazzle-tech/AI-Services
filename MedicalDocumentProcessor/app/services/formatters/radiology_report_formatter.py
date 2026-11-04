@@ -41,13 +41,39 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
     def _entry(self, item: Dict[str, Any], raw_text: str) -> RadiologyReportEntry:
         severity = self._normalize_severity(self._first(item, "severity"))
         impression = self._labeled(raw_text, ("impression", "conclusion")) or self._first(item, "impression")
-        critical_findings = self._first(item, "criticalFindings", "critical_findings")
-        # A critical-result line is only the phone notification. The finding is the impression.
-        if impression and (
-            severity == "CRITICAL"
-            or self._labeled(raw_text, ("critical result", "critical findings", "critical finding"))
-        ):
-            critical_findings = re.sub(r"^\d+\s*[\.\)\-]\s*", "", impression).strip() or impression
+        critical_section = self._labeled(
+            raw_text, ("critical findings", "critical finding", "critical result")
+        )
+        supplied = self._first(item, "criticalFindings", "critical_findings")
+        chunks: List[str] = []
+        if impression and (severity == "CRITICAL" or critical_section):
+            chunks.append(impression)
+        if critical_section:
+            chunks.append(critical_section)
+        if supplied:
+            chunks.append(supplied)
+        kept: List[str] = []
+        for chunk in chunks:
+            for sentence in re.split(r"(?<=[.!?])(?<!Dr\.)(?<!Mr\.)(?<!Ms\.)\s+|\n+", chunk):
+                sentence = re.sub(r"^\d+\s*[\.\)\-]\s*", "", sentence).strip(" \t-*•")
+                if not sentence or re.search(
+                    r"\b(?:communicated|notified|by phone|via phone|telephoned)\b", sentence, re.IGNORECASE
+                ):
+                    continue
+                folded = sentence.lower().rstrip(".")
+                skip = False
+                for index, existing in enumerate(kept):
+                    existing_folded = existing.lower().rstrip(".")
+                    if folded == existing_folded or folded in existing_folded:
+                        skip = True
+                        break
+                    if existing_folded in folded:
+                        kept[index] = sentence
+                        skip = True
+                        break
+                if not skip:
+                    kept.append(sentence)
+        critical_findings = " ".join(kept) or None
 
         return RadiologyReportEntry(
             report_date=self._first(item, "reportDate", "report_date", "study_date"),
