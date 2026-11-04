@@ -28,7 +28,13 @@ def build_validation_prompt(
             "date_of_birth": "string|null -- ISO date found in the document, if any",
             "patient_id": "string|null -- patient/MRN identifier found in the document, if any",
         },
-        "mismatches": ["string -- one entry per specific contradiction found"],
+        "mismatches": [
+            {
+                "field": "full_name|sex|date_of_birth|patient_id",
+                "patient_record_value": "string|null -- value on the patient record",
+                "document_value": "string|null -- conflicting value found in the document",
+            }
+        ],
         "reason": "string|null -- short human-readable summary, required when is_valid is false",
     }
 
@@ -43,7 +49,8 @@ birth clearly differs from the record's; or the name is clearly a different pers
 
 Do NOT flag a mismatch merely because a signal is absent from the document -- absence of
 information is not a contradiction. Be conservative: only report mismatches you are confident
-about, and always state the concrete conflicting values in "mismatches".
+about. Each entry in "mismatches" must be an object with "field", "patient_record_value",
+and "document_value" (the two concrete conflicting values). Do not return mismatch strings.
 
 Return STRICT JSON only. No markdown, no code fences, no extra text before or after the JSON
 object. The output must be one JSON object with this exact top-level structure:

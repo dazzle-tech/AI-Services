@@ -77,7 +77,9 @@ class DocumentProcessorService:
                 metadata={
                     "stage": "patient_validation",
                     "detected_format": extraction.detected_format,
-                    "mismatches": validation.mismatches,
+                    "mismatch_details": [
+                        detail.model_dump() for detail in validation.mismatch_details
+                    ],
                     "extracted_patient_signals": validation.extracted_patient_signals,
                 },
             )

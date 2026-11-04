@@ -79,10 +79,19 @@ class DocumentType(str, Enum):
 # ---------------------------------------------------------------------------
 # Pipeline step outcomes (internal, also useful for unit testing each step)
 # ---------------------------------------------------------------------------
+class MismatchDetail(BaseModel):
+    """One patient-record contradiction, shaped for a table row."""
+
+    field: str
+    patient_record_value: Optional[str] = None
+    document_value: Optional[str] = None
+
+
 class ValidationOutcome(BaseModel):
     is_valid: bool
     reason: Optional[str] = None
     mismatches: List[str] = Field(default_factory=list)
+    mismatch_details: List[MismatchDetail] = Field(default_factory=list)
     extracted_patient_signals: Dict[str, Optional[str]] = Field(default_factory=dict)
 
 

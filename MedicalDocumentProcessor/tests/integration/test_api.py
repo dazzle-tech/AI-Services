@@ -82,6 +82,13 @@ class TestScenarioInvalidPatientMatch:
         assert "sex" in data["reason"].lower()
         assert data["structured_data"] is None
         assert data["raw_extracted_text"]  # traceability text always present
+        assert data["processing_metadata"]["mismatch_details"] == [
+            {
+                "field": "sex",
+                "patient_record_value": "female",
+                "document_value": "male",
+            }
+        ]
 
 
 class TestScenarioIrrelevantOldDocument:

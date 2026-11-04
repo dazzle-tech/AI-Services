@@ -49,6 +49,13 @@ class TestValidationService:
 
         assert outcome.is_valid is False
         assert "Someone Else" in outcome.reason
+        assert [item.model_dump() for item in outcome.mismatch_details] == [
+            {
+                "field": "full_name",
+                "patient_record_value": "Jane Doe",
+                "document_value": "Someone Else",
+            }
+        ]
 
     def test_deterministic_sex_mismatch_overrides_llm_valid_flag(self, service, ai_client_stub):
         # LLM incorrectly says valid, but the document clearly states a different sex.
@@ -65,6 +72,11 @@ class TestValidationService:
 
         assert outcome.is_valid is False
         assert any("sex" in m.lower() for m in outcome.mismatches)
+        assert outcome.mismatch_details[0].model_dump() == {
+            "field": "sex",
+            "patient_record_value": "female",
+            "document_value": "male",
+        }
 
     def test_deterministic_dob_mismatch_overrides_llm_valid_flag(self, service, ai_client_stub):
         ai_client_stub.validate_patient_match.return_value = {
@@ -80,6 +92,11 @@ class TestValidationService:
 
         assert outcome.is_valid is False
         assert any("date of birth" in m.lower() for m in outcome.mismatches)
+        assert outcome.mismatch_details[0].model_dump() == {
+            "field": "date_of_birth",
+            "patient_record_value": "1980-05-14",
+            "document_value": "1999-01-01",
+        }
 
     def test_model_and_guardrail_report_each_field_once(self, service, ai_client_stub):
         ai_client_stub.validate_patient_match.return_value = {
@@ -103,6 +120,18 @@ class TestValidationService:
         assert len(outcome.mismatches) == 2
         assert sum("patient" in item.lower() and "1000" in item for item in outcome.mismatches) == 1
         assert sum("2026-07-27" in item for item in outcome.mismatches) == 1
+        assert [item.model_dump() for item in outcome.mismatch_details] == [
+            {
+                "field": "date_of_birth",
+                "patient_record_value": "2004-03-02",
+                "document_value": "2026-07-27",
+            },
+            {
+                "field": "patient_id",
+                "patient_record_value": "1001",
+                "document_value": "1000",
+            },
+        ]
 
     def test_matching_male_patient_with_male_signals_is_valid(self, service, ai_client_stub):
         ai_client_stub.validate_patient_match.return_value = {
@@ -130,3 +159,28 @@ class TestValidationService:
 
         assert outcome.is_valid is True
         assert outcome.mismatches == []
+        assert outcome.mismatch_details == []
+
+    def test_structured_llm_mismatch_is_kept_as_a_table_row(self, service, ai_client_stub):
+        ai_client_stub.validate_patient_match.return_value = {
+            "is_valid": False,
+            "extracted_patient_signals": {
+                "full_name": "Someone Else", "sex": None, "date_of_birth": None, "patient_id": None,
+            },
+            "mismatches": [
+                {
+                    "field": "full_name",
+                    "patient_record_value": "Jane Doe",
+                    "document_value": "Someone Else",
+                }
+            ],
+            "reason": "Name mismatch",
+        }
+
+        outcome = service.validate(SAMPLE_PATIENT, "text about Someone Else")
+
+        assert outcome.mismatch_details[0].model_dump() == {
+            "field": "full_name",
+            "patient_record_value": "Jane Doe",
+            "document_value": "Someone Else",
+        }
