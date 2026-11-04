@@ -27,7 +27,9 @@ FastAPI service that combines:
 
 - `POST /api/v1/extract-and-parse`
   - Input: image file
-  - Output: OCR lines + parsed structured data
+  - Output: OCR lines, parsed structured data, and a position for each structured field
+
+`field_positions` uses the same box as `lines`: `{x, y, w, h}` from 0 to 1, origin top-left, on the upright image. Draw with `left = x * 100%`, `top = y * 100%`, `width = w * 100%`, `height = h * 100%`. Draw a field only when its `box_valid` is true. `line_indices` point at `lines` and `text_lines`. A box can cover the printed label and the value. A missing or unmatched value has `box: null` and `box_valid: false`.
 
 - `GET /api/v1/health`
   - Basic health check

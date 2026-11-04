@@ -19,13 +19,16 @@ except ImportError:  # pragma: no cover
         pass
 
 from app.ai.client import OCRUnavailable
+from app.core.config import settings
 from app.models.schemas import (
     ExtractAndParseResponse,
     ExtractTextResponse,
     IdentityExtractResponse,
+    ImageInfo,
     ParseTextRequest,
     ParseTextResponse,
 )
+from app.services.field_positions import lines_out, locate_field_positions
 from app.services.identity_service import IdentityService
 from app.services.ocr_service import OCRService
 from app.services.parsing_service import ParsingService
@@ -112,10 +115,21 @@ async def extract_and_parse(file: UploadFile = File(...)) -> ExtractAndParseResp
         extraction = ocr_service.extract(image_bytes)
         raw_text = "\n".join(extraction.text_lines)
         structured_data = parsing_service.parse_text(raw_text)
+        include_boxes = settings.ocr_return_boxes
         return ExtractAndParseResponse(
             text_lines=extraction.text_lines,
             structured_data=structured_data,
             model=parsing_service.model,
+            lines=lines_out(extraction.lines) if include_boxes else [],
+            field_positions=locate_field_positions(
+                structured_data,
+                extraction.lines,
+                include_boxes=include_boxes,
+            ),
+            image=ImageInfo(
+                original_width_px=extraction.original_width_px,
+                original_height_px=extraction.original_height_px,
+            ),
         )
     except ValueError:
         logger.error("Extract-and-parse failed type=ValueError")
