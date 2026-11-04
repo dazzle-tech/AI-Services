@@ -208,7 +208,9 @@ _EXTRACTION_FIELDS = {
         "severity must be exactly one of NOTHING, MILD_MINOR, MODERATE, SEVERE, CRITICAL, "
         "or null when it cannot be determined. radiologistInformation is the reporting "
         "radiologist, not the referring physician. physicianName is the referring or ordering physician. radiologistComments is the recommendation "
-        "or radiologist comment. Use null only when that text is absent"
+        "or radiologist comment. criticalFindings is the impression text when the study is critical; "
+        "never the sentence that only records that the result was communicated. Use null when the study is not critical "
+        "and when a named field's text is absent"
     ),
     "imaging_report": (
         "reports (array of {reportDate, testName, findings, impression, severity, "
@@ -216,7 +218,9 @@ _EXTRACTION_FIELDS = {
         "severity must be exactly one of NOTHING, MILD_MINOR, MODERATE, SEVERE, CRITICAL, "
         "or null when it cannot be determined. radiologistInformation is the reporting "
         "radiologist, not the referring physician. physicianName is the referring or ordering physician. radiologistComments is the recommendation "
-        "or radiologist comment. Use null only when that text is absent"
+        "or radiologist comment. criticalFindings is the impression text when the study is critical; "
+        "never the sentence that only records that the result was communicated. Use null when the study is not critical "
+        "and when a named field's text is absent"
     ),
     "prescription": (
         "prescription_date, prescribing_provider, medications (array of {name, dosage, "

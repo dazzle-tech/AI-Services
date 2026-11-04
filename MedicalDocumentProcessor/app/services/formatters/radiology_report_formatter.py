@@ -39,11 +39,21 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
         return data.model_dump(by_alias=True)
 
     def _entry(self, item: Dict[str, Any], raw_text: str) -> RadiologyReportEntry:
+        severity = self._normalize_severity(self._first(item, "severity"))
+        impression = self._labeled(raw_text, ("impression", "conclusion")) or self._first(item, "impression")
+        critical_findings = self._first(item, "criticalFindings", "critical_findings")
+        # A critical-result line is only the phone notification. The finding is the impression.
+        if impression and (
+            severity == "CRITICAL"
+            or self._labeled(raw_text, ("critical result", "critical findings", "critical finding"))
+        ):
+            critical_findings = re.sub(r"^\d+\s*[\.\)\-]\s*", "", impression).strip() or impression
+
         return RadiologyReportEntry(
             report_date=self._first(item, "reportDate", "report_date", "study_date"),
             test_name=self._test_name(item),
             report=self._report_html(item, raw_text),
-            severity=self._normalize_severity(self._first(item, "severity")),
+            severity=severity,
             radiologist_information=self._first(
                 item, "radiologistInformation", "radiologist_information", "radiologist"
             )
@@ -51,7 +61,7 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
                 raw_text,
                 ("reporting radiologist", "radiologist", "interpreted by", "read by"),
             ),
-            critical_findings=self._first(item, "criticalFindings", "critical_findings"),
+            critical_findings=critical_findings,
             radiologist_comments=self._first(
                 item, "radiologistComments", "radiologist_comments", "recommendation", "recommendations"
             )
@@ -62,6 +72,7 @@ class RadiologyReportFormatter(BaseDocumentFormatter):
                     "radiologist comment",
                     "recommendation",
                     "recommendations",
+                    "advice",
                     "comments",
                     "comment",
                 ),

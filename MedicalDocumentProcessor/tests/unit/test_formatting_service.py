@@ -127,6 +127,7 @@ Recommendation: Follow-up chest X-ray in 4-6 weeks after treatment to confirm re
             "Follow-up chest X-ray in 4-6 weeks after treatment to confirm resolution."
         )
         assert report["physicianName"] == "Dr. Lina Haddad"
+        assert report["criticalFindings"] is None
         assert "<strong>Findings:</strong>" in report["report"]
         assert "<strong>Impression:</strong>" in report["report"]
         assert "Recommendation" not in report["report"]
@@ -176,6 +177,36 @@ Clinical correlation if symptoms persist.
         assert "Rawan Yahya" not in html_report
         assert "Al Shifa" not in html_report
         assert "1001" not in html_report
+
+    def test_critical_finding_is_the_impression_not_the_phone_notification(self, service, ai_client_stub):
+        report_text = """FINDINGS:
+The appendix is dilated (11 mm) with periappendiceal fat stranding and a 6 mm appendicolith.
+IMPRESSION:
+1. Acute appendicitis with appendicolith. No perforation.
+CRITICAL RESULT: Communicated by phone to Dr. Omar Nasser at 14:10 on 2026-10-25.
+Advice: Urgent surgical consultation.
+"""
+        ai_client_stub.extract_fields.return_value = {
+            "extracted_fields": {
+                "reports": [
+                    {
+                        "reportDate": "2026-10-25",
+                        "testName": "CT Abdomen and Pelvis with contrast",
+                        "severity": "CRITICAL",
+                        "criticalFindings": "Communicated by phone to Dr. Omar Nasser at 14:10 on 2026-10-25.",
+                        "radiologistComments": "Urgent surgical consultation.",
+                        "physicianName": "Dr. Omar Nasser",
+                        "radiologistInformation": "Dr. Hala Mansour, MD, FRCR - Consultant Radiologist",
+                    }
+                ]
+            }
+        }
+
+        _, structured_data = service.format(report_text, DocumentType.RADIOLOGY_REPORT)
+        report = structured_data["reports"][0]
+        assert report["criticalFindings"] == "Acute appendicitis with appendicolith. No perforation."
+        assert "Communicated by phone" not in report["criticalFindings"]
+        assert "Acute appendicitis with appendicolith" in report["report"]
 
 
 class TestFormattingServicePrescription:
