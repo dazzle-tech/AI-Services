@@ -226,3 +226,5 @@ Integration tests cover: (a) invalid patient match, (b) irrelevant/outdated docu
 This is an AI-powered intake support tool. All output should be reviewed by qualified
 healthcare professionals. AI systems can make errors -- always verify accuracy before
 clinical use.
+
+medical-document-processor
