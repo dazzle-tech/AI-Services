@@ -44,21 +44,10 @@ class ParseTextResponse(BaseModel):
     model: str = Field(..., description="Model used for parsing")
 
 
-class FieldPosition(BaseModel):
-    """Where a structured field was printed. box is the union of its source lines."""
-
-    line_indices: list[int] = Field(default_factory=list)
-    box: Box | None = None
-    box_valid: bool = False
-
-
 class ExtractAndParseResponse(BaseModel):
     text_lines: list[str] = Field(default_factory=list, description="OCR extracted text lines")
     structured_data: dict[str, Any] = Field(..., description="Parsed structured JSON data")
     model: str = Field(..., description="Model used for parsing")
-    lines: list[OCRLineOut] = Field(default_factory=list)
-    field_positions: dict[str, FieldPosition] = Field(default_factory=dict)
-    image: ImageInfo | None = None
 
 
 class OCRQuality(BaseModel):
@@ -135,6 +124,3 @@ class IdentityExtractResponse(BaseModel):
     mrz_present: bool = Field(default=False)
     mrz_valid: bool | None = Field(default=None, description="MRZ check-digit validation result when MRZ present")
     text_lines: list[str] = Field(default_factory=list, description="OCR extracted text lines (for debugging/audit)")
-    lines: list[OCRLineOut] = Field(default_factory=list)
-    field_sources: dict[str, FieldSource] = Field(default_factory=dict)
-    image: ImageInfo | None = None

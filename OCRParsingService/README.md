@@ -27,41 +27,14 @@ FastAPI service that combines:
 
 - `POST /api/v1/extract-and-parse`
   - Input: image file
-  - Output: OCR lines, parsed structured data, and a position for each structured field
-
-`field_positions` uses the same box as `lines`: `{x, y, w, h}` from 0 to 1, origin top-left, on the upright image. Draw with `left = x * 100%`, `top = y * 100%`, `width = w * 100%`, `height = h * 100%`. Draw a field only when its `box_valid` is true. `line_indices` point at `lines` and `text_lines`. A box can cover the printed label and the value. A missing or unmatched value has `box: null` and `box_valid: false`.
+  - Output: OCR `text_lines`, parsed `structured_data`, and the model name
 
 - `GET /api/v1/health`
   - Basic health check
 
 - `POST /api/v1/identity/extract`
   - Input: image file (multipart form-data, field name: `file`), optional `strict_quality` (default `true`)
-  - Output: identity fields, OCR quality, validation, and the position data below
-
-## Positions and field sources
-
-`POST /api/v1/identity/extract` adds `lines`, `field_sources`, and `image` on top of the existing identity payload. Older clients can ignore them.
-
-Coordinates are normalized from 0 to 1, origin at the top-left, relative to the upright image after EXIF orientation is applied. The vision model returns each box. Phone photos are rotated to the same upright view the browser shows before any box is measured. `image.original_width_px` and `image.original_height_px` are that upright size. `quality.image_width_px` and `quality.image_height_px` are the same upright size. Confidence values are reported by the vision model.
-
-To draw a box over the upright image:
-
-- `left = x * 100%`
-- `top = y * 100%`
-- `width = w * 100%`
-- `height = h * 100%`
-
-`lines` is in the same order as `text_lines`. `lines[i].text` is `text_lines[i]`, and `lines[i].box` is the detected chunk. A box can include the printed label on that chunk, not only the value.
-
-`field_sources` maps `full_name`, `date_of_birth`, `gender`, `nationality`, and `document_number` to:
-
-- `line_indices`: indexes into `lines` / `text_lines`
-- `source_kind`: `visual` (printed labels), `mrz` (the MRZ block; every MRZ line that was parsed), or `llm`
-- `confidence`: the lowest model-reported confidence among those lines, when known
-- `level`: `high` (>= 0.90), `medium` (>= 0.70), or `low`. A valid MRZ check digit can mark document number and date of birth `high`. An uncertain line, or a printed value that disagrees with the MRZ, sets `low`.
-- `box_valid`: true only when every source line has a drawable box. A line with `box_valid` false has a zero box and must not be drawn. `uncertain` is true when a character was hard to read.
-
-LLM-filled fields have `line_indices: []`, `box_valid: false`, and no box. Set `OCR_RETURN_BOXES=false` to keep the old fields and return `lines: []`.
+  - Output: identity fields, OCR quality, validation, and the recognized text lines
 
 ## Data handling
 
@@ -100,72 +73,7 @@ The uploaded image is rotated upright, converted to pixels, and re-encoded as a 
     "Sex: F",
     "Nationality: CAN",
     "Passport No: AB123456"
-  ],
-  "lines": [
-    {
-      "index": 0,
-      "text": "Name: JANE DOE",
-      "confidence": 0.93,
-      "box": { "x": 0.08, "y": 0.12, "w": 0.4, "h": 0.05 }
-    },
-    {
-      "index": 1,
-      "text": "Date of Birth: 02/03/1990",
-      "confidence": 0.91,
-      "box": { "x": 0.08, "y": 0.2, "w": 0.55, "h": 0.05 }
-    },
-    {
-      "index": 2,
-      "text": "Sex: F",
-      "confidence": 0.9,
-      "box": { "x": 0.08, "y": 0.28, "w": 0.2, "h": 0.05 }
-    },
-    {
-      "index": 3,
-      "text": "Nationality: CAN",
-      "confidence": 0.92,
-      "box": { "x": 0.08, "y": 0.36, "w": 0.45, "h": 0.05 }
-    },
-    {
-      "index": 4,
-      "text": "Passport No: AB123456",
-      "confidence": 0.94,
-      "box": { "x": 0.08, "y": 0.44, "w": 0.5, "h": 0.05 }
-    }
-  ],
-  "field_sources": {
-    "full_name": {
-      "line_indices": [0],
-      "source_kind": "visual",
-      "confidence": 0.93,
-      "level": "high"
-    },
-    "date_of_birth": {
-      "line_indices": [1],
-      "source_kind": "visual",
-      "confidence": 0.91,
-      "level": "high"
-    },
-    "gender": {
-      "line_indices": [2],
-      "source_kind": "visual",
-      "confidence": 0.9,
-      "level": "high"
-    },
-    "nationality": {
-      "line_indices": [3],
-      "source_kind": "visual",
-      "confidence": 0.92,
-      "level": "high"
-    },
-    "document_number": {
-      "line_indices": [4],
-      "source_kind": "visual",
-      "confidence": 0.94,
-      "level": "high"
-    }
-  },
-  "image": { "original_width_px": 800, "original_height_px": 700 }
+  ]
 }
 ```
 

@@ -56,7 +56,7 @@ def _post(monkeypatch, return_boxes: bool) -> dict:
     monkeypatch.setattr(settings, "identity_llm_fallback_enabled", False)
     from app.api import routes
 
-    routes.identity_service.ocr.extract = lambda _image_bytes: _extraction()  # type: ignore[method-assign]
+    monkeypatch.setattr(routes.identity_service.ocr, "extract", lambda _image_bytes: _extraction())
     response = client.post(
         "/api/v1/identity/extract",
         files={"file": ("id.png", _png_bytes(), "image/png")},
@@ -65,37 +65,12 @@ def _post(monkeypatch, return_boxes: bool) -> dict:
     return response.json()
 
 
-def test_identity_response_includes_boxes_and_sources(monkeypatch) -> None:
+def test_identity_response_omits_positions(monkeypatch) -> None:
     body = _post(monkeypatch, True)
     assert body["text_lines"] == _LINES
-    assert [line["text"] for line in body["lines"]] == body["text_lines"]
-    for index, line in enumerate(body["lines"]):
-        assert line["index"] == index
-        box = line["box"]
-        assert set(box) == {"x", "y", "w", "h"}
-        assert all(0.0 <= box[key] <= 1.0 for key in box)
-    assert body["image"] == {"original_width_px": 800, "original_height_px": 700}
-    full_name = body["field_sources"]["full_name"]
-    assert full_name["line_indices"] == [0]
-    assert full_name["source_kind"] == "visual"
-    assert full_name["confidence"] == 0.93
-    assert full_name["level"] == "high"
-    assert set(body["field_sources"]) == {
-        "full_name",
-        "date_of_birth",
-        "gender",
-        "nationality",
-        "document_number",
-    }
+    for key in ("lines", "field_sources", "image"):
+        assert key not in body
     assert body["identity"]["full_name"] == "Jane Doe"
     assert body["identity"]["document_number"] == "AB123456"
     assert "quality" in body and "validation" in body
     assert "mrz_present" in body and "mrz_valid" in body
-
-
-def test_boxes_can_be_omitted_without_changing_existing_fields(monkeypatch) -> None:
-    with_boxes = _post(monkeypatch, True)
-    without_boxes = _post(monkeypatch, False)
-    assert without_boxes["lines"] == []
-    for key in ("identity", "quality", "validation", "mrz_present", "mrz_valid", "text_lines"):
-        assert without_boxes[key] == with_boxes[key]
