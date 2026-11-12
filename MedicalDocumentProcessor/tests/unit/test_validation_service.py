@@ -117,21 +117,46 @@ class TestValidationService:
 
         outcome = service.validate(patient, "lab report")
 
-        assert len(outcome.mismatches) == 2
-        assert sum("patient" in item.lower() and "1000" in item for item in outcome.mismatches) == 1
+        assert len(outcome.mismatches) == 1
+        assert outcome.is_valid is False
         assert sum("2026-07-27" in item for item in outcome.mismatches) == 1
+        assert all("1000" not in item and "1001" not in item for item in outcome.mismatches)
         assert [item.model_dump() for item in outcome.mismatch_details] == [
             {
                 "field": "date_of_birth",
                 "patient_record_value": "2004-03-02",
                 "document_value": "2026-07-27",
             },
-            {
-                "field": "patient_id",
-                "patient_record_value": "1001",
-                "document_value": "1000",
-            },
         ]
+
+    def test_different_facility_id_is_not_a_mismatch(self, service, ai_client_stub):
+        ai_client_stub.validate_patient_match.return_value = {
+            "is_valid": False,
+            "extracted_patient_signals": {
+                "full_name": "Jane Doe",
+                "sex": "female",
+                "date_of_birth": "1980-05-14",
+                "patient_id": "EXT-55",
+            },
+            "mismatches": [
+                {
+                    "field": "patient_id",
+                    "patient_record_value": "P-1001",
+                    "document_value": "EXT-55",
+                }
+            ],
+            "reason": "MRN on the document does not match the patient record",
+        }
+
+        outcome = service.validate(SAMPLE_PATIENT, "outside-facility lab report")
+
+        sent_record = ai_client_stub.validate_patient_match.call_args.args[0]
+        assert "patient_id" not in sent_record
+        assert outcome.is_valid is True
+        assert outcome.reason is None
+        assert outcome.mismatches == []
+        assert outcome.mismatch_details == []
+        assert outcome.extracted_patient_signals["patient_id"] == "EXT-55"
 
     def test_matching_male_patient_with_male_signals_is_valid(self, service, ai_client_stub):
         ai_client_stub.validate_patient_match.return_value = {

@@ -30,7 +30,7 @@ def build_validation_prompt(
         },
         "mismatches": [
             {
-                "field": "full_name|sex|date_of_birth|patient_id",
+                "field": "full_name|sex|date_of_birth",
                 "patient_record_value": "string|null -- value on the patient record",
                 "document_value": "string|null -- conflicting value found in the document",
             }
@@ -42,10 +42,18 @@ def build_validation_prompt(
 whether a medical document appears to belong to the patient it was uploaded for.
 
 Extract any patient-identifying signals present in the document text (full name, sex/gender,
-date of birth, patient ID/MRN -- whatever is present) and compare them against the given
-patient record. Flag a mismatch ONLY when there is a clear, specific contradiction (e.g. the
-document states the patient is male but the record says female; or the document's date of
-birth clearly differs from the record's; or the name is clearly a different person).
+date of birth, and a patient ID/MRN if one is printed). Compare ONLY the signals that stay
+the same no matter which facility produced the document: full name, sex/gender, and date of
+birth. Flag a mismatch ONLY when there is a clear, specific contradiction on one of those
+(e.g. the document states the patient is male but the record says female; or the document's
+date of birth clearly differs from the record's; or the name is clearly a different person).
+
+Do NOT compare or flag patient ID, MRN, medical record number, chart number, account number,
+or any other facility-assigned identifier. Those values can differ when the document was
+created somewhere other than the facility where the patient is currently admitted. A
+different identifier is never a mismatch. You may still copy an identifier you find into
+"extracted_patient_signals.patient_id", but never put it in "mismatches" and never set
+is_valid to false because of it.
 
 Do NOT flag a mismatch merely because a signal is absent from the document -- absence of
 information is not a contradiction. Be conservative: only report mismatches you are confident

@@ -49,17 +49,23 @@ _FIELD_LABELS = {
 
 
 class ValidationService:
-    """Cross-checks patient-identifying signals extracted from the document against
-    the given patient record. Combines the LLM's judgment with deterministic
-    guardrails so a clear sex/DOB contradiction can never be waved through."""
+    """Cross-checks stable patient-identifying signals extracted from the document
+    against the given patient record. Combines the LLM's judgment with deterministic
+    guardrails so a clear sex or date-of-birth contradiction can never be waved through.
+
+    Facility-assigned identifiers (patient ID, MRN, chart number) are not compared:
+    the same person can carry a different ID when the document was produced somewhere
+    other than the facility where they are currently admitted.
+    """
 
     def __init__(self, ai_client: AIClient) -> None:
         self.ai_client = ai_client
 
     def validate(self, patient: PatientInfo, extracted_text: str) -> ValidationOutcome:
-        raw = self.ai_client.validate_patient_match(
-            patient.model_dump(exclude_none=True), extracted_text
-        )
+        # Keep the facility ID out of the comparison payload so the model cannot
+        # treat a different MRN as a contradiction.
+        record = patient.model_dump(exclude_none=True, exclude={"patient_id"})
+        raw = self.ai_client.validate_patient_match(record, extracted_text)
         return self._normalize(raw, patient)
 
     def _normalize(self, raw: Dict[str, Any], patient: PatientInfo) -> ValidationOutcome:
@@ -76,24 +82,36 @@ class ValidationService:
                 if isinstance(value, str) and value.strip():
                     signals[key] = value.strip()
 
-        # Deterministic guardrails: a clear, structured sex, DOB, or patient-id
-        # contradiction always forces INVALID, regardless of the model's is_valid flag.
+        # Deterministic guardrails: a clear, structured sex or DOB contradiction
+        # always forces INVALID, regardless of the model's is_valid flag.
         # The model often reports the same contradiction in its own words, so keep one
-        # row per field and prefer the guardrail values.
+        # row per field and prefer the guardrail values. Patient ID / MRN differences
+        # are dropped: they are facility-specific and are not identity.
         deterministic = self._deterministic_checks(patient, signals)
         covered_fields = {item.field for item in deterministic}
 
         details: List[MismatchDetail] = []
         seen_fields = set(covered_fields)
+        dropped_identifier_mismatch = False
         for item in self._raw_mismatch_items(raw.get("mismatches")):
             detail = self._coerce_mismatch(item, patient, signals)
             if detail is None or detail.field in seen_fields:
+                continue
+            if detail.field == "patient_id":
+                dropped_identifier_mismatch = True
                 continue
             seen_fields.add(detail.field)
             details.append(detail)
         details.extend(deterministic)
 
-        is_valid = bool(raw.get("is_valid", True)) and not deterministic
+        # An "invalid" verdict that rested only on a facility identifier is not a
+        # patient mismatch. Any remaining stable-field contradiction still fails.
+        reason_text = self._text(raw.get("reason"))
+        identifier_only = (
+            not details
+            and (dropped_identifier_mismatch or self._reason_is_identifier_only(reason_text))
+        )
+        is_valid = (bool(raw.get("is_valid", True)) or identifier_only) and not deterministic
         messages = [self._message(item) for item in details]
         if messages and not is_valid:
             reason = "; ".join(messages)
@@ -139,16 +157,6 @@ class ValidationService:
                     )
             except ValueError:
                 pass  # Unparseable doc DOB -- leave to the LLM's own judgment.
-
-        doc_patient_id = signals.get("patient_id")
-        if patient.patient_id and doc_patient_id and doc_patient_id.strip() != patient.patient_id.strip():
-            mismatches.append(
-                MismatchDetail(
-                    field="patient_id",
-                    patient_record_value=patient.patient_id.strip(),
-                    document_value=doc_patient_id.strip(),
-                )
-            )
 
         return mismatches
 
@@ -216,9 +224,32 @@ class ValidationService:
         return _FIELD_ALIASES.get(normalized)
 
     @staticmethod
+    def _reason_is_identifier_only(reason: Optional[str]) -> bool:
+        """True when a free-text reason cites a facility ID and no stable identity field."""
+        if not reason:
+            return False
+        if ValidationService._mismatch_field(reason) != "patient_id":
+            return False
+        lowered = reason.lower()
+        return not any(
+            token in lowered
+            for token in ("name", "sex", "gender", "date of birth", "birth date", "dob")
+        )
+
+    @staticmethod
     def _mismatch_field(text: str) -> Optional[str]:
         lowered = text.lower().replace("_", " ").replace("-", " ")
-        if "patient id" in lowered or "mrn" in lowered:
+        if any(
+            marker in lowered
+            for marker in (
+                "patient id",
+                "patientid",
+                "mrn",
+                "medical record number",
+                "chart number",
+                "account number",
+            )
+        ):
             return "patient_id"
         if "date of birth" in lowered or "birth date" in lowered or " dob " in f" {lowered} ":
             return "date_of_birth"
