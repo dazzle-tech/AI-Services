@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import re
+import unicodedata
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -26,6 +27,10 @@ _FIELD_ALIASES = {
     "name": "full_name",
     "full name": "full_name",
     "patient name": "full_name",
+}
+
+_NAME_NOISE = {
+    "mr", "mrs", "ms", "miss", "dr", "prof", "jr", "sr", "ii", "iii", "iv", "md", "phd",
 }
 
 _KNOWN_FIELDS = {"full_name", "sex", "date_of_birth", "patient_id"}
@@ -93,12 +98,19 @@ class ValidationService:
         details: List[MismatchDetail] = []
         seen_fields = set(covered_fields)
         dropped_identifier_mismatch = False
+        dropped_name_mismatch = False
         for item in self._raw_mismatch_items(raw.get("mismatches")):
             detail = self._coerce_mismatch(item, patient, signals)
             if detail is None or detail.field in seen_fields:
                 continue
             if detail.field == "patient_id":
                 dropped_identifier_mismatch = True
+                continue
+            if detail.field == "full_name" and self._names_equivalent(
+                patient.full_name, detail.document_value, signals.get("full_name")
+            ):
+                # Same first and last name; a middle name / initial difference is fine.
+                dropped_name_mismatch = True
                 continue
             seen_fields.add(detail.field)
             details.append(detail)
@@ -107,11 +119,18 @@ class ValidationService:
         # An "invalid" verdict that rested only on a facility identifier is not a
         # patient mismatch. Any remaining stable-field contradiction still fails.
         reason_text = self._text(raw.get("reason"))
+        name_equivalent = self._names_equivalent(patient.full_name, signals.get("full_name"))
+        name_only = not details and (
+            dropped_name_mismatch
+            or (name_equivalent and self._mismatch_field(reason_text or "") == "full_name")
+        )
         identifier_only = (
             not details
             and (dropped_identifier_mismatch or self._reason_is_identifier_only(reason_text))
         )
-        is_valid = (bool(raw.get("is_valid", True)) or identifier_only) and not deterministic
+        is_valid = (
+            bool(raw.get("is_valid", True)) or identifier_only or name_only
+        ) and not deterministic
         messages = [self._message(item) for item in details]
         if messages and not is_valid:
             reason = "; ".join(messages)
@@ -159,6 +178,61 @@ class ValidationService:
                 pass  # Unparseable doc DOB -- leave to the LLM's own judgment.
 
         return mismatches
+
+    @staticmethod
+    def _name_tokens(name: Optional[str]) -> List[str]:
+        """Normalize a name into ordered tokens, whatever format it was written in.
+
+        Ignores case, accents, punctuation, hyphens, titles and suffixes. 'Last, First
+        Middle' is reordered to 'First Middle Last'. Works for non-Latin scripts too.
+        """
+        if not name or not name.strip():
+            return []
+        text = unicodedata.normalize("NFKD", name)
+        text = "".join(ch for ch in text if not unicodedata.combining(ch)).lower()
+        if "," in text:
+            last_part, _, rest = text.partition(",")
+            text = f"{rest} {last_part}"
+        tokens = re.findall(r"[^\W_]+", text)
+        return [t for t in tokens if t not in _NAME_NOISE]
+
+    @staticmethod
+    def _token_match(a: str, b: str) -> bool:
+        """Equal tokens, or an initial matching a full name ('j' ~ 'jane')."""
+        if a == b:
+            return True
+        if len(a) == 1:
+            return b.startswith(a)
+        if len(b) == 1:
+            return a.startswith(b)
+        return False
+
+    @classmethod
+    def _distinct_matches(cls, first: str, last: str, tokens: List[str]) -> bool:
+        """First and last must match two different tokens (not one token used twice)."""
+        first_idx = [i for i, t in enumerate(tokens) if cls._token_match(first, t)]
+        last_idx = [i for i, t in enumerate(tokens) if cls._token_match(last, t)]
+        return any(i != j for i in first_idx for j in last_idx)
+
+    @classmethod
+    def _names_equivalent(cls, record_name: Optional[str], *doc_names: Optional[str]) -> bool:
+        """True when two names share the same first + last name, in any format.
+
+        The shorter name's first and last tokens must both appear in the other name, so
+        full vs full, full vs first+last, and first+last vs first+last all work
+        regardless of middle names, initials, 'Last, First' ordering, hyphens or titles.
+        """
+        record = cls._name_tokens(record_name)
+        if len(record) < 2:
+            return False
+        for doc_name in doc_names:
+            doc = cls._name_tokens(doc_name)
+            if len(doc) < 2:
+                continue
+            short, long_ = (record, doc) if len(record) <= len(doc) else (doc, record)
+            if cls._distinct_matches(short[0], short[-1], long_):
+                return True
+        return False
 
     @staticmethod
     def _raw_mismatch_items(raw_mismatches: Any) -> List[Any]:

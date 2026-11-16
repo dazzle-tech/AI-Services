@@ -48,6 +48,12 @@ birth. Flag a mismatch ONLY when there is a clear, specific contradiction on one
 (e.g. the document states the patient is male but the record says female; or the document's
 date of birth clearly differs from the record's; or the name is clearly a different person).
 
+Names: compare ONLY the first name and the last name. Either side may be written in any
+format: a full name with middle names, just first and last, initials ("J. Doe"), "Last, First"
+order, or with titles/suffixes. Ignore middle names, initials, titles, suffixes, word order,
+hyphens, accents and capitalization. If the first and last names refer to the same person,
+the name is NOT a mismatch.
+
 Do NOT compare or flag patient ID, MRN, medical record number, chart number, account number,
 or any other facility-assigned identifier. Those values can differ when the document was
 created somewhere other than the facility where the patient is currently admitted. A

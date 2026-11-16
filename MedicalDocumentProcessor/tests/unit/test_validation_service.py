@@ -158,6 +158,77 @@ class TestValidationService:
         assert outcome.mismatch_details == []
         assert outcome.extracted_patient_signals["patient_id"] == "EXT-55"
 
+    @pytest.mark.parametrize(
+        "record_name, doc_name",
+        [
+            ("Jane Marie Doe", "Jane Doe"),
+            ("Jane Doe", "Jane M. Doe"),
+            ("Jane Marie Doe", "DOE, JANE"),
+            ("Jane Marie Doe", "Dr. jane doe"),
+            ("Jane Marie Doe", "Jane Anne Doe"),
+            ("Doe, Jane Marie", "Jane Doe"),
+            ("Jane Doe", "Doe Jane"),
+            ("J. Doe", "Jane Marie Doe"),
+            ("Anne-Marie Doe", "Anne Marie Doe"),
+            ("Jane Doe-Smith", "Jane Smith"),
+            ("José García López", "Jose Garcia"),
+            ("محمد أحمد علي", "محمد علي"),
+        ],
+    )
+    def test_middle_name_difference_is_not_a_mismatch(
+        self, service, ai_client_stub, record_name, doc_name
+    ):
+        patient = SAMPLE_PATIENT.model_copy(update={"full_name": record_name})
+        ai_client_stub.validate_patient_match.return_value = {
+            "is_valid": False,
+            "extracted_patient_signals": {"full_name": doc_name, "sex": "female"},
+            "mismatches": [
+                {
+                    "field": "full_name",
+                    "patient_record_value": record_name,
+                    "document_value": doc_name,
+                }
+            ],
+            "reason": "Name does not match",
+        }
+
+        outcome = service.validate(patient, "report")
+
+        assert outcome.is_valid is True
+        assert outcome.mismatch_details == []
+
+    @pytest.mark.parametrize(
+        "record_name, doc_name",
+        [
+            ("Jane Marie Doe", "Jane Smith"),
+            ("Jane Doe", "John Doe"),
+            ("Jane Doe", "Jane Jane"),
+            ("Jane Marie Doe", "Mary Doe"),
+            ("Jane Doe", "Doe"),
+        ],
+    )
+    def test_different_first_or_last_name_is_still_a_mismatch(
+        self, service, ai_client_stub, record_name, doc_name
+    ):
+        patient = SAMPLE_PATIENT.model_copy(update={"full_name": record_name})
+        ai_client_stub.validate_patient_match.return_value = {
+            "is_valid": False,
+            "extracted_patient_signals": {"full_name": doc_name},
+            "mismatches": [
+                {
+                    "field": "full_name",
+                    "patient_record_value": record_name,
+                    "document_value": doc_name,
+                }
+            ],
+            "reason": "Name does not match",
+        }
+
+        outcome = service.validate(patient, "report")
+
+        assert outcome.is_valid is False
+        assert outcome.mismatch_details[0].field == "full_name"
+
     def test_matching_male_patient_with_male_signals_is_valid(self, service, ai_client_stub):
         ai_client_stub.validate_patient_match.return_value = {
             "is_valid": True,
