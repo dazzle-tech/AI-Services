@@ -1,0 +1,27 @@
+$kind: http-request
+name: 'Generate role timeline: missing role'
+method: POST
+url: '{{base_url}}/api/v1/generate-role-timeline'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+description: viewer_role is required. This request is rejected before the model is called.
+body:
+  type: json
+  content: |-
+    {
+      "patient_data": {
+        "patient_id": "pt-acceptance-58"
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test("missing viewer_role is rejected", function () {
+          pm.response.to.have.status(422);
+          const body = pm.response.json();
+          pm.expect(body.detail[0].loc).to.include("viewer_role");
+      });
+examples: './.resources/generate-role-timeline-missing-role.resources/examples'

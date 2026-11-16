@@ -1,0 +1,166 @@
+$kind: http-example
+name: Acceptance chart
+order: 1000
+request:
+  method: POST
+  url: '{{base_url}}/api/v1/generate-role-timeline'
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    - key: Content-Type
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "request_id": "acceptance-nurse",
+        "timeline": [
+          {
+            "date": "2020-01-01",
+            "event_type": "allergy",
+            "title": "Penicillin allergy",
+            "description": "Penicillin allergy recorded on 2020-01-01.",
+            "clinical_importance": "high",
+            "source": "allergies",
+            "event_id": "evt-001"
+          },
+          {
+            "date": "2020-02-15",
+            "event_type": "procedure",
+            "title": "Coronary angiography",
+            "description": "Coronary angiography completed on 2020-02-15.",
+            "clinical_importance": "medium",
+            "source": "procedures",
+            "event_id": "evt-002"
+          },
+          {
+            "date": "2021-03-10",
+            "event_type": "diagnosis",
+            "title": "Hypertension",
+            "description": "Hypertension diagnosed on 2021-03-10.",
+            "clinical_importance": "medium",
+            "source": "diagnoses",
+            "event_id": "evt-003"
+          },
+          {
+            "date": "2022-05-01",
+            "event_type": "diagnosis",
+            "title": "Type 2 diabetes",
+            "description": "Type 2 diabetes diagnosed on 2022-05-01.",
+            "clinical_importance": "medium",
+            "source": "diagnoses",
+            "event_id": "evt-004"
+          },
+          {
+            "date": "2022-05-02",
+            "event_type": "medication",
+            "title": "Metformin",
+            "description": "Metformin started on 2022-05-02, status active.",
+            "clinical_importance": "medium",
+            "source": "medications",
+            "event_id": "evt-005"
+          },
+          {
+            "date": "2023-11-18",
+            "event_type": "medication",
+            "title": "Insulin",
+            "description": "Insulin started on 2023-11-18, status active.",
+            "clinical_importance": "high",
+            "source": "medications",
+            "event_id": "evt-006"
+          },
+          {
+            "date": "2026-03-12",
+            "event_type": "admission",
+            "title": "Admission for chest pain",
+            "description": "Admission for chest pain on 2026-03-12.",
+            "clinical_importance": "high",
+            "source": "encounters",
+            "event_id": "evt-007"
+          },
+          {
+            "date": "2026-03-12",
+            "event_type": "symptom",
+            "title": "Admitted with chest pain and shortness of breath",
+            "description": "Admitted with chest pain and shortness of breath.",
+            "clinical_importance": "high",
+            "source": "notes",
+            "event_id": "evt-008"
+          },
+          {
+            "date": "2026-03-12",
+            "event_type": "vital",
+            "title": "Blood pressure 160/100",
+            "description": "Blood pressure 160/100 on 2026-03-12.",
+            "clinical_importance": "high",
+            "source": "vitals",
+            "event_id": "evt-009"
+          },
+          {
+            "date": "2026-03-13",
+            "event_type": "lab",
+            "title": "Troponin 0.8 ng/mL",
+            "description": "Troponin 0.8 ng/mL, flagged high, on 2026-03-13.",
+            "clinical_importance": "high",
+            "source": "lab_results",
+            "event_id": "evt-010"
+          }
+        ],
+        "clinical_summary": "58-year-old male. Problem list: chest pain and shortness of breath with admission on 2026-03-12, blood pressure 160/100 on that date, and one troponin of 0.8 ng/mL, flagged high, on 2026-03-13. Type 2 diabetes diagnosed 2022-05-01, with metformin active from 2022-05-02 and insulin active from 2023-11-18. Hypertension diagnosed 2021-03-10. Coronary angiography completed 2020-02-15. Penicillin allergy recorded 2020-01-01.",
+        "role_highlights": [
+          {
+            "event_id": "evt-008",
+            "why_it_matters": "The patient is here for chest pain and shortness of breath.",
+            "salience": "lead"
+          },
+          {
+            "event_id": "evt-009",
+            "why_it_matters": "Latest blood pressure is 160/100.",
+            "salience": "lead"
+          },
+          {
+            "event_id": "evt-001",
+            "why_it_matters": "Penicillin allergy is recorded.",
+            "salience": "lead"
+          },
+          {
+            "event_id": "evt-006",
+            "why_it_matters": "Insulin is an active high-risk medicine.",
+            "salience": "lead"
+          },
+          {
+            "event_id": "evt-010",
+            "why_it_matters": "Troponin is 0.8 ng/mL, flagged high, on 2026-03-13.",
+            "salience": "lead"
+          },
+          {
+            "event_id": "evt-007",
+            "why_it_matters": "Admission on 2026-03-12 was for chest pain.",
+            "salience": "context"
+          },
+          {
+            "event_id": "evt-005",
+            "why_it_matters": "Metformin remains active.",
+            "salience": "context"
+          },
+          {
+            "event_id": "evt-002",
+            "why_it_matters": "Coronary angiography was completed in 2020 and stays in the history.",
+            "salience": "context"
+          }
+        ],
+        "not_documented": [
+          "The rest of the vital set is not documented: heart rate, respiratory rate, temperature, oxygen saturation.",
+          "Glucose is not documented.",
+          "Dose is not documented.",
+          "Route is not documented.",
+          "Frequency is not documented."
+        ],
+        "processing_metadata": {
+          "model": "test-model",
+          "timestamp": "2026-11-11T08:43:25+00:00",
+          "event_count": 10,
+          "viewer_role": "nurse"
+        }
+      }

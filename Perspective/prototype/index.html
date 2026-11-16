@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Perspective · Hospital view</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231d4ed8'/%3E%3Ctext x='16' y='22' font-size='18' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EP%3C/text%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <a class="skip" href="#timeline">Skip to the story timeline</a>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">P</span>
+      <div class="brand-text"><strong>Perspective</strong><span>Hospital view</span></div>
+    </div>
+
+    <div class="patient" id="patient" aria-label="Patient"></div>
+
+    <div class="controls">
+      <div class="roles" role="group" aria-label="Viewer role" id="roles"></div>
+      <label class="select">
+        <span>Objective</span>
+        <select id="objective"></select>
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <section class="summary card" aria-labelledby="summary-title">
+      <div class="sum-text">
+        <p class="kicker" id="summary-title">Summary <i>The same for every role</i></p>
+        <p class="sum-body" id="summary"></p>
+        <p class="sum-foot" id="summary-note"></p>
+      </div>
+      <div class="sum-side">
+        <div class="measures" id="measures" aria-label="Latest measures"></div>
+        <div class="mini-cards">
+          <article class="mini mini-alert" id="card-look" aria-labelledby="look-h">
+            <h2 id="look-h">Needs a look</h2>
+            <div class="mini-body" id="look-body"></div>
+          </article>
+          <article class="mini" id="card-allergy" aria-labelledby="allergy-h">
+            <h2 id="allergy-h">Allergy</h2>
+            <div class="mini-body" id="allergy-body"></div>
+          </article>
+          <article class="mini mini-missing" id="card-missing" aria-labelledby="missing-h">
+            <h2 id="missing-h">Not documented</h2>
+            <ul class="mini-list" id="missing-body"></ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="story card" id="timeline" aria-labelledby="story-h">
+      <div class="story-head">
+        <div class="row">
+          <h2 id="story-h">Story</h2>
+          <div class="periods" role="group" aria-label="Period" id="periods"></div>
+          <label class="date">
+            <span>Start from</span>
+            <input type="date" id="start" min="2019-01-01" max="2026-12-31" />
+          </label>
+          <span class="spacer"></span>
+          <p class="counts" id="counts"></p>
+          <div class="nav">
+            <button type="button" class="btn ghost" id="prev" aria-label="Scroll the timeline back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <button type="button" class="btn ghost" id="next" aria-label="Scroll the timeline forward">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            <button type="button" class="btn primary" id="play" aria-pressed="false">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="i-play"><path d="M8 5v14l11-7z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="i-pause"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+              <span id="play-label">Play story</span>
+            </button>
+          </div>
+        </div>
+        <div class="row second">
+          <div class="filters" role="group" aria-label="Highlight by type" id="filters">
+            <span class="lbl">Highlight by type</span>
+          </div>
+          <div class="leads" id="leads" aria-label="Leads for this role"></div>
+        </div>
+      </div>
+
+      <div class="rail-wrap" id="rail-wrap">
+        <div class="rail" id="rail">
+          <div class="track" id="track"></div>
+        </div>
+        <section class="zoom" id="zoom" aria-hidden="true" aria-labelledby="zoom-title">
+          <header class="zoom-head">
+            <button type="button" class="btn ghost" id="zoom-back">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Back to story
+            </button>
+            <div class="zt">
+              <p class="kicker" id="zoom-kicker">Zoomed in</p>
+              <h3 id="zoom-title">—</h3>
+            </div>
+            <p class="zsub" id="zoom-sub"></p>
+            <span class="spacer"></span>
+            <button type="button" class="btn ghost" id="zoom-prev">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg> Earlier date
+            </button>
+            <button type="button" class="btn ghost" id="zoom-next">
+              Later date <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+          </header>
+          <div class="zrail" id="zrail"></div>
+        </section>
+      </div>
+      <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+    </section>
+  </main>
+
+  <footer class="foot">Fictional patient. Concept prototype. Highlights rank and explain; every recorded event stays on the timeline.</footer>
+
+  <div class="tip" id="tip" role="tooltip" hidden></div>
+  <p class="sr-only" id="live" aria-live="polite"></p>
+
+  <script src="data/patient.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

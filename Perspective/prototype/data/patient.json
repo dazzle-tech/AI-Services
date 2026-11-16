@@ -1,0 +1,226 @@
+{
+  "patient": {
+    "id": "P-48291",
+    "name": "Omar Haddad",
+    "initials": "OH",
+    "age": 58,
+    "sex": "male",
+    "ward": null,
+    "note": "Fictional patient"
+  },
+  "requestedStart": "2020-01-01",
+  "periods": [
+    { "label": "2020", "date": "2020-01-01" },
+    { "label": "2022", "date": "2022-01-01" },
+    { "label": "2024", "date": "2024-01-01" },
+    { "label": "This admission", "date": "2026-03-12" }
+  ],
+  "summary": [
+    { "text": "A 58-year-old male was admitted on 2026-03-12 with chest pain and shortness of breath.", "cites": ["e07", "e08"] },
+    { "text": "Blood pressure was recorded as 160/100 that day.", "cites": ["e09"] },
+    { "text": "One troponin, 0.8 ng/mL, flagged high, was recorded on 2026-03-13.", "cites": ["e10"] },
+    { "text": "Type 2 diabetes was recorded on 2022-05-01, with metformin active from 2022-05-02 and insulin active from 2023-11-18.", "cites": ["e04", "e05", "e06"] },
+    { "text": "Hypertension was recorded on 2021-03-10.", "cites": ["e03"] },
+    { "text": "Coronary angiography is recorded as completed on 2020-02-15.", "cites": ["e02"] },
+    { "text": "A penicillin allergy was recorded on 2020-01-01.", "cites": ["e01"] }
+  ],
+  "summaryNote": "Age and sex are restated from the patient record. Each number opens its source.",
+  "measures": [
+    { "label": "RR" },
+    { "label": "HR" },
+    { "label": "BP", "ev": "e09", "value": "160/100", "date": "2026-03-12" },
+    { "label": "Temp" },
+    { "label": "SpO\u2082" }
+  ],
+  "events": [
+    {
+      "id": "e01", "type": "allergy", "date": "2020-01-01",
+      "title": "Penicillin allergy recorded", "short": "Penicillin allergy",
+      "subtitle": "Allergy list",
+      "description": "A penicillin allergy is recorded. The reaction is not documented.",
+      "importance": "high", "tags": ["allergy"],
+      "source": { "document": "Allergy list", "recorded": "2020-01-01", "author": null },
+      "details": [["Substance", "Penicillin"], ["Reaction", "Not documented"]]
+    },
+    {
+      "id": "e02", "type": "procedure", "date": "2020-02-15",
+      "title": "Coronary angiography completed", "short": "Angiogram",
+      "subtitle": "Procedure list",
+      "description": "Coronary angiography is recorded as completed. Findings are not documented.",
+      "importance": "medium", "tags": ["prior-procedure", "prior-cardiac"],
+      "source": { "document": "Procedure list", "recorded": "2020-02-15", "author": null },
+      "details": [["Status", "Completed"], ["Findings", "Not documented"], ["Devices", "Not documented"]]
+    },
+    {
+      "id": "e03", "type": "diagnosis", "date": "2021-03-10",
+      "title": "Hypertension", "short": "Hypertension",
+      "subtitle": "Problem list",
+      "description": "Hypertension is recorded on the problem list.",
+      "importance": "medium", "tags": ["chronic-dx", "cardiac-dx"],
+      "source": { "document": "Problem list", "recorded": "2021-03-10", "author": null },
+      "details": []
+    },
+    {
+      "id": "e04", "type": "diagnosis", "date": "2022-05-01",
+      "title": "Type 2 diabetes", "short": "Type 2 diabetes",
+      "subtitle": "Problem list",
+      "description": "Type 2 diabetes is recorded on the problem list.",
+      "importance": "medium", "tags": ["chronic-dx"],
+      "source": { "document": "Problem list", "recorded": "2022-05-01", "author": null },
+      "details": []
+    },
+    {
+      "id": "e05", "type": "medication", "date": "2022-05-02",
+      "title": "Metformin started", "short": "Metformin",
+      "subtitle": "Medication list \u00b7 active",
+      "description": "Metformin is recorded from 2022-05-02 and is active.",
+      "importance": "medium", "tags": ["active-med"],
+      "source": { "document": "Medication list", "recorded": "2022-05-02", "author": null },
+      "details": [["Status", "Active"], ["Start date", "2022-05-02"], ["Dose", "Not documented"], ["Route", "Not documented"], ["Frequency", "Not documented"]]
+    },
+    {
+      "id": "e06", "type": "medication", "date": "2023-11-18",
+      "title": "Insulin started", "short": "Insulin",
+      "subtitle": "Medication list \u00b7 active",
+      "description": "Insulin is recorded from 2023-11-18 and is active.",
+      "importance": "high", "tags": ["active-med", "highrisk-med"],
+      "source": { "document": "Medication list", "recorded": "2023-11-18", "author": null },
+      "details": [["Status", "Active"], ["Start date", "2023-11-18"], ["Dose", "Not documented"], ["Route", "Not documented"], ["Frequency", "Not documented"]]
+    },
+    {
+      "id": "e07", "type": "admission", "date": "2026-03-12",
+      "title": "Admitted for chest pain", "short": "Admission",
+      "subtitle": "Admission record",
+      "description": "Admission on 2026-03-12 for chest pain.",
+      "importance": "high", "tags": ["reason"],
+      "source": { "document": "Admission record", "recorded": "2026-03-12", "author": null },
+      "details": [["Reason for admission", "Chest pain"]]
+    },
+    {
+      "id": "e08", "type": "note", "date": "2026-03-12",
+      "title": "Note: chest pain and shortness of breath", "short": "Chest pain, short of breath",
+      "subtitle": "Clinical note",
+      "description": "Admitted with chest pain and shortness of breath.",
+      "importance": "high", "tags": ["reason", "symptom"],
+      "source": { "document": "Clinical note", "recorded": "2026-03-12", "author": null },
+      "details": [["Symptoms", "Chest pain, shortness of breath"]]
+    },
+    {
+      "id": "e09", "type": "vital", "date": "2026-03-12",
+      "title": "Blood pressure 160/100", "short": "BP 160/100",
+      "subtitle": "Vital signs",
+      "description": "Blood pressure is recorded as 160/100.",
+      "importance": "medium", "tags": ["vital", "bp"],
+      "source": { "document": "Vital signs", "recorded": "2026-03-12", "author": null },
+      "details": [["Value", "160/100"], ["Other vital signs", "Not documented"]]
+    },
+    {
+      "id": "e10", "type": "lab", "date": "2026-03-13", "flag": "high",
+      "title": "Troponin 0.8 ng/mL", "short": "Troponin 0.8",
+      "subtitle": "Flagged high \u00b7 lab result",
+      "description": "One troponin is recorded as 0.8 ng/mL and flagged high.",
+      "importance": "high", "tags": ["lab", "abnormal", "cardiac-biomarker"],
+      "source": { "document": "Lab results", "recorded": "2026-03-13", "author": null },
+      "details": [["Value", "0.8 ng/mL"], ["Flag", "High"], ["Reference range", "Not documented"], ["Second troponin", "Not documented"]]
+    }
+  ],
+  "objectives": {
+    "morning-round": { "label": "Morning round", "boosts": ["vital"] },
+    "handover": { "label": "Handover", "boosts": ["chronic-dx"] },
+    "imaging-request": { "label": "Imaging request", "boosts": ["reason"] },
+    "cardiac-review": { "label": "Cardiac review", "boosts": ["bp", "cardiac-dx"] }
+  },
+  "roles": {
+    "physician": {
+      "label": "Physician",
+      "defaultObjective": "morning-round",
+      "salience": {
+        "reason": "lead", "symptom": "lead", "abnormal": "lead",
+        "vital": "context", "bp": "context", "lab": "context", "active-med": "context", "highrisk-med": "context",
+        "allergy": "context", "chronic-dx": "context", "cardiac-dx": "context",
+        "prior-procedure": "context", "prior-cardiac": "context", "cardiac-biomarker": "context"
+      },
+      "priority": ["symptom", "reason", "vital", "abnormal", "active-med"],
+      "why": {
+        "symptom": "The presenting symptoms, as the note records them.",
+        "reason": "Why the patient is here. It frames the round.",
+        "vital": "Latest recorded vital sign. The rest of the vital set is not documented.",
+        "abnormal": "Flagged high in the record. One result; no second value is documented.",
+        "active-med": "Active medicine. Dose, route, and frequency are not documented.",
+        "allergy": "Documented allergy to keep in view.",
+        "chronic-dx": "Background condition on the problem list.",
+        "prior-procedure": "Earlier procedure. Findings are not documented."
+      },
+      "allergyNote": "Recorded 2020-01-01. The reaction is not documented.",
+      "notDocumented": ["Rest of the vital set", "ECG", "Creatinine or eGFR", "Dose, route, frequency"]
+    },
+    "nurse": {
+      "label": "Nurse",
+      "defaultObjective": "handover",
+      "salience": {
+        "symptom": "lead", "vital": "lead", "bp": "lead", "allergy": "lead", "highrisk-med": "lead", "abnormal": "lead",
+        "reason": "context", "active-med": "context", "cardiac-biomarker": "context", "lab": "context",
+        "chronic-dx": "quiet", "cardiac-dx": "quiet", "prior-procedure": "quiet", "prior-cardiac": "quiet"
+      },
+      "priority": ["symptom", "vital", "allergy", "highrisk-med", "abnormal"],
+      "why": {
+        "symptom": "Escalation symptoms to watch at handover.",
+        "vital": "Latest recorded vital sign. The rest of the vital set is not documented.",
+        "allergy": "Documented allergy to keep in view.",
+        "highrisk-med": "Active high-risk medicine. Dose, route, and frequency are not documented.",
+        "abnormal": "Flagged high in the record. One result only.",
+        "active-med": "Active medicine. Dose, route, and frequency are not documented.",
+        "reason": "Why the patient is here.",
+        "chronic-dx": "Background condition on the problem list.",
+        "prior-procedure": "History. Kept for reference unless tied to a current device, wound, or bleeding precaution."
+      },
+      "allergyNote": "Recorded 2020-01-01. The reaction is not documented.",
+      "notDocumented": ["Heart rate, respiratory rate, temperature, oxygen saturation", "Glucose", "Dose", "Route", "Frequency"]
+    },
+    "radiologist": {
+      "label": "Radiologist",
+      "defaultObjective": "imaging-request",
+      "salience": {
+        "symptom": "lead", "prior-procedure": "lead",
+        "reason": "context", "chronic-dx": "context", "cardiac-dx": "context", "allergy": "context", "abnormal": "context",
+        "lab": "context", "prior-cardiac": "context", "cardiac-biomarker": "context",
+        "vital": "quiet", "bp": "quiet", "active-med": "quiet", "highrisk-med": "quiet"
+      },
+      "priority": ["symptom", "prior-procedure", "reason"],
+      "why": {
+        "symptom": "The clinical question behind a study request.",
+        "prior-procedure": "Prior procedure on record. Findings are not documented.",
+        "reason": "Context for the request.",
+        "chronic-dx": "Background condition that can shape what to look for.",
+        "allergy": "A penicillin allergy only. No contrast reaction is documented.",
+        "abnormal": "Flagged high in the record. One result only.",
+        "active-med": "Active medicine, listed for completeness."
+      },
+      "allergyNote": "A penicillin allergy only. No contrast reaction is documented.",
+      "notDocumented": ["Study ordered", "Creatinine or eGFR (renal function)", "Contrast reaction", "Prior imaging report", "Procedure findings"]
+    },
+    "cardiologist": {
+      "label": "Cardiologist",
+      "defaultObjective": "cardiac-review",
+      "salience": {
+        "symptom": "lead", "cardiac-biomarker": "lead", "prior-cardiac": "lead",
+        "bp": "context", "vital": "context", "cardiac-dx": "context", "reason": "context", "chronic-dx": "context",
+        "abnormal": "context", "lab": "context", "prior-procedure": "context",
+        "allergy": "quiet", "active-med": "quiet", "highrisk-med": "quiet"
+      },
+      "priority": ["symptom", "cardiac-biomarker", "prior-cardiac", "bp", "cardiac-dx"],
+      "why": {
+        "symptom": "Where the symptom timeline starts.",
+        "cardiac-biomarker": "Recorded once, exactly as charted. A second troponin is not documented.",
+        "prior-cardiac": "Prior cardiac procedure. Findings are not documented.",
+        "bp": "A single reading, shown as recorded.",
+        "cardiac-dx": "Prior diagnosis on the problem list.",
+        "reason": "Why the patient is here.",
+        "chronic-dx": "Background condition on the problem list.",
+        "active-med": "Active medicine. No antithrombotic therapy is documented."
+      },
+      "allergyNote": "Recorded 2020-01-01. The reaction is not documented.",
+      "notDocumented": ["ECG", "A second troponin", "Troponin reference range", "Antithrombotic therapy", "Angiogram findings"]
+    }
+  }
+}

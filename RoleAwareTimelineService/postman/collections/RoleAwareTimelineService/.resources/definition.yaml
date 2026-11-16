@@ -1,0 +1,58 @@
+$kind: collection
+name: Role-Aware Timeline Service
+description: >-
+  Shared clinical timeline and summary, plus highlights for one role.
+  OpenAI credentials stay on the service. This collection does not send an API key.
+  The saved nurse example is the acceptance-chart response shape.
+  processing_metadata.model echoes OPENAI_MODEL; the example uses the placeholder test-model.
+variables:
+  - key: base_url
+    value: 'http://localhost:8040'
+scripts:
+  - type: http:afterResponse
+    language: text/javascript
+    code: |-
+      const path = pm.request.url.getPath();
+      if (path.indexOf("/health") !== -1) {
+          pm.test("health is configured for OpenAI", function () {
+              pm.response.to.have.status(200);
+              const body = pm.response.json();
+              pm.expect(body.service).to.eql("role-aware-timeline");
+              pm.expect(body.provider).to.eql("openai");
+              pm.expect(body.model).to.be.a("string").and.not.empty;
+          });
+      } else if (path.indexOf("generate-role-timeline") !== -1 && pm.response.code === 200) {
+          pm.test("role timeline contract", function () {
+              pm.response.to.have.status(200);
+              const body = pm.response.json();
+              const requestBody = JSON.parse(pm.request.body.raw);
+              pm.expect(body.clinical_summary).to.be.a("string").and.not.empty;
+              pm.expect(body.timeline).to.be.an("array").that.is.not.empty;
+              pm.expect(body.role_highlights).to.be.an("array");
+              pm.expect(body.not_documented).to.be.an("array");
+              pm.expect(body.processing_metadata.viewer_role).to.eql(requestBody.viewer_role);
+              pm.expect(body.processing_metadata.model).to.be.a("string").and.not.empty;
+              pm.expect(body.processing_metadata.timestamp).to.be.a("string").and.not.empty;
+              pm.expect(body.processing_metadata.event_count).to.eql(body.timeline.length);
+              const eventIds = {};
+              const eventTypes = ["diagnosis", "medication", "admission", "procedure", "lab", "allergy", "symptom", "vital"];
+              body.timeline.forEach(function (event) {
+                  pm.expect(event.event_id).to.be.a("string").and.not.empty;
+                  pm.expect(event.date).to.be.a("string").and.not.empty;
+                  pm.expect(eventTypes).to.include(event.event_type);
+                  pm.expect(["high", "medium", "low"]).to.include(event.clinical_importance);
+                  pm.expect(event.title).to.be.a("string").and.not.empty;
+                  pm.expect(event.description).to.be.a("string").and.not.empty;
+                  pm.expect(event.source).to.be.a("string").and.not.empty;
+                  eventIds[event.event_id] = true;
+              });
+              body.role_highlights.forEach(function (item) {
+                  pm.expect(eventIds[item.event_id]).to.eql(true);
+                  pm.expect(item.why_it_matters).to.be.a("string").and.not.empty;
+                  pm.expect(["lead", "context"]).to.include(item.salience);
+              });
+              body.not_documented.forEach(function (item) {
+                  pm.expect(item).to.be.a("string").and.not.empty;
+              });
+          });
+      }

@@ -1,0 +1,48 @@
+$kind: http-request
+name: 'Generate role timeline: cardiologist'
+method: POST
+url: '{{base_url}}/api/v1/generate-role-timeline'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+description: >-
+  Acceptance chart for the cardiologist. One troponin stays one troponin.
+body:
+  type: json
+  content: |-
+    {
+      "request_id": "acceptance-cardiologist",
+      "viewer_role": "cardiologist",
+      "patient_data": {
+        "patient_id": "pt-acceptance-58",
+        "age": "58 years",
+        "gender": "male",
+        "diagnoses": [
+          {"name": "Type 2 diabetes", "date": "2022-05-01"},
+          {"name": "Hypertension", "date": "2021-03-10"}
+        ],
+        "medications": [
+          {"name": "Metformin", "start_date": "2022-05-02", "status": "active"},
+          {"name": "Insulin", "start_date": "2023-11-18", "status": "active"}
+        ],
+        "lab_results": [
+          {"name": "Troponin", "value": "0.8", "unit": "ng/mL", "date": "2026-03-13", "flag": "high"}
+        ],
+        "vitals": [
+          {"name": "Blood pressure", "value": "160/100", "date": "2026-03-12"}
+        ],
+        "procedures": [
+          {"name": "Coronary angiography", "date": "2020-02-15", "status": "completed"}
+        ],
+        "encounters": [
+          {"type": "admission", "date": "2026-03-12", "reason": "chest pain"}
+        ],
+        "notes": [
+          {"date": "2026-03-12", "text": "Admitted with chest pain and shortness of breath."}
+        ],
+        "allergies": [
+          {"name": "Penicillin", "date": "2020-01-01"}
+        ]
+      }
+    }

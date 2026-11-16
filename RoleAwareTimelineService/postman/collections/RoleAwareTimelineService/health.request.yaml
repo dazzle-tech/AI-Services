@@ -1,0 +1,5 @@
+$kind: http-request
+method: GET
+url: '{{base_url}}/api/v1/health'
+order: 1000
+description: Reports whether OpenAI settings are present. Does not call the model.

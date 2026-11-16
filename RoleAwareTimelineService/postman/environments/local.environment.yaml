@@ -1,0 +1,7 @@
+name: local
+values:
+  - key: base_url
+    value: 'http://localhost:8040'
+    enabled: true
+    type: default
+    description: Role-Aware Timeline Service base URL

@@ -1,0 +1,29 @@
+$kind: http-example
+name: Missing viewer role
+order: 1000
+request:
+  method: POST
+  url: '{{base_url}}/api/v1/generate-role-timeline'
+response:
+  statusCode: 422
+  statusText: Unprocessable Entity
+  headers:
+    - key: Content-Type
+      value: application/json
+  body:
+    type: json
+    content: |-
+      {
+        "detail": [
+          {
+            "type": "missing",
+            "loc": ["body", "viewer_role"],
+            "msg": "Field required",
+            "input": {
+              "patient_data": {
+                "patient_id": "pt-acceptance-58"
+              }
+            }
+          }
+        ]
+      }
