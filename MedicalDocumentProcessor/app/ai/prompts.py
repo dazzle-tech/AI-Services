@@ -5,6 +5,7 @@ independently testable and debuggable, per the pipeline design. None of these pr
 are combined into a single call.
 """
 import json
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 
@@ -106,6 +107,7 @@ def build_relevance_prompt(
     }
 
     window_days = relevance_windows_days.get(document_type, relevance_windows_days.get("other"))
+    today = date.today()
     existing_text = (
         json.dumps(existing_documents, indent=2, default=str)
         if existing_documents
@@ -119,9 +121,15 @@ ACTIVE record, using this rubric:
 The caller already chose the document type: {document_type}. Do not reclassify it.
 Its relevance window is {window_days} days.
 
+Today's date is {today.isoformat()}. Use it, not your own sense of the current date, to work
+out how old the document is.
+
 1. Identify the date the document pertains to (e.g. test date, study date, note date -- not
-   the upload date).
-2. If the document is older than {window_days} days, it is NOT relevant.
+   the upload date). Report it as an ISO date (YYYY-MM-DD). Slash dates are day/month/year
+   unless the day is impossible (10/11/2026 is 10 November 2026). Do not use the patient's
+   date of birth or age line as the document date.
+2. If the document is older than {window_days} days before today ({today.isoformat()}), it is
+   NOT relevant. A date within the last {window_days} days, or in the future, is not too old.
 3. If a newer existing document of type {document_type} is listed below, the newly uploaded
    document is superseded and is NOT relevant, even if it is within the recency window.
 4. If the document has no determinable date, be conservative and treat it as relevant unless

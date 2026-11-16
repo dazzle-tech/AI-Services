@@ -115,3 +115,41 @@ class TestRelevanceService:
         outcome = service.check("Date of Birth: 1980-05-14", [], "lab_result")
 
         assert outcome.is_relevant is True
+
+    def test_recent_document_is_relevant_even_when_the_model_says_it_is_too_old(
+        self, service, ai_client_stub
+    ):
+        recent = date.today() - timedelta(days=6)
+        ai_client_stub.classify_relevance.return_value = {
+            "document_date": recent.isoformat(),
+            "is_relevant": False,
+            "reason": "lab_result document is beyond the 180-day relevance window.",
+        }
+
+        outcome = service.check("lab report", [], "lab_result")
+
+        assert outcome.is_relevant is True
+        assert outcome.reason is None
+        assert outcome.document_date == recent.isoformat()
+
+    def test_recent_document_is_still_superseded_by_a_newer_existing_one(
+        self, service, ai_client_stub
+    ):
+        from app.models.schemas import ExistingDocumentSummary
+
+        recent = date.today() - timedelta(days=6)
+        newer = date.today() - timedelta(days=1)
+        ai_client_stub.classify_relevance.return_value = {
+            "document_date": recent.isoformat(),
+            "is_relevant": False,
+            "reason": "too old",
+        }
+
+        outcome = service.check(
+            "lab report",
+            [ExistingDocumentSummary(document_type="lab_result", document_date=newer.isoformat())],
+            "lab_result",
+        )
+
+        assert outcome.is_relevant is False
+        assert newer.isoformat() in outcome.reason

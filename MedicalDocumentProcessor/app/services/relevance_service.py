@@ -93,7 +93,19 @@ class RelevanceService:
                 f"{document_type} dated {parsed.isoformat()} is outside the "
                 f"{window_days}-day relevance window."
             )
-        elif is_relevant and parsed is not None:
+        elif parsed is not None:
+            # The date is known and inside the window, so age is not a reason to reject
+            # the document. The model has no reliable sense of today's date, so its own
+            # "too old" verdict is not trusted here; only a newer existing document of
+            # the same type can still make this one irrelevant.
+            if not is_relevant:
+                logger.info(
+                    "Overriding model relevance verdict: %s dated %s is within the %s-day window",
+                    document_type, parsed.isoformat(), window_days,
+                )
+            is_relevant = True
+            reason = None
+            document_date = parsed.isoformat()
             newer = self._newer_existing(existing_documents, document_type, parsed)
             if newer is not None:
                 is_relevant = False
