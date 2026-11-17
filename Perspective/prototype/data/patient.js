@@ -1,4 +1,3 @@
-// Same content as patient.json. It lets index.html open by double-click (no server needed).
 window.PERSPECTIVE_DATA = {
   "patient": {
     "id": "P-48291",
@@ -76,24 +75,371 @@ window.PERSPECTIVE_DATA = {
     }
   ],
   "summaryNote": "Age and sex are restated from the patient record. Each number opens its source.",
+  "readingsNote": "Sample readings for illustration. The BP of 160/100 on 2026-03-12 is the only reading from the record.",
   "measures": [
     {
-      "label": "RR"
+      "label": "RR",
+      "readings": [
+        {
+          "date": "2020-02-15",
+          "values": [
+            14
+          ],
+          "text": "14",
+          "synthetic": true
+        },
+        {
+          "date": "2021-03-10",
+          "values": [
+            16
+          ],
+          "text": "16",
+          "synthetic": true
+        },
+        {
+          "date": "2022-05-01",
+          "values": [
+            15
+          ],
+          "text": "15",
+          "synthetic": true
+        },
+        {
+          "date": "2023-06-06",
+          "values": [
+            16
+          ],
+          "text": "16",
+          "synthetic": true
+        },
+        {
+          "date": "2024-06-18",
+          "values": [
+            15
+          ],
+          "text": "15",
+          "synthetic": true
+        },
+        {
+          "date": "2025-01-14",
+          "values": [
+            16
+          ],
+          "text": "16",
+          "synthetic": true
+        },
+        {
+          "date": "2025-09-09",
+          "values": [
+            15
+          ],
+          "text": "15",
+          "synthetic": true
+        },
+        {
+          "date": "2026-01-20",
+          "values": [
+            17
+          ],
+          "text": "17",
+          "synthetic": true
+        }
+      ]
     },
     {
-      "label": "HR"
+      "label": "HR",
+      "readings": [
+        {
+          "date": "2020-02-15",
+          "values": [
+            76
+          ],
+          "text": "76",
+          "synthetic": true
+        },
+        {
+          "date": "2021-03-10",
+          "values": [
+            80
+          ],
+          "text": "80",
+          "synthetic": true
+        },
+        {
+          "date": "2022-05-01",
+          "values": [
+            84
+          ],
+          "text": "84",
+          "synthetic": true
+        },
+        {
+          "date": "2023-06-06",
+          "values": [
+            78
+          ],
+          "text": "78",
+          "synthetic": true
+        },
+        {
+          "date": "2024-06-18",
+          "values": [
+            74
+          ],
+          "text": "74",
+          "synthetic": true
+        },
+        {
+          "date": "2025-01-14",
+          "values": [
+            80
+          ],
+          "text": "80",
+          "synthetic": true
+        },
+        {
+          "date": "2025-09-09",
+          "values": [
+            82
+          ],
+          "text": "82",
+          "synthetic": true
+        },
+        {
+          "date": "2026-01-20",
+          "values": [
+            86
+          ],
+          "text": "86",
+          "synthetic": true
+        }
+      ]
     },
     {
       "label": "BP",
       "ev": "e09",
       "value": "160/100",
-      "date": "2026-03-12"
+      "date": "2026-03-12",
+      "readings": [
+        {
+          "date": "2020-02-15",
+          "values": [
+            138,
+            88
+          ],
+          "text": "138/88",
+          "synthetic": true
+        },
+        {
+          "date": "2021-03-10",
+          "values": [
+            152,
+            96
+          ],
+          "text": "152/96",
+          "synthetic": true
+        },
+        {
+          "date": "2022-05-01",
+          "values": [
+            148,
+            94
+          ],
+          "text": "148/94",
+          "synthetic": true
+        },
+        {
+          "date": "2023-06-06",
+          "values": [
+            144,
+            92
+          ],
+          "text": "144/92",
+          "synthetic": true
+        },
+        {
+          "date": "2024-06-18",
+          "values": [
+            142,
+            90
+          ],
+          "text": "142/90",
+          "synthetic": true
+        },
+        {
+          "date": "2025-01-14",
+          "values": [
+            146,
+            94
+          ],
+          "text": "146/94",
+          "synthetic": true
+        },
+        {
+          "date": "2025-09-09",
+          "values": [
+            150,
+            96
+          ],
+          "text": "150/96",
+          "synthetic": true
+        },
+        {
+          "date": "2026-01-20",
+          "values": [
+            154,
+            98
+          ],
+          "text": "154/98",
+          "synthetic": true
+        },
+        {
+          "date": "2026-03-12",
+          "values": [
+            160,
+            100
+          ],
+          "text": "160/100"
+        }
+      ]
     },
     {
-      "label": "Temp"
+      "label": "Temp",
+      "readings": [
+        {
+          "date": "2020-02-15",
+          "values": [
+            36.6
+          ],
+          "text": "36.6",
+          "synthetic": true
+        },
+        {
+          "date": "2021-03-10",
+          "values": [
+            36.8
+          ],
+          "text": "36.8",
+          "synthetic": true
+        },
+        {
+          "date": "2022-05-01",
+          "values": [
+            36.7
+          ],
+          "text": "36.7",
+          "synthetic": true
+        },
+        {
+          "date": "2023-06-06",
+          "values": [
+            36.9
+          ],
+          "text": "36.9",
+          "synthetic": true
+        },
+        {
+          "date": "2024-06-18",
+          "values": [
+            36.6
+          ],
+          "text": "36.6",
+          "synthetic": true
+        },
+        {
+          "date": "2025-01-14",
+          "values": [
+            36.8
+          ],
+          "text": "36.8",
+          "synthetic": true
+        },
+        {
+          "date": "2025-09-09",
+          "values": [
+            36.7
+          ],
+          "text": "36.7",
+          "synthetic": true
+        },
+        {
+          "date": "2026-01-20",
+          "values": [
+            36.9
+          ],
+          "text": "36.9",
+          "synthetic": true
+        }
+      ]
     },
     {
-      "label": "SpO₂"
+      "label": "SpO₂",
+      "readings": [
+        {
+          "date": "2020-02-15",
+          "values": [
+            98
+          ],
+          "text": "98",
+          "synthetic": true
+        },
+        {
+          "date": "2021-03-10",
+          "values": [
+            98
+          ],
+          "text": "98",
+          "synthetic": true
+        },
+        {
+          "date": "2022-05-01",
+          "values": [
+            97
+          ],
+          "text": "97",
+          "synthetic": true
+        },
+        {
+          "date": "2023-06-06",
+          "values": [
+            97
+          ],
+          "text": "97",
+          "synthetic": true
+        },
+        {
+          "date": "2024-06-18",
+          "values": [
+            98
+          ],
+          "text": "98",
+          "synthetic": true
+        },
+        {
+          "date": "2025-01-14",
+          "values": [
+            97
+          ],
+          "text": "97",
+          "synthetic": true
+        },
+        {
+          "date": "2025-09-09",
+          "values": [
+            96
+          ],
+          "text": "96",
+          "synthetic": true
+        },
+        {
+          "date": "2026-01-20",
+          "values": [
+            96
+          ],
+          "text": "96",
+          "synthetic": true
+        }
+      ]
     }
   ],
   "events": [

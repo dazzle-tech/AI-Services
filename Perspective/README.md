@@ -24,13 +24,18 @@ Then open http://127.0.0.1:8770/index.html.
 
 1. Watch the story. A circle starts at the requested date and walks slowly along the line. Each milestone and its card appear, with animation, as the circle reaches it. Play story pauses, resumes, and replays the walk.
 2. Press a circle (or a number in the summary). The view zooms into that date and a new story line starts. The circle walks through every event on that date, and each card shows its detail and source. A date with nothing more says "No further detail in the record". Use Earlier date and Later date to move between dates, and Back to story (or Esc) to zoom out. The main walk picks up where it paused.
-3. Switch the role (Physician, Nurse, Radiologist, Cardiologist) and the objective. Circles resize and the "why it matters" lines change. The summary stays the same.
-4. Choose a period (2020, 2022, 2024, This admission) or set a date in "Start from". The line starts at that date and the walk restarts from there; earlier events stay to the left, greyed.
-5. Use "Highlight by type" to dim events without removing them.
-6. Keyboard: Tab to a circle, Left and Right to move between milestones that have appeared, Enter to zoom in, Esc to zoom out.
+3. Watch the charts in the row between the story and the body model. The charts update as the circle walks. There is one chart per vital sign. A cursor follows the walking circle across the dates, and a chart draws its line (or point) as the cursor passes each reading. The readout beside the name shows the latest reading so far. A vital sign with no recorded reading says "Not documented". Press a chart with a reading to zoom into its date.
+4. Switch the role (Physician, Nurse, Radiologist, Cardiologist) and the objective. Circles resize and the "why it matters" lines change. The summary stays the same.
+5. Choose a period (2020, 2022, 2024, This admission) or set a date in "Start from". The line and the charts start at that date and the walk restarts from there; earlier events stay to the left, greyed.
+6. Use "Highlight by type" to dim events without removing them.
+7. Press the moon button (top right) for dark mode, and the sun to come back. The choice is remembered in the browser, and the first visit follows the system setting.
+8. Look at the Patient overview below the story. It is an AR-style panel: a shaded body model with a pulsing marker on the chest, a leader line to the "Chest pain" card, accordions for medical history, allergies, immunizations, current medications, treatment plan, lab results and notes on both sides of the body. Every item shows only what the record holds ("Not documented" otherwise), follows the chosen role and objective, and opens its date in the zoomed story when pressed. The panel follows light and dark mode.
+9. Keyboard: Tab to a circle, Left and Right to move between milestones that have appeared, Enter to zoom in, Esc to zoom out.
 
 If the system asks for reduced motion, every milestone appears at once and zooming has no animation; Play story still walks the line on request.
 
 ## Data and rules
 
-`prototype/data/patient.json` holds a fictional patient built from the acceptance chart. The prototype uses only those facts: a missing fact reads "not documented", one troponin stays one troponin, blood pressure stays `160/100`, and nothing recommends an order or a treatment. If you edit `patient.json`, regenerate `patient.js` so the double-click version matches.
+`prototype/data/patient.json` holds a fictional patient built from the acceptance chart. The prototype uses only those facts: a missing fact reads "not documented", one troponin stays one troponin, blood pressure stays `160/100`, and nothing recommends an order or a treatment.
+
+The chart data lives in `measures[].readings` as `{ "date", "values", "text", "synthetic" }`. The record holds one reading, BP `160/100` on 2026-03-12. All other readings (RR, HR, Temp, SpO₂, and the earlier BP values) are made-up sample data so the charts have something to draw. They carry `"synthetic": true`, show hollow points, sit under a "Sample" tag, and the note under the chart row says so. They end on 2026-01-20, before the admission, so nothing contradicts the admission day, and they carry no units. Delete the `synthetic` readings from `patient.json` (and regenerate `patient.js`) to return to record-only charts. If you edit `patient.json`, regenerate `patient.js` so the double-click version matches.
