@@ -277,9 +277,9 @@ The caller already chose the document type: {document_type}. Do not reclassify i
 Extract only these fields into extracted_fields: {fields}.
 Use only information present in the document text. Never fabricate values -- use null for
 anything not present. Preserve numeric values and units exactly as written.
-Write every date field as numeric DD/MM/YYYY (day/month/year) with no time of day, even when
-the document prints it in another format or spells the month out (2026-11-10, "10 Nov 2026"
-and "10/11/2026 07:10 PM" all become 10/11/2026).
+Write every date field as numeric YYYY-MM-DD with no time of day, even when the document
+prints it in another format or spells the month out (2026-11-10, "10 Nov 2026" and
+"10/11/2026 07:10 PM" all become 2026-11-10).
 
 Keep the JSON compact:
 - Do NOT copy the full source document into any field.

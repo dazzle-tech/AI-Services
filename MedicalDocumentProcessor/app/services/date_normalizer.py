@@ -206,7 +206,7 @@ def parse_any_date(value: Optional[str]) -> Optional[date]:
 
 
 def format_output_date(value: Optional[str]) -> Optional[str]:
-    """A date as numeric ``DD/MM/YYYY``: no time, no month names, whatever the input form.
+    """A date as numeric ``YYYY-MM-DD``: no time, no month names, whatever the input form.
 
     Text that holds no recognizable date is returned unchanged.
     """
@@ -218,7 +218,7 @@ def format_output_date(value: Optional[str]) -> Optional[str]:
     parsed = parse_any_date(text)
     if parsed is None:
         return text
-    return f"{parsed.day:02d}/{parsed.month:02d}/{parsed.year:04d}"
+    return parsed.isoformat()
 
 
 def find_document_date(text: str, birth_date: Optional[date] = None, today: Optional[date] = None) -> Optional[date]:

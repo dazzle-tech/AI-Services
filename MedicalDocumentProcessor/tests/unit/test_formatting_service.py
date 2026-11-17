@@ -35,7 +35,7 @@ class TestFormattingServiceLabResult:
         assert structured_data["documentType"] == "lab_result"
         row = structured_data["results"][0]
         assert row["testName"] == "WBC"
-        assert row["resultDate"] == "01/08/2026"
+        assert row["resultDate"] == "2026-08-01"
         assert row["resultValue"] == "11.2"
         assert row["normalRangeValue"] == "4.0 - 11.0"
         assert row["marker"] == "UPPER_LIMIT"
@@ -85,7 +85,7 @@ class TestFormattingServiceRadiology:
         report = structured_data["reports"][0]
         assert structured_data["documentType"] == "radiology_report"
         assert report["testName"] == "X-Ray Chest"
-        assert report["reportDate"] == "20/07/2026"
+        assert report["reportDate"] == "2026-07-20"
         assert report["report"] == (
             "<p><strong>Findings:</strong> No acute process.</p>"
             "<p><strong>Impression:</strong> Normal.</p>"
