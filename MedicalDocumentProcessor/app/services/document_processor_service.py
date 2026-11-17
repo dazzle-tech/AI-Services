@@ -16,7 +16,7 @@ from app.models.schemas import (
     PatientInfo,
     ProcessDocumentResponse,
 )
-from app.services.date_normalizer import normalize_dates, parse_birth_date
+from app.services.date_normalizer import format_output_date, normalize_dates, parse_birth_date
 from app.services.formatting_service import FormattingService
 from app.services.relevance_service import RelevanceService
 from app.services.translation_service import TranslationService
@@ -113,7 +113,7 @@ class DocumentProcessorService:
                     "stage": "relevance_check",
                     "detected_format": extraction.detected_format,
                     "apparent_document_type": relevance.apparent_document_type,
-                    "document_date": relevance.document_date,
+                    "document_date": format_output_date(relevance.document_date),
                     "relevance_window_days": relevance.relevance_window_days,
                     "date_normalization": date_metadata,
                 },

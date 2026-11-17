@@ -109,3 +109,36 @@ class TestRelevanceUsesTheNormalizedText:
         assert outcome.is_relevant is True
         assert outcome.reason is None
         assert outcome.document_date == today.isoformat()
+
+
+import pytest as _pytest
+
+from app.models.schemas import LabResultEntry, PrescriptionData
+from app.services.date_normalizer import format_output_date as _format_output_date
+
+
+@_pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("2026-11-10", "10/11/2026"),
+        ("2026-11-10T19:10:00Z", "10/11/2026"),
+        ("10/11/2026 07:10 PM", "10/11/2026"),
+        ("12/24/2026", "24/12/2026"),
+        ("5/6/2026", "05/06/2026"),
+        ("10 November 2026", "10/11/2026"),
+        ("10th Nov, 2026", "10/11/2026"),
+        ("November 10, 2026 7:10 PM", "10/11/2026"),
+        ("Tuesday, 3 March 2026", "03/03/2026"),
+        ("10.11.2026", "10/11/2026"),
+        ("unknown", "unknown"),
+        ("", None),
+        (None, None),
+    ],
+)
+def test_format_output_date_is_numeric_day_month_year(raw, expected):
+    assert _format_output_date(raw) == expected
+
+
+def test_structured_dates_are_returned_as_day_month_year():
+    assert LabResultEntry(testName="AST", resultDate="2026-11-10 19:10").result_date == "10/11/2026"
+    assert PrescriptionData(prescription_date="March 3, 2026").prescription_date == "03/03/2026"

@@ -7,6 +7,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from app.services.date_normalizer import format_output_date
+
 
 # ---------------------------------------------------------------------------
 # Patient metadata
@@ -137,6 +139,11 @@ class LabResultEntry(BaseModel):
     marker: LabMarker = "UNKNOWN"
     physician_name: Optional[str] = Field(None, alias="physicianName")
 
+    @field_validator("result_date", mode="before")
+    @classmethod
+    def _result_date_dmy(cls, value: Any) -> Optional[str]:
+        return format_output_date(value)
+
 
 class LabResultData(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
@@ -156,6 +163,11 @@ class RadiologyReportEntry(BaseModel):
     critical_findings: Optional[str] = Field(None, alias="criticalFindings")
     radiologist_comments: Optional[str] = Field(None, alias="radiologistComments")
     physician_name: Optional[str] = Field(None, alias="physicianName")
+
+    @field_validator("report_date", mode="before")
+    @classmethod
+    def _report_date_dmy(cls, value: Any) -> Optional[str]:
+        return format_output_date(value)
 
 
 class RadiologyReportData(BaseModel):
@@ -182,6 +194,11 @@ class PrescriptionData(BaseModel):
     prescribing_provider: Optional[str] = None
     medications: List[PrescriptionMedicationEntry] = Field(default_factory=list)
 
+    @field_validator("prescription_date", mode="before")
+    @classmethod
+    def _prescription_date_dmy(cls, value: Any) -> Optional[str]:
+        return format_output_date(value)
+
 
 class ClinicalNoteData(BaseModel):
     document_type: Literal["clinical_note", "physician_note"] = "clinical_note"
@@ -192,6 +209,11 @@ class ClinicalNoteData(BaseModel):
     objective: Optional[str] = None
     assessment: Optional[str] = None
     plan: Optional[str] = None
+
+    @field_validator("note_date", mode="before")
+    @classmethod
+    def _note_date_dmy(cls, value: Any) -> Optional[str]:
+        return format_output_date(value)
 
 
 class GenericDocumentData(BaseModel):

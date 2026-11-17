@@ -146,6 +146,81 @@ def normalize_dates(text: str, birth_date: Optional[date] = None) -> DateNormali
     )
 
 
+_MONTHS = {
+    name: index
+    for index, names in enumerate(
+        (
+            ("january", "jan"), ("february", "feb"), ("march", "mar"), ("april", "apr"),
+            ("may",), ("june", "jun"), ("july", "jul"), ("august", "aug"),
+            ("september", "sep", "sept"), ("october", "oct"), ("november", "nov"),
+            ("december", "dec"),
+        ),
+        start=1,
+    )
+    for name in names
+}
+_MONTH_WORD = r"(" + "|".join(sorted(_MONTHS, key=len, reverse=True)) + r")\.?"
+_ORDINAL = r"(?:st|nd|rd|th)?"
+# 10 November 2026 / 10th Nov, 2026 / Tuesday 10 November 2026
+_DAY_MONTH_WORD = re.compile(
+    rf"(?<!\d)(\d{{1,2}}){_ORDINAL}\s*(?:of\s+)?{_MONTH_WORD}\s*,?\s*(\d{{4}})(?!\d)", re.IGNORECASE
+)
+# November 10, 2026 / Nov 10th 2026
+_MONTH_WORD_DAY = re.compile(
+    rf"{_MONTH_WORD}\s+(\d{{1,2}}){_ORDINAL}\s*,?\s*(\d{{4}})(?!\d)", re.IGNORECASE
+)
+# Year-first date, with or without a trailing time: 2026-11-10, 2026-11-10T19:10:00Z
+_OUTPUT_ISO = re.compile(r"(?<![\d\-])(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?!\d)")
+
+
+def parse_any_date(value: Optional[str]) -> Optional[date]:
+    """Best-effort date from ISO, numeric slash, or written-out text. Time is ignored.
+
+    A numeric date is day first unless that is impossible (``12/24/2026`` is month first).
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+
+    match = _OUTPUT_ISO.search(text)
+    if match:
+        return _build(int(match.group(1)), int(match.group(2)), int(match.group(3)))
+
+    match = _NUMERIC_DATE.search(text)
+    if match:
+        first, second, year = int(match.group(1)), int(match.group(3)), int(match.group(4))
+        allowed = [o for o in _orders_allowed_by_numbers(first, second) if _interpret(first, second, year, o)]
+        if allowed:
+            return _interpret(first, second, year, allowed[0])
+        return None
+
+    match = _DAY_MONTH_WORD.search(text)
+    if match:
+        return _build(int(match.group(3)), _MONTHS[match.group(2).lower()], int(match.group(1)))
+    match = _MONTH_WORD_DAY.search(text)
+    if match:
+        return _build(int(match.group(3)), _MONTHS[match.group(1).lower()], int(match.group(2)))
+    return None
+
+
+def format_output_date(value: Optional[str]) -> Optional[str]:
+    """A date as numeric ``DD/MM/YYYY``: no time, no month names, whatever the input form.
+
+    Text that holds no recognizable date is returned unchanged.
+    """
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    parsed = parse_any_date(text)
+    if parsed is None:
+        return text
+    return f"{parsed.day:02d}/{parsed.month:02d}/{parsed.year:04d}"
+
+
 def find_document_date(text: str, birth_date: Optional[date] = None, today: Optional[date] = None) -> Optional[date]:
     """Latest clinical date printed in already-normalized text.
 
