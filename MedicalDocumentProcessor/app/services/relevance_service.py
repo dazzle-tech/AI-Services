@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional
 from app.ai.client import AIClient
 from app.core.config import settings
 from app.models.schemas import ExistingDocumentSummary, RelevanceOutcome
+from app.services.date_normalizer import find_document_date
 
 _DATE_FORMATS = (
     "%Y-%m-%d",
@@ -46,6 +47,7 @@ class RelevanceService:
         extracted_text: str,
         existing_documents: List[ExistingDocumentSummary],
         document_type: str,
+        birth_date: Optional[date] = None,
     ) -> RelevanceOutcome:
         relevance_windows_days = settings.relevance_windows_days
         raw = self.ai_client.classify_relevance(
@@ -54,7 +56,9 @@ class RelevanceService:
             [doc.model_dump() for doc in existing_documents],
             document_type,
         )
-        return self._normalize(raw, relevance_windows_days, document_type, extracted_text, existing_documents)
+        return self._normalize(
+            raw, relevance_windows_days, document_type, extracted_text, existing_documents, birth_date
+        )
 
     def _normalize(
         self,
@@ -63,6 +67,7 @@ class RelevanceService:
         document_type: str,
         extracted_text: str,
         existing_documents: List[ExistingDocumentSummary],
+        birth_date: Optional[date] = None,
     ) -> RelevanceOutcome:
         apparent_type = document_type
         document_date = self._text(raw.get("document_date"))
@@ -75,7 +80,9 @@ class RelevanceService:
         parsed = self._parse_date(document_date) if document_date else None
         labeled = self._labeled_date(extracted_text)
         if parsed is None:
-            parsed = labeled
+            # The model gave no usable date. Read it from the (ISO-normalized) text
+            # rather than trusting a verdict the model reached without one.
+            parsed = labeled or find_document_date(extracted_text, birth_date)
         elif (
             labeled is not None
             and window_days is not None

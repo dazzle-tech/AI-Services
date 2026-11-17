@@ -16,6 +16,7 @@ from app.models.schemas import (
     PatientInfo,
     ProcessDocumentResponse,
 )
+from app.services.date_normalizer import normalize_dates, parse_birth_date
 from app.services.formatting_service import FormattingService
 from app.services.relevance_service import RelevanceService
 from app.services.translation_service import TranslationService
@@ -64,8 +65,21 @@ class DocumentProcessorService:
 
         raw_text = extraction.text
 
+        # Every AI step reads the text with its numeric dates rewritten to ISO. The day/month
+        # order comes from the numbers, then from the patient's birth date. The response keeps
+        # the original text in raw_extracted_text.
+        birth_date = parse_birth_date(patient.date_of_birth)
+        normalized = normalize_dates(raw_text, birth_date)
+        ai_text = normalized.text
+        date_metadata = {
+            "order": normalized.order,
+            "order_source": normalized.order_source,
+            "converted": normalized.converted,
+        }
+        logger.info("Request %s date normalization: %s", request_id, date_metadata)
+
         # Step 1 -- patient-match validation.
-        validation = self.validation_service.validate(patient, raw_text)
+        validation = self.validation_service.validate(patient, ai_text)
         if not validation.is_valid:
             logger.info("Request %s failed patient-match validation: %s", request_id, validation.reason)
             return self._response(
@@ -81,11 +95,12 @@ class DocumentProcessorService:
                         detail.model_dump() for detail in validation.mismatch_details
                     ],
                     "extracted_patient_signals": validation.extracted_patient_signals,
+                    "date_normalization": date_metadata,
                 },
             )
 
         # Step 2 -- relevance check.
-        relevance = self.relevance_service.check(raw_text, existing_documents, document_type.value)
+        relevance = self.relevance_service.check(ai_text, existing_documents, document_type.value, birth_date)
         if not relevance.is_relevant:
             logger.info("Request %s marked irrelevant: %s", request_id, relevance.reason)
             return self._response(
@@ -100,12 +115,13 @@ class DocumentProcessorService:
                     "apparent_document_type": relevance.apparent_document_type,
                     "document_date": relevance.document_date,
                     "relevance_window_days": relevance.relevance_window_days,
+                    "date_normalization": date_metadata,
                 },
             )
 
         # Step 3 -- language detection + conditional translation.
-        translation = self.translation_service.process(raw_text, translate, target_language)
-        working_text = translation.translated_text if translation.translated else raw_text
+        translation = self.translation_service.process(ai_text, translate, target_language)
+        working_text = translation.translated_text if translation.translated else ai_text
 
         # Step 4 -- structured formatting for the caller-chosen document type.
         resolved_type, structured_data = self.formatting_service.format(working_text, document_type)
@@ -125,6 +141,7 @@ class DocumentProcessorService:
                 "detected_format": extraction.detected_format,
                 "model": settings.openai_model,
                 "target_language": target_language,
+                "date_normalization": date_metadata,
             },
         )
 

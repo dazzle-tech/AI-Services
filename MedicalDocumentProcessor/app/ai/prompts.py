@@ -125,7 +125,9 @@ Today's date is {today.isoformat()}. Use it, not your own sense of the current d
 out how old the document is.
 
 1. Identify the date the document pertains to (e.g. test date, study date, note date -- not
-   the upload date). Report it as an ISO date (YYYY-MM-DD). Slash dates are day/month/year
+   the upload date). The document text was normalized before it reached you: its numeric
+   dates are already ISO (YYYY-MM-DD), so read them exactly as written. Report the date as an
+   ISO date (YYYY-MM-DD). If a slash date still appears, slash dates are day/month/year
    by default (10/11/2026 is 10 November 2026), but if that reading is impossible, use
    month/day/year instead (12/24/2026 is 24 December 2026, since there is no month 24). Do not use the patient's
    date of birth or age line as the document date.
