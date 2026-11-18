@@ -218,7 +218,43 @@
     return 0;
   }
 
+  var hoverG = null;
+  function hideChartHover() {
+    if (hoverG) { hoverG.classList.remove('on'); hoverG = null; }
+    if (tip) tip.hidden = true;
+  }
+  function chartHover(e) {
+    var tr = e.target.closest ? e.target.closest('.trend') : null;
+    if (!tr) { hideChartHover(); return; }
+    var idx = [].indexOf.call(tr.parentNode.children, tr);
+    var svg = tr.querySelector('svg'), r = svg.getBoundingClientRect();
+    var x = (e.clientX - r.left) / r.width * CHW;
+    var best = null, bd = 1e9;
+    (chart.pts[idx] || []).forEach(function (p) {
+      if (p.t > chart.T) return;   // only what the line has drawn so far
+      var d = Math.abs(p.x - x);
+      if (d < bd) { bd = d; best = p; }
+    });
+    if (!best || bd > 26) { hideChartHover(); return; }
+    var g = tr.querySelector('.hv');
+    if (hoverG && hoverG !== g) hoverG.classList.remove('on');
+    hoverG = g;
+    g.querySelector('.hv-line').setAttribute('x1', best.x); g.querySelector('.hv-line').setAttribute('x2', best.x);
+    [].forEach.call(g.querySelectorAll('circle'), function (c) { c.setAttribute('cx', best.x); c.setAttribute('cy', best.y); });
+    g.classList.add('on');
+    tip.innerHTML = '<small style="margin:0 0 3px">' + esc(longDate(best.date)) + '</small><b>' + esc(DATA.measures[idx].label) + ': ' + esc(best.text) + '</b>' +
+      '<small>' + (best.synthetic ? 'Sample reading' : 'From the record') + '</small>';
+    tip.hidden = false;
+    var sx = r.left + best.x / CHW * r.width, sy = r.top + best.y / CHH * r.height;
+    var w = tip.offsetWidth, th = tip.offsetHeight;
+    tip.style.left = Math.min(window.innerWidth - w - 12, Math.max(12, sx - w / 2)) + 'px';
+    var top = sy - th - 14;
+    tip.style.top = (top < 8 ? sy + 16 : top) + 'px';
+  }
+
   function renderMeasures() {
+    $('#trends').addEventListener('mousemove', chartHover);
+    $('#trends').addEventListener('mouseleave', hideChartHover);
     $('#trends').addEventListener('click', function (e) {
       var b = e.target.closest('button[data-ev]');
       if (!b) return;
@@ -801,7 +837,7 @@
 
   /* ---------- Trend charts: they draw while the circle walks ---------- */
   var CL = 34, CR = 254, CTOP = 12, CBOT = 44, CAX = 54, CHH = 76, CHW = 260;
-  var chart = { t0: 0, t1: 1, T: 0, items: [], tw: 0 };
+  var chart = { t0: 0, t1: 1, T: 0, items: [], tw: 0, pts: [] };
 
   function dnum(s) { var p = parts(s); return Date.UTC(p.y, p.m - 1, p.d); }
   function chartX(t) {
@@ -812,6 +848,7 @@
 
   function trendSvg(m, i, rd) {
     var h = '';
+    chart.pts[i] = [];
     var vals = [];
     rd.forEach(function (r) { r.values.forEach(function (v) { vals.push(v); }); });
     var has = vals.length > 0;
@@ -820,7 +857,17 @@
     if (hi === lo) { var pad = Math.max(1, Math.abs(hi) * 0.1); lo -= pad; hi += pad; }
     var yy = function (v) { return CBOT - ((v - lo) / (hi - lo)) * (CBOT - CTOP); };
 
-    // grid lines sit on recorded values only
+    // a soft dotted grid behind the line
+    var gx, gy;
+    for (gy = 0; gy < 4; gy++) {
+      var gyv = n1(CTOP + (CBOT - CTOP) * gy / 3);
+      h += '<line class="dots" x1="' + CL + '" x2="' + CR + '" y1="' + gyv + '" y2="' + gyv + '"/>';
+    }
+    for (gx = 0; gx <= 8; gx++) {
+      var gxv = n1(CL + (CR - CL) * gx / 8);
+      h += '<line class="dots" x1="' + gxv + '" x2="' + gxv + '" y1="' + CTOP + '" y2="' + CAX + '"/>';
+    }
+    // value labels sit on recorded values only
     if (has) {
       var seen = {};
       [vmax, vmin].forEach(function (v) {
@@ -858,13 +905,16 @@
     var lines = 0;
     inWin.forEach(function (r) { lines = Math.max(lines, r.values.length); });
     var ghost = '', live = '';
+    chart.pts[i] = inWin.map(function (r) {
+      return { t: dnum(r.date), x: chartX(dnum(r.date)), y: yy(r.values[0]), date: r.date, text: r.text, synthetic: !!r.synthetic };
+    });
     if (inWin.length >= 2) {
       for (var j = 0; j < lines; j++) {
         var pts = inWin.filter(function (r) { return r.values[j] !== undefined; });
         var path = pts.map(function (r, k) { return (k ? 'L' : 'M') + n1(chartX(dnum(r.date))) + ' ' + n1(yy(r.values[j])); }).join(' ');
         ghost += '<path class="ghost" d="' + path + '"/>';
         if (lines === 1) {
-          live += '<path class="area" d="' + path + ' L' + n1(chartX(dnum(pts[pts.length - 1].date))) + ' ' + CAX + ' L' + n1(chartX(dnum(pts[0].date))) + ' ' + CAX + ' Z"/>';
+          live += '<path class="area" fill="url(#gr-' + i + ')" d="' + path + ' L' + n1(chartX(dnum(pts[pts.length - 1].date))) + ' ' + CAX + ' L' + n1(chartX(dnum(pts[0].date))) + ' ' + CAX + ' Z"/>';
         }
         live += '<path class="live-line' + (j ? ' second' : '') + '" d="' + path + '"/>';
       }
@@ -876,14 +926,17 @@
         live += '<line class="bar" x1="' + x + '" x2="' + x + '" y1="' + n1(yy(r.values[0])) + '" y2="' + n1(yy(r.values[1])) + '"/>';
       }
       r.values.forEach(function (v) {
-        ghost += '<circle class="ghost-dot" cx="' + x + '" cy="' + n1(yy(v)) + '" r="4.5"/>';
-        live += '<circle class="pt' + (r.synthetic ? ' syn' : '') + '" cx="' + x + '" cy="' + n1(yy(v)) + '" r="4.5"/>';
+        if (inWin.length >= 2) return;   // a line chart shows no markers; a lone reading is a short dash
+        ghost += '<line class="ghost" x1="' + (+x - 6) + '" x2="' + (+x + 6) + '" y1="' + n1(yy(v)) + '" y2="' + n1(yy(v)) + '"/>';
+        live += '<line class="dash-pt' + (r.synthetic ? ' syn' : '') + '" x1="' + (+x - 6) + '" x2="' + (+x + 6) + '" y1="' + n1(yy(v)) + '" y2="' + n1(yy(v)) + '"/>';
       });
     });
     h += ghost +
       '<clipPath id="cl-' + i + '"><rect class="clr" x="0" y="0" width="0" height="' + CHH + '"/></clipPath>' +
+      '<linearGradient id="gr-' + i + '" x1="0" y1="0" x2="0" y2="1"><stop class="gs0" offset="0"/><stop class="gs1" offset="1"/></linearGradient>' +
       '<g clip-path="url(#cl-' + i + ')">' + live + '</g>' +
-      '<line class="cursor" x1="' + CL + '" x2="' + CL + '" y1="6" y2="' + CAX + '"/>';
+      '<line class="cursor" x1="' + CL + '" x2="' + CL + '" y1="6" y2="' + CAX + '"/>' +
+      '<g class="hv"><line class="hv-line" x1="0" x2="0" y1="6" y2="' + CAX + '"/><circle class="hv-ring" r="6.5" cx="0" cy="0"/><circle class="hv-dot" r="2.6" cx="0" cy="0"/></g>';
     return h;
   }
 
@@ -1090,7 +1143,7 @@
     return s;
   }
 
-  function buildFigure() {
+  function buildSvgFigure() {
     var u = bodyParts();
     $('#ar-fig').innerHTML =
       '<svg class="fig-svg" viewBox="0 0 240 520" role="img" aria-label="Body outline. A marker on the chest shows where chest pain was recorded.">' +
@@ -1115,6 +1168,106 @@
       '<button type="button" class="ar-marker" id="ar-marker" aria-label="Chest. Chest pain recorded 2026-03-12. Open in the story">' +
       '<span class="ring"></span><span class="core"></span></button>' +
       '<span class="ar-marker-tag" aria-hidden="true">Chest</span>';
+  }
+
+  /* ---------- 3D body model (falls back to the drawn figure without WebGL) ---------- */
+  var body3d = null, bodyPinned = null;
+  function chestEvents() {
+    return DATA.events.filter(function (e) { return e.tags.indexOf('reason') >= 0 || e.tags.indexOf('symptom') >= 0; });
+  }
+  function bodyAreaFor(part) { return part === 'chest' ? chestEvents() : []; }
+
+  function bodyTipHtml(part, pinned) {
+    var label = (window.PerspectiveBody && PerspectiveBody.labels[part]) || part;
+    var evs = bodyAreaFor(part);
+    if (!evs.length) return '<p class="t-k">' + esc(label) + '</p><p class="nd">Not documented</p>';
+    var role = DATA.roles[state.role];
+    var html = '<p class="t-k">' + esc(label) + '<i class="t-flag">Chest pain recorded</i></p>';
+    evs.forEach(function (e) {
+      html += '<p class="t-ev"><span>' + e.date + ' · ' + esc(e.source.document) + '</span><b>' + esc(e.title) + '</b></p>';
+    });
+    var lead = evs.filter(function (e) { return e._sal === 'lead' && e._why; })[0];
+    if (lead) html += '<p class="t-why"><b>Why it matters for ' + esc(role.label) + '</b>' + esc(lead._why) + '</p>';
+    html += '<button type="button" class="t-open" data-ev="' + evs[0].id + '"' + (pinned ? '' : ' tabindex="-1"') + '>Open in the story</button>';
+    return html;
+  }
+
+  function placeTip(tipEl, x, y) {
+    var fig = $('#ar-fig'), w = fig.clientWidth, h = fig.clientHeight;
+    var tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+    var left = x + 18; if (left + tw > w - 4) left = x - tw - 18;
+    var top = y - th / 2;
+    tipEl.style.left = Math.max(4, left) + 'px';
+    tipEl.style.top = Math.max(4, Math.min(h - th - 4, top)) + 'px';
+  }
+
+  function buildFigure() {
+    var host = $('#ar-fig');
+    if (window.PerspectiveBody) {
+      host.classList.add('is3d');
+      var chev = function (d) { return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="' + d + '"/></svg>'; };
+      host.innerHTML =
+        '<div class="fig3d" id="fig3d"></div>' +
+        '<button type="button" class="ar-marker away" id="ar-marker" aria-label="Chest. Chest pain recorded 2026-03-12. Open in the story"><span class="ring"></span><span class="core"></span></button>' +
+        '<span class="ar-marker-tag away" id="ar-marker-tag" aria-hidden="true">Chest</span>' +
+        '<div class="fig-tip glass" id="fig-tip" role="status" hidden></div>' +
+        '<div class="fig-ui"><div class="fig-bar glass" role="group" aria-label="Turn the body model">' +
+        '<button type="button" data-rot="-1" aria-label="Turn left">' + chev('M15 18l-6-6 6-6') + '</button>' +
+        '<button type="button" data-view="front" aria-pressed="true">Front</button>' +
+        '<button type="button" data-view="back" aria-pressed="false">Back</button>' +
+        '<button type="button" data-rot="1" aria-label="Turn right">' + chev('M9 6l6 6-6 6') + '</button></div>' +
+        '<p class="fig-view" id="fig-view" aria-live="polite">Front view</p>' +
+        '<p class="fig-hint">Drag to turn. Point at an area.</p></div>';
+      body3d = PerspectiveBody.create($('#fig3d'), {
+        theme: document.documentElement.getAttribute('data-theme'),
+        reduced: REDUCED,
+        flagged: chestEvents().length ? ['chest'] : [],
+        anchors: { chest: [0.075, 1.30, 0.1] },
+        onFail: function () { body3d = null; host.classList.remove('is3d'); buildSvgFigure(); drawLeader(); },
+        label: '3D body model of the patient. Drag, or use the arrow keys, to turn it. The chest is marked where chest pain is recorded.',
+        onAnchors: function (a) {
+          var c = a.chest, mk = $('#ar-marker'), tg = $('#ar-marker-tag');
+          if (!c || !mk) return;
+          mk.style.left = c.x + 'px'; mk.style.top = c.y + 'px';
+          tg.style.left = (c.x + 26) + 'px'; tg.style.top = c.y + 'px';
+          mk.classList.toggle('away', !c.visible); tg.classList.toggle('away', !c.visible);
+          mk.tabIndex = c.visible ? 0 : -1;
+          drawLeader();
+        },
+        onView: function (v) {
+          var el = $('#fig-view'); if (!el) return;
+          el.textContent = v === 'front' ? 'Front view' : v === 'back' ? 'Back view' : 'Side view';
+          var fb = host.querySelector('[data-view=front]'), bb = host.querySelector('[data-view=back]');
+          if (fb) fb.setAttribute('aria-pressed', v === 'front' ? 'true' : 'false');
+          if (bb) bb.setAttribute('aria-pressed', v === 'back' ? 'true' : 'false');
+        },
+        onHover: function (part, x, y) {
+          var t = $('#fig-tip'); if (!t) return;
+          if (!part) { if (bodyPinned) { t.innerHTML = bodyTipHtml(bodyPinned, true); t.classList.add('pinned'); } else { t.hidden = true; t.classList.remove('pinned'); } return; }
+          if (bodyPinned && part !== bodyPinned) { /* a hover preview replaces the pinned card until the pointer leaves */ }
+          t.classList.toggle('pinned', part === bodyPinned);
+          t.innerHTML = bodyTipHtml(part, part === bodyPinned);
+          t.hidden = false; placeTip(t, x, y);
+        },
+        onPick: function (part, x, y) {
+          var t = $('#fig-tip'); if (!t) return;
+          bodyPinned = part;
+          if (!part) { t.hidden = true; t.classList.remove('pinned'); return; }
+          t.innerHTML = bodyTipHtml(part, true); t.classList.add('pinned'); t.hidden = false; placeTip(t, x, y);
+          var live = $('#live'); if (live) live.textContent = (PerspectiveBody.labels[part] || part) + (bodyAreaFor(part).length ? ': chest pain recorded.' : ': not documented.');
+        }
+      });
+      if (body3d) {
+        new MutationObserver(function () { body3d.setTheme(document.documentElement.getAttribute('data-theme')); })
+          .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        if ('IntersectionObserver' in window) {
+          new IntersectionObserver(function (es) { body3d.setActive(es.some(function (x) { return x.isIntersecting; })); }).observe(host);
+        }
+        return;
+      }
+      host.classList.remove('is3d');
+    }
+    buildSvgFigure();
   }
 
   function ovItems(list, emptyText) {
@@ -1184,7 +1337,7 @@
   }
   function drawLeader() {
     var stage = $('#ar-stage'), mk = $('#ar-marker'), call = $('#ar-call'), path = $('#ar-leader'), dot = $('#ar-leader-dot');
-    if (!stage || !mk || !call || window.innerWidth <= 1180) { if (path) { path.setAttribute('d', ''); dot.setAttribute('r', 0); } return; }
+    if (!stage || !mk || !call || window.innerWidth <= 1180 || mk.classList.contains('away')) { if (path) { path.setAttribute('d', ''); dot.setAttribute('r', 0); } return; }
     var a = stagePos(mk, stage), b = stagePos(call, stage);
     var x1 = a.x + mk.offsetWidth / 2, y1 = a.y + mk.offsetHeight / 2;
     var x2 = b.x + call.offsetWidth, y2 = b.y + Math.min(call.offsetHeight / 2, 70);
@@ -1215,6 +1368,12 @@
         acc.setAttribute('aria-expanded', ovOpen[key] ? 'true' : 'false');
         return;
       }
+      var rb = e.target.closest('[data-rot],[data-view]');
+      if (rb && body3d) {
+        if (rb.hasAttribute('data-rot')) body3d.rotateBy(+rb.getAttribute('data-rot') * Math.PI / 4);
+        else body3d.snapTo(rb.getAttribute('data-view') === 'back' ? Math.PI : 0);
+        return;
+      }
       var t = e.target.closest('[data-ev]');
       if (t) { openFromOverview(t.getAttribute('data-ev'), t); return; }
       var mk = e.target.closest('#ar-marker');
@@ -1225,10 +1384,18 @@
       if (c && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openFromOverview(c.getAttribute('data-ev'), c); }
     });
     var hot = function (on) { var c = $('#ar-call'), p = $('#ar-leader'); if (c) c.classList.toggle('hot', on); if (p) p.classList.toggle('hot', on); };
-    root.addEventListener('mouseover', function (e) { if (e.target.closest('#ar-marker')) hot(true); });
-    root.addEventListener('mouseout', function (e) { if (e.target.closest('#ar-marker')) hot(false); });
-    root.addEventListener('focusin', function (e) { if (e.target.closest('#ar-marker')) hot(true); });
-    root.addEventListener('focusout', function (e) { if (e.target.closest('#ar-marker')) hot(false); });
+    var markerTip = function (on) {
+      var t = $('#fig-tip'), mk = $('#ar-marker');
+      if (!body3d || !t || !mk) return;
+      if (on) {
+        t.innerHTML = bodyTipHtml('chest', false); t.classList.remove('pinned'); t.hidden = false;
+        placeTip(t, parseFloat(mk.style.left) || 0, parseFloat(mk.style.top) || 0);
+      } else if (!bodyPinned) t.hidden = true;
+    };
+    root.addEventListener('mouseover', function (e) { if (e.target.closest('#ar-marker')) { hot(true); markerTip(true); } });
+    root.addEventListener('mouseout', function (e) { if (e.target.closest('#ar-marker')) { hot(false); markerTip(false); } });
+    root.addEventListener('focusin', function (e) { if (e.target.closest('#ar-marker')) { hot(true); markerTip(true); } });
+    root.addEventListener('focusout', function (e) { if (e.target.closest('#ar-marker')) { hot(false); markerTip(false); } });
 
     var enter = function () { root.classList.add('in'); setTimeout(drawLeader, 60); };
     if (REDUCED || !('IntersectionObserver' in window)) enter();

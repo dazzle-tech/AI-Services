@@ -43,6 +43,11 @@
     </div>
   </header>
 
+  <div class="dock" id="dock">
+    <section class="trends" id="trends" aria-label="Measures over the story. This strip stays at the top while you scroll"></section>
+    <p class="trends-note" id="trends-note"></p>
+  </div>
+
   <main>
     <section class="summary card" aria-labelledby="summary-title">
       <div class="sum-text">
@@ -130,9 +135,6 @@
       <div class="progress" aria-hidden="true"><i id="progress"></i></div>
     </section>
 
-    <section class="trends" id="trends" aria-label="Measures over the story, between the story and the body"></section>
-    <p class="trends-note" id="trends-note"></p>
-
     <section class="ar" id="overview" aria-labelledby="ar-title">
       <div class="ar-stage" id="ar-stage">
         <div class="ar-top">
@@ -154,6 +156,9 @@
   <div class="tip" id="tip" role="tooltip" hidden></div>
   <p class="sr-only" id="live" aria-live="polite"></p>
 
+  <script src="vendor/three.min.js"></script>
+  <script src="models/body-muscles.js"></script>
+  <script src="body3d.js"></script>
   <script src="data/patient.js"></script>
   <script src="app.js"></script>
 </body>
