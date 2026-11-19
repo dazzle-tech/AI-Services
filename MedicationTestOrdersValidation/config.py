@@ -61,8 +61,9 @@ Analyze for:
 Rules:
 - Do not invent allergies that are not in the input
 - Empty allergies means no allergy-based findings
-- Non-medication allergenType values (FOOD, ANIMAL, etc.) only matter if clinically relevant to the ordered medications
-- Prefer ACTIVE MEDICATION allergies when judging drug safety
+- Allergy fields may use preferred CMS enum/LOV values or custom free-text; interpret custom values clinically when possible
+- Non-medication allergenType values (FOOD, ANIMAL, custom types, etc.) only matter if clinically relevant to the ordered medications
+- Prefer ACTIVE MEDICATION allergies when judging drug safety; treat custom status values as non-actionable unless clearly equivalent to ACTIVE
 
 Provide structured JSON output with:
 - Overall safety status (SAFE/CAUTION/CONTRAINDICATED)

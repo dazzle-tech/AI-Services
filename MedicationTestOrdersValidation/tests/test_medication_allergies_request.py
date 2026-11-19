@@ -57,14 +57,37 @@ def test_allergies_accepted_with_cms_shape():
     assert request.allergies[0].status == "ACTIVE"
 
 
-def test_invalid_allergen_type_rejected():
+def test_custom_values_outside_enum_and_lov_are_accepted():
+    request = MedicationValidationRequest(
+        **_base_payload(
+            allergies=[
+                {
+                    "allergenName": "Penicillin",
+                    "allergenType": "DRUG",
+                    "severity": "Very Severe",
+                    "criticality": "Medium Criticality",
+                    "allergicReactions": ["Unknown Reaction", "Custom Rash"],
+                    "status": "CURRENT",
+                }
+            ]
+        )
+    )
+    allergy = request.allergies[0]
+    assert allergy.allergenType == "DRUG"
+    assert allergy.severity == "Very Severe"
+    assert allergy.criticality == "Medium Criticality"
+    assert allergy.allergicReactions == ["Unknown Reaction", "Custom Rash"]
+    assert allergy.status == "CURRENT"
+
+
+def test_blank_allergy_fields_rejected():
     with pytest.raises(ValidationError):
         MedicationValidationRequest(
             **_base_payload(
                 allergies=[
                     {
                         "allergenName": "Penicillin",
-                        "allergenType": "DRUG",
+                        "allergenType": "   ",
                         "severity": "SEVERE",
                         "criticality": "High Criticality",
                         "allergicReactions": ["Anaphylaxis"],
@@ -75,7 +98,7 @@ def test_invalid_allergen_type_rejected():
         )
 
 
-def test_invalid_allergic_reaction_rejected():
+def test_blank_allergic_reaction_rejected():
     with pytest.raises(ValidationError):
         MedicationValidationRequest(
             **_base_payload(
@@ -85,7 +108,7 @@ def test_invalid_allergic_reaction_rejected():
                         "allergenType": "MEDICATION",
                         "severity": "SEVERE",
                         "criticality": "High Criticality",
-                        "allergicReactions": ["Unknown Reaction"],
+                        "allergicReactions": ["  "],
                         "status": "ACTIVE",
                     }
                 ]

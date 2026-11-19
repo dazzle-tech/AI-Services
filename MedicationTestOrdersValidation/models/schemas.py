@@ -1,40 +1,50 @@
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Dict, Any, Literal
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 
-AllergenType = Literal[
-    "ENVIRONMENTAL_FACTOR",
-    "MATERIAL",
-    "MEDICATION",
-    "FOOD",
-    "UNKNOWN",
-    "CHEMICALS",
-    "OTHER",
-    "ANIMAL",
-    "INSECT_STING",
-]
+# Preferred CMS enum/LOV values for medication allergies.
+# Request fields accept these and any other non-blank string.
+PREFERRED_ALLERGEN_TYPES = frozenset(
+    {
+        "ENVIRONMENTAL_FACTOR",
+        "MATERIAL",
+        "MEDICATION",
+        "FOOD",
+        "UNKNOWN",
+        "CHEMICALS",
+        "OTHER",
+        "ANIMAL",
+        "INSECT_STING",
+    }
+)
 
-AllergySeverity = Literal[
-    "NOTHING",
-    "CRITICAL",
-    "SEVERE",
-    "MODERATE",
-    "MILD_MINOR",
-]
+PREFERRED_ALLERGY_SEVERITIES = frozenset(
+    {
+        "NOTHING",
+        "CRITICAL",
+        "SEVERE",
+        "MODERATE",
+        "MILD_MINOR",
+    }
+)
 
-AllergyCriticality = Literal[
-    "Low Criticality",
-    "High Criticality",
-]
+PREFERRED_ALLERGY_CRITICALITIES = frozenset(
+    {
+        "Low Criticality",
+        "High Criticality",
+    }
+)
 
-AllergyStatus = Literal[
-    "CANCELLED",
-    "RESOLVED",
-    "ACTIVE",
-]
+PREFERRED_ALLERGY_STATUSES = frozenset(
+    {
+        "CANCELLED",
+        "RESOLVED",
+        "ACTIVE",
+    }
+)
 
-ALLOWED_ALLERGIC_REACTIONS = frozenset(
+PREFERRED_ALLERGIC_REACTIONS = frozenset(
     {
         "Chest Tightness",
         "Angioedema",
@@ -59,6 +69,18 @@ ALLOWED_ALLERGIC_REACTIONS = frozenset(
         "Vomiting",
     }
 )
+
+# Backwards-compatible alias used by older imports/tests.
+ALLOWED_ALLERGIC_REACTIONS = PREFERRED_ALLERGIC_REACTIONS
+
+
+def _require_non_blank_str(value: Any, field_name: str) -> str:
+    if value is None:
+        raise ValueError(f"{field_name} cannot be empty")
+    cleaned = str(value).strip()
+    if not cleaned:
+        raise ValueError(f"{field_name} cannot be empty")
+    return cleaned
 
 
 class Patient(BaseModel):
@@ -223,35 +245,72 @@ class Diagnosis(BaseModel):
 
 
 class MedicationAllergy(BaseModel):
-    """Patient allergy for medication validation (CMS allergy shape)."""
+    """Patient allergy for medication validation (CMS allergy shape).
+
+    Preferred enum/LOV values are documented in PREFERRED_* constants, but any
+    non-blank string is accepted for allergenType, severity, criticality,
+    allergicReactions, and status so upstream systems can send custom values.
+    """
     allergenName: str = Field(..., description="Allergen name")
-    allergenType: AllergenType = Field(..., description="Allergen type enum")
-    severity: AllergySeverity = Field(..., description="Allergy severity enum")
-    criticality: AllergyCriticality = Field(..., description="Allergy criticality LOV")
+    allergenType: str = Field(
+        ...,
+        description=(
+            "Allergen type. Preferred: ENVIRONMENTAL_FACTOR, MATERIAL, MEDICATION, "
+            "FOOD, UNKNOWN, CHEMICALS, OTHER, ANIMAL, INSECT_STING. Other values allowed."
+        ),
+    )
+    severity: str = Field(
+        ...,
+        description=(
+            "Allergy severity. Preferred: NOTHING, CRITICAL, SEVERE, MODERATE, "
+            "MILD_MINOR. Other values allowed."
+        ),
+    )
+    criticality: str = Field(
+        ...,
+        description=(
+            "Allergy criticality. Preferred: Low Criticality, High Criticality. "
+            "Other values allowed."
+        ),
+    )
     allergicReactions: List[str] = Field(
         default_factory=list,
-        description="Documented allergic reactions (LOV values)",
+        description=(
+            "Documented allergic reactions. Preferred LOV values include Anaphylaxis, "
+            "Urticaria (Hives), Angioedema, Shortness of Breath, etc. Other values allowed."
+        ),
     )
-    status: AllergyStatus = Field(..., description="Allergy status; only ACTIVE is clinically actionable")
+    status: str = Field(
+        ...,
+        description=(
+            "Allergy status. Preferred: CANCELLED, RESOLVED, ACTIVE. Other values allowed; "
+            "only ACTIVE is treated as clinically actionable by the validator."
+        ),
+    )
 
-    @validator("allergenName")
-    def allergen_name_not_blank(cls, value: str) -> str:
-        cleaned = (value or "").strip()
-        if not cleaned:
-            raise ValueError("allergenName cannot be empty")
-        return cleaned
+    @validator("allergenName", pre=True)
+    def strip_allergen_name(cls, value):
+        return _require_non_blank_str(value, "allergenName")
+
+    @validator("allergenType", pre=True)
+    def strip_allergen_type(cls, value):
+        return _require_non_blank_str(value, "allergenType")
+
+    @validator("severity", pre=True)
+    def strip_severity(cls, value):
+        return _require_non_blank_str(value, "severity")
+
+    @validator("criticality", pre=True)
+    def strip_criticality(cls, value):
+        return _require_non_blank_str(value, "criticality")
+
+    @validator("status", pre=True)
+    def strip_status(cls, value):
+        return _require_non_blank_str(value, "status")
 
     @validator("allergicReactions", each_item=True)
     def validate_allergic_reaction(cls, value: str) -> str:
-        cleaned = (value or "").strip()
-        if not cleaned:
-            raise ValueError("allergicReactions entries cannot be empty")
-        if cleaned not in ALLOWED_ALLERGIC_REACTIONS:
-            raise ValueError(
-                f"Invalid allergic reaction '{cleaned}'. "
-                f"Allowed: {sorted(ALLOWED_ALLERGIC_REACTIONS)}"
-            )
-        return cleaned
+        return _require_non_blank_str(value, "allergicReactions")
 
 
 class MedicationValidationRequest(BaseModel):

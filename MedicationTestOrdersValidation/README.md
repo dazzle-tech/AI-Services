@@ -149,13 +149,14 @@ POST /api/v1/validate/medication
 each medication string.
 
 `allergies` is optional (defaults to `[]`). Only `status: "ACTIVE"` allergies are
-used clinically by the validator. Allowed enum/LOV values:
+used clinically by the validator. Preferred enum/LOV values are listed below;
+custom non-blank strings are also accepted for these fields:
 
-- `allergenType`: `ENVIRONMENTAL_FACTOR`, `MATERIAL`, `MEDICATION`, `FOOD`, `UNKNOWN`, `CHEMICALS`, `OTHER`, `ANIMAL`, `INSECT_STING`
-- `severity`: `NOTHING`, `CRITICAL`, `SEVERE`, `MODERATE`, `MILD_MINOR`
-- `criticality`: `Low Criticality`, `High Criticality`
-- `status`: `CANCELLED`, `RESOLVED`, `ACTIVE`
-- `allergicReactions`: LOV values such as `Anaphylaxis`, `Urticaria (Hives)`, `Angioedema`, `Shortness of Breath`, etc.
+- `allergenType`: preferred `ENVIRONMENTAL_FACTOR`, `MATERIAL`, `MEDICATION`, `FOOD`, `UNKNOWN`, `CHEMICALS`, `OTHER`, `ANIMAL`, `INSECT_STING`
+- `severity`: preferred `NOTHING`, `CRITICAL`, `SEVERE`, `MODERATE`, `MILD_MINOR`
+- `criticality`: preferred `Low Criticality`, `High Criticality`
+- `status`: preferred `CANCELLED`, `RESOLVED`, `ACTIVE`
+- `allergicReactions`: preferred LOV values such as `Anaphylaxis`, `Urticaria (Hives)`, `Angioedema`, `Shortness of Breath`, etc.
 
 **Response:**
 ```json
