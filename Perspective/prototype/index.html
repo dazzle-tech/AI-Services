@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Perspective · Hospital view</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231d4ed8'/%3E%3Ctext x='16' y='22' font-size='18' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3EP%3C/text%3E%3C/svg%3E" />
+  <title>Synopsis · Hospital view</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%231d4ed8'/%3E%3Ctext x='16' y='22' font-size='18' font-family='Arial' font-weight='700' text-anchor='middle' fill='white'%3ES%3C/text%3E%3C/svg%3E" />
   <script>
     (function () {
       var t = 'light';
       try {
-        t = localStorage.getItem('perspective-theme') || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        t = localStorage.getItem('synopsis-theme') || localStorage.getItem('perspective-theme') || (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       } catch (e) { /* storage unavailable */ }
       document.documentElement.setAttribute('data-theme', t);
     })();
@@ -24,8 +24,8 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="mark" aria-hidden="true">P</span>
-      <div class="brand-text"><strong>Perspective</strong><span>Hospital view</span></div>
+      <span class="mark" aria-hidden="true">S</span>
+      <div class="brand-text"><strong>Synopsis</strong><span>Hospital view</span></div>
     </div>
 
     <div class="patient" id="patient" aria-label="Patient"></div>
@@ -138,7 +138,7 @@
     <section class="ar" id="overview" aria-labelledby="ar-title">
       <div class="ar-stage" id="ar-stage">
         <div class="ar-top">
-          <div class="pill glass"><span class="pill-mark" aria-hidden="true">P</span><div><b id="ar-title">Patient overview</b><small>Record view</small></div></div>
+          <div class="pill glass"><span class="pill-mark" aria-hidden="true">S</span><div><b id="ar-title">Patient overview</b><small>Record view</small></div></div>
           <div class="pill glass" id="ar-patient"></div>
           <div class="pill glass role" id="ar-role"></div>
         </div>

@@ -1028,7 +1028,7 @@
     function apply(t, save) {
       root.setAttribute('data-theme', t);
       btn.setAttribute('aria-checked', t === 'dark' ? 'true' : 'false');
-      if (save) { try { localStorage.setItem('perspective-theme', t); } catch (e) { /* storage unavailable */ } }
+      if (save) { try { localStorage.setItem('synopsis-theme', t); } catch (e) { /* storage unavailable */ } }
     }
     apply(root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light', false);
     btn.addEventListener('click', function () {
@@ -1040,7 +1040,7 @@
     if (mq && mq.addEventListener) {
       mq.addEventListener('change', function (e) {
         var saved = null;
-        try { saved = localStorage.getItem('perspective-theme'); } catch (err) { /* ignore */ }
+        try { saved = localStorage.getItem('synopsis-theme') || localStorage.getItem('perspective-theme'); } catch (err) { /* ignore */ }
         if (!saved) apply(e.matches ? 'dark' : 'light', false);
       });
     }

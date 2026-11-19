@@ -1,4 +1,4 @@
-/* Perspective: anatomical 3D body.
+/* Synopsis: anatomical 3D body.
  *
  * Renders the packed "Human Muscles" model (Grab3D, CC0 1.0, see models/body-muscles.js and
  * tools/pack_body.py) as a translucent, blue-rimmed anatomical figure. The model is one mesh,

@@ -1,4 +1,4 @@
-# Perspective
+# Synopsis
 
 One record. The story changes with the person who is asking. The first use case is a hospital system.
 
