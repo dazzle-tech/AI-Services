@@ -89,9 +89,11 @@ async def health_check():
 async def validate_medication(request: MedicationValidationRequest) -> ValidationResponse:
     """
     Validate medications against patient data for potential conflicts.
+
+    Optional `allergies` may be included; only ACTIVE allergies are used clinically.
     
     Args:
-        request: Medication validation request containing patient and medication data
+        request: Medication validation request containing patient, medication, and optional allergy data
         
     Returns:
         ValidationResponse with safety assessment and recommendations

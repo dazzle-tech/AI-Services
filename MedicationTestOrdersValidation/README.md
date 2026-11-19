@@ -131,12 +131,31 @@ POST /api/v1/validate/medication
   ],
   "medications": [
     "Medication Name:  | Active Ingredients: Acetylsalicylic acid - 100 mg"
+  ],
+  "allergies": [
+    {
+      "allergenName": "Penicillin",
+      "allergenType": "MEDICATION",
+      "severity": "SEVERE",
+      "criticality": "High Criticality",
+      "allergicReactions": ["Anaphylaxis", "Urticaria (Hives)"],
+      "status": "ACTIVE"
+    }
   ]
 }
 ```
 
 `Medication Name:` may be empty. `Active Ingredients:` is the required part of
 each medication string.
+
+`allergies` is optional (defaults to `[]`). Only `status: "ACTIVE"` allergies are
+used clinically by the validator. Allowed enum/LOV values:
+
+- `allergenType`: `ENVIRONMENTAL_FACTOR`, `MATERIAL`, `MEDICATION`, `FOOD`, `UNKNOWN`, `CHEMICALS`, `OTHER`, `ANIMAL`, `INSECT_STING`
+- `severity`: `NOTHING`, `CRITICAL`, `SEVERE`, `MODERATE`, `MILD_MINOR`
+- `criticality`: `Low Criticality`, `High Criticality`
+- `status`: `CANCELLED`, `RESOLVED`, `ACTIVE`
+- `allergicReactions`: LOV values such as `Anaphylaxis`, `Urticaria (Hives)`, `Angioedema`, `Shortness of Breath`, etc.
 
 **Response:**
 ```json

@@ -329,20 +329,28 @@ ENCOUNTER INFORMATION:
 LIST OF DIAGNOSES:
 {self._format_diagnoses(request.listOfDiagnosis)}
 
+DOCUMENTED ALLERGIES:
+{self._format_medication_allergies(request.allergies)}
+
 MEDICATIONS TO VALIDATE:
 {self._format_medications(request.medications)}
 
 Please analyze for:
-1. Drug-drug interactions between the medications
-2. Age-appropriate dosing
-3. Gender-specific considerations
-4. Contraindications based on the diagnosis
-5. Dosage safety and appropriateness
-6. Duration concerns
-7. Any duplicate therapy
+1. ACTIVE allergy conflicts with ordered medications (direct match and cross-reactivity)
+2. Impact of allergy severity, criticality, and allergicReactions on risk ranking
+3. Drug-drug interactions between the medications
+4. Age-appropriate dosing
+5. Gender-specific considerations
+6. Contraindications based on the diagnosis
+7. Dosage safety and appropriateness
+8. Duration concerns
+9. Any duplicate therapy
 
 Medication name may be blank in the input. When that happens, use the active
 ingredients as the medication identifier for your analysis.
+
+Only allergies with status ACTIVE are clinically actionable. Ignore CANCELLED and RESOLVED.
+Do not invent allergies that are not listed above.
 
 Respond with a JSON object containing:
 {{
@@ -376,6 +384,24 @@ Respond with a JSON object containing:
         formatted = []
         for i, med in enumerate(medications, 1):
             formatted.append(f"{i}. {med}")
+        return "\n".join(formatted)
+
+    def _format_medication_allergies(self, allergies) -> str:
+        """Format medication-request allergies for the model prompt."""
+        if not allergies:
+            return "- None documented"
+
+        formatted = []
+        for i, allergy in enumerate(allergies, 1):
+            reactions = ", ".join(allergy.allergicReactions) if allergy.allergicReactions else "none listed"
+            formatted.append(
+                f"{i}. allergenName={allergy.allergenName}; "
+                f"allergenType={allergy.allergenType}; "
+                f"severity={allergy.severity}; "
+                f"criticality={allergy.criticality}; "
+                f"allergicReactions=[{reactions}]; "
+                f"status={allergy.status}"
+            )
         return "\n".join(formatted)
 
 

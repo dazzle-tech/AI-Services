@@ -25,6 +25,16 @@ SAMPLE_MEDICATION_REQUEST_1 = {
     "medications": [
         "Medication Name: EnoCap | Active Ingredients: Enalapril (C09AA02) - 10 mg | Instructions: tests | Instructions Type: Manual Instructions | Valid Until: 2025-12-02 | Is Chronic: No | Duration: 90 | Duration Type: Months | Maximum Dose: 898 | ICD-10: A8100, Creutzfeldt-Jakob disease, unspecified.",
         "Medication Name: Lopressor | Active Ingredients: Metoprolol (C07AB02) - 50 mg | Instructions Type: Pre-defined Instructions | Valid Until: 2025-12-09 | Is Chronic: No | Duration: 1 | Duration Type: Weeks | Maximum Dose: 98 | ICD-10: A001, Cholera due to Vibrio cholerae 01, biovar eltor."
+    ],
+    "allergies": [
+        {
+            "allergenName": "Penicillin",
+            "allergenType": "MEDICATION",
+            "severity": "SEVERE",
+            "criticality": "High Criticality",
+            "allergicReactions": ["Anaphylaxis", "Urticaria (Hives)"],
+            "status": "ACTIVE"
+        }
     ]
 }
 

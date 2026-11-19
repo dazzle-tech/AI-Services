@@ -1,6 +1,64 @@
 from pydantic import BaseModel, Field, validator
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 from datetime import datetime
+
+
+AllergenType = Literal[
+    "ENVIRONMENTAL_FACTOR",
+    "MATERIAL",
+    "MEDICATION",
+    "FOOD",
+    "UNKNOWN",
+    "CHEMICALS",
+    "OTHER",
+    "ANIMAL",
+    "INSECT_STING",
+]
+
+AllergySeverity = Literal[
+    "NOTHING",
+    "CRITICAL",
+    "SEVERE",
+    "MODERATE",
+    "MILD_MINOR",
+]
+
+AllergyCriticality = Literal[
+    "Low Criticality",
+    "High Criticality",
+]
+
+AllergyStatus = Literal[
+    "CANCELLED",
+    "RESOLVED",
+    "ACTIVE",
+]
+
+ALLOWED_ALLERGIC_REACTIONS = frozenset(
+    {
+        "Chest Tightness",
+        "Angioedema",
+        "Anaphylaxis",
+        "Abdominal Pain",
+        "Flushing",
+        "Dizziness",
+        "Diarrhea",
+        "Cough",
+        "Itching (Pruritus)",
+        "Hypotension",
+        "Headache",
+        "Shortness of Breath",
+        "Runny Nose (Rhinorrhea)",
+        "Rash",
+        "Nausea",
+        "Urticaria (Hives)",
+        "Tingling",
+        "Swelling",
+        "Sneezing",
+        "Wheezing",
+        "Vomiting",
+    }
+)
 
 
 class Patient(BaseModel):
@@ -164,12 +222,54 @@ class Diagnosis(BaseModel):
     value: str = Field(..., description="Diagnosis code and description")
 
 
+class MedicationAllergy(BaseModel):
+    """Patient allergy for medication validation (CMS allergy shape)."""
+    allergenName: str = Field(..., description="Allergen name")
+    allergenType: AllergenType = Field(..., description="Allergen type enum")
+    severity: AllergySeverity = Field(..., description="Allergy severity enum")
+    criticality: AllergyCriticality = Field(..., description="Allergy criticality LOV")
+    allergicReactions: List[str] = Field(
+        default_factory=list,
+        description="Documented allergic reactions (LOV values)",
+    )
+    status: AllergyStatus = Field(..., description="Allergy status; only ACTIVE is clinically actionable")
+
+    @validator("allergenName")
+    def allergen_name_not_blank(cls, value: str) -> str:
+        cleaned = (value or "").strip()
+        if not cleaned:
+            raise ValueError("allergenName cannot be empty")
+        return cleaned
+
+    @validator("allergicReactions", each_item=True)
+    def validate_allergic_reaction(cls, value: str) -> str:
+        cleaned = (value or "").strip()
+        if not cleaned:
+            raise ValueError("allergicReactions entries cannot be empty")
+        if cleaned not in ALLOWED_ALLERGIC_REACTIONS:
+            raise ValueError(
+                f"Invalid allergic reaction '{cleaned}'. "
+                f"Allowed: {sorted(ALLOWED_ALLERGIC_REACTIONS)}"
+            )
+        return cleaned
+
+
 class MedicationValidationRequest(BaseModel):
     """Request model for medication validation"""
     patient: Patient
     encounter: Encounter
     listOfDiagnosis: List[Diagnosis] = Field(..., description="List of diagnosis objects outside the encounter")
     medications: List[str] = Field(..., description="List of medications to validate")
+    allergies: List[MedicationAllergy] = Field(
+        default_factory=list,
+        description="Optional patient allergies to check against medications",
+    )
+
+    @validator("allergies", pre=True)
+    def coerce_allergies(cls, value):
+        if value is None:
+            return []
+        return value
 
     @validator("medications", each_item=True)
     def validate_medication_entry(cls, value):
@@ -215,6 +315,16 @@ class MedicationValidationRequest(BaseModel):
                 ],
                 "medications": [
                     "Medication Name:  | Active Ingredients: Acetylsalicylic acid - 100 mg"
+                ],
+                "allergies": [
+                    {
+                        "allergenName": "Penicillin",
+                        "allergenType": "MEDICATION",
+                        "severity": "SEVERE",
+                        "criticality": "High Criticality",
+                        "allergicReactions": ["Anaphylaxis", "Urticaria (Hives)"],
+                        "status": "ACTIVE"
+                    }
                 ]
             }
         }

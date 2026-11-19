@@ -46,7 +46,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"patient\": {\n    \"mrn\": \"1000\",\n    \"fullName\": \"John Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2022-02-02\"\n  },\n  \"encounter\": {\n    \"visitId\": \"160\",\n    \"visitType\": \"Urgent Visit\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Chest pain\",\n    \"patientAge\": \"3y 10m 22d\",\n    \"primaryDiagnosis\": \"I20.0,Unstable angina\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"I20.0,Unstable angina\"\n    }\n  ],\n  \"medications\": [\n    \"Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 100 mg\",\n    \"Medication Name: Warfarin | Active Ingredients: Warfarin sodium - 5 mg\"\n  ]\n}",
+          "raw": "{\n  \"patient\": {\n    \"mrn\": \"1000\",\n    \"fullName\": \"John Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2022-02-02\"\n  },\n  \"encounter\": {\n    \"visitId\": \"160\",\n    \"visitType\": \"Urgent Visit\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Chest pain\",\n    \"patientAge\": \"3y 10m 22d\",\n    \"primaryDiagnosis\": \"I20.0,Unstable angina\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"I20.0,Unstable angina\"\n    }\n  ],\n  \"medications\": [\n    \"Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 100 mg\",\n    \"Medication Name: Warfarin | Active Ingredients: Warfarin sodium - 5 mg\"\n  ],\n  \"allergies\": [\n    {\n      \"allergenName\": \"Penicillin\",\n      \"allergenType\": \"MEDICATION\",\n      \"severity\": \"SEVERE\",\n      \"criticality\": \"High Criticality\",\n      \"allergicReactions\": [\"Anaphylaxis\", \"Urticaria (Hives)\"],\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -58,7 +58,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "validate", "medication"]
         },
-        "description": "Validate medications against full patient and encounter data."
+        "description": "Validate medications against full patient, encounter, and optional allergies data."
       },
       "response": []
     },
@@ -69,7 +69,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"patient\": {\n    \"mrn\": \"1002\",\n    \"fullName\": \"Baby Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2024-01-01\"\n  },\n  \"encounter\": {\n    \"visitId\": \"162\",\n    \"visitType\": \"Urgent\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Fever\",\n    \"patientAge\": \"1y 11m\",\n    \"primaryDiagnosis\": \"R50.9,Fever\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"R50.9,Fever\"\n    }\n  ],\n  \"medications\": [\n    \"Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 325 mg\"\n  ]\n}",
+          "raw": "{\n  \"patient\": {\n    \"mrn\": \"1002\",\n    \"fullName\": \"Baby Doe\",\n    \"gender\": \"Male\",\n    \"dob\": \"2024-01-01\"\n  },\n  \"encounter\": {\n    \"visitId\": \"162\",\n    \"visitType\": \"Urgent\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Fever\",\n    \"patientAge\": \"1y 11m\",\n    \"primaryDiagnosis\": \"R50.9,Fever\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"R50.9,Fever\"\n    }\n  ],\n  \"medications\": [\n    \"Medication Name: Aspirin | Active Ingredients: Acetylsalicylic acid - 325 mg\"\n  ],\n  \"allergies\": []\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -91,7 +91,7 @@
         "header": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"patient\": {\n    \"mrn\": \"1001\",\n    \"fullName\": \"Jane Smith\",\n    \"gender\": \"Female\",\n    \"dob\": \"1980-01-01\"\n  },\n  \"encounter\": {\n    \"visitId\": \"161\",\n    \"visitType\": \"Routine\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Headache\",\n    \"patientAge\": \"45y\",\n    \"primaryDiagnosis\": \"G44.1,Tension headache\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"G44.1,Tension headache\"\n    }\n  ],\n  \"medications\": [\n    \"Medication Name: Ibuprofen | Active Ingredients: Ibuprofen - 400 mg\"\n  ]\n}",
+          "raw": "{\n  \"patient\": {\n    \"mrn\": \"1001\",\n    \"fullName\": \"Jane Smith\",\n    \"gender\": \"Female\",\n    \"dob\": \"1980-01-01\"\n  },\n  \"encounter\": {\n    \"visitId\": \"161\",\n    \"visitType\": \"Routine\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Headache\",\n    \"patientAge\": \"45y\",\n    \"primaryDiagnosis\": \"G44.1,Tension headache\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"G44.1,Tension headache\"\n    }\n  ],\n  \"medications\": [\n    \"Medication Name: Ibuprofen | Active Ingredients: Ibuprofen - 400 mg\"\n  ],\n  \"allergies\": []\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -103,6 +103,29 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "validate", "medication"]
         }
+      },
+      "response": []
+    },
+    {
+      "name": "Medication Validation - Allergy Conflict",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"patient\": {\n    \"mrn\": \"1003\",\n    \"fullName\": \"Alex Allergy\",\n    \"gender\": \"Male\",\n    \"dob\": \"1990-06-15\"\n  },\n  \"encounter\": {\n    \"visitId\": \"163\",\n    \"visitType\": \"Urgent Visit\",\n    \"plannedStartDate\": \"2025-12-24\",\n    \"chiefComplaint\": \"Infection\",\n    \"patientAge\": \"35y\",\n    \"primaryDiagnosis\": \"J06.9,Acute upper respiratory infection\"\n  },\n  \"listOfDiagnosis\": [\n    {\n      \"type\": \"Encounter Diagnosis\",\n      \"value\": \"J06.9,Acute upper respiratory infection\"\n    }\n  ],\n  \"medications\": [\n    \"Medication Name: Amoxicillin | Active Ingredients: Amoxicillin - 500 mg\"\n  ],\n  \"allergies\": [\n    {\n      \"allergenName\": \"Penicillin\",\n      \"allergenType\": \"MEDICATION\",\n      \"severity\": \"SEVERE\",\n      \"criticality\": \"High Criticality\",\n      \"allergicReactions\": [\"Anaphylaxis\", \"Urticaria (Hives)\"],\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/validate/medication",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "validate", "medication"]
+        },
+        "description": "Validate medication with an ACTIVE MEDICATION allergy that should flag cross-reactivity."
       },
       "response": []
     },
