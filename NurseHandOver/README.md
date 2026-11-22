@@ -1,6 +1,6 @@
 # NurseHandOver
 
-Stateless SBAR handoff service. Each API call takes **one patient**; the service returns a structured Situation / Background / Assessment / Recommendation summary with a rule-based priority (`critical` | `watch` | `stable`). It does **not** store charts, shifts, or confirmed handoffs.
+Stateless   SBAR handoff service. Each API call takes **one patient**; the service returns a structured Situation / Background / Assessment / Recommendation summary with a rule-based priority (`critical` | `watch` | `stable`). It does **not** store charts, shifts, or confirmed handoffs.
 
 API: http://localhost:8028  
 Docs: http://localhost:8028/docs  
