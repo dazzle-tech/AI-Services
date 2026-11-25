@@ -114,3 +114,22 @@ def test_blank_allergic_reaction_rejected():
                 ]
             )
         )
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("male", "Male"),
+        ("MALE", "Male"),
+        ("M", "Male"),
+        ("female", "Female"),
+        ("F", "Female"),
+        ("", "Unknown"),
+        (None, "Unknown"),
+    ],
+)
+def test_patient_gender_format_ignored(raw, expected):
+    payload = _base_payload()
+    payload["patient"]["gender"] = raw
+    request = MedicationValidationRequest(**payload)
+    assert request.patient.gender == expected

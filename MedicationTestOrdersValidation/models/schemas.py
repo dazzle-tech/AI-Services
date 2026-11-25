@@ -83,23 +83,54 @@ def _require_non_blank_str(value: Any, field_name: str) -> str:
     return cleaned
 
 
+# Canonical gender labels; comparison ignores case and common abbreviations.
+_GENDER_ALIASES = {
+    "male": "Male",
+    "m": "Male",
+    "man": "Male",
+    "female": "Female",
+    "f": "Female",
+    "woman": "Female",
+    "other": "Other",
+    "o": "Other",
+    "unknown": "Unknown",
+    "u": "Unknown",
+    "n/a": "Unknown",
+    "na": "Unknown",
+    "none": "Unknown",
+    "unspecified": "Unknown",
+}
+
+
+def _normalize_gender_value(value: Any, *, empty_as: Optional[str] = "Unknown") -> Optional[str]:
+    """Normalize gender without enforcing a strict input format.
+
+    Accepts case variants and common abbreviations (e.g. male/MALE/M → Male).
+    Unrecognized non-empty values are left as trimmed text so format differences
+    do not fail request validation.
+    """
+    if value is None or (isinstance(value, str) and value.strip() == ""):
+        return empty_as
+    s = value.strip() if isinstance(value, str) else str(value).strip()
+    if not s:
+        return empty_as
+    return _GENDER_ALIASES.get(s.casefold(), s)
+
+
 class Patient(BaseModel):
     """Patient information model"""
     mrn: str = Field(..., description="Medical Record Number")
     fullName: str = Field(..., description="Patient full name")
-    gender: Optional[str] = Field("Unknown", description="Patient gender (null/empty treated as Unknown)")
+    gender: Optional[str] = Field(
+        "Unknown",
+        description="Patient gender (null/empty treated as Unknown; format/case ignored)",
+    )
     dob: str = Field(..., description="Date of birth (YYYY-MM-DD)")
 
     @validator('gender', pre=True)
     def normalize_gender(cls, v):
-        """Accept null, empty, or missing; coerce to 'Unknown' then validate."""
-        if v is None or (isinstance(v, str) and v.strip() == ''):
-            return 'Unknown'
-        s = v.strip() if isinstance(v, str) else v
-        allowed = ['Male', 'Female', 'Other', 'Unknown']
-        if s not in allowed:
-            return 'Unknown'
-        return s
+        """Accept null/empty as Unknown; ignore case and common format variants."""
+        return _normalize_gender_value(v, empty_as="Unknown")
 
 
 class Encounter(BaseModel):
@@ -122,11 +153,19 @@ class Encounter(BaseModel):
 class OptionalPatient(BaseModel):
     """Optional demographics for allergy-drug checks. All fields may be omitted."""
     fullName: Optional[str] = Field(None, description="Patient full name")
-    gender: Optional[str] = Field(None, description="Patient gender")
+    gender: Optional[str] = Field(
+        None,
+        description="Patient gender (format/case ignored when present)",
+    )
     dob: Optional[str] = Field(None, description="Date of birth (YYYY-MM-DD)")
     chiefComplaint: Optional[str] = Field(None, description="Chief complaint")
     primaryDiagnosis: Optional[str] = Field(None, description="Primary diagnosis with ICD code")
     mrn: Optional[str] = None
+
+    @validator("gender", pre=True)
+    def normalize_gender(cls, v):
+        """Leave omitted gender as None; ignore case and common format variants."""
+        return _normalize_gender_value(v, empty_as=None)
 
     class Config:
         extra = "ignore"
